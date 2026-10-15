@@ -4,6 +4,7 @@ import { EditorSelection } from '@codemirror/state'
 import { createState } from '/src/app/editor/functions/create-state.js'
 import { getBlocks, granularities } from '/src/app/editor/functions/blocks/index.js'
 import { moveBlockDown } from '/src/app/editor/functions/move/index.js'
+import summary from '/src/app/metrics/functions/summary.js'
 
 // Runs the same scripted session for every granularity on the given text:
 // load, full parse into blocks, typing in the middle of the document, block moves.
@@ -13,12 +14,6 @@ import { moveBlockDown } from '/src/app/editor/functions/move/index.js'
 // 'frame' runs until the next paint, so it can never be below one display frame (~16.7 ms at 60 Hz).
 
 const nextPaint = () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)))
-
-function summary (samples) {
-  const sorted = [...samples].sort((a, b) => a - b)
-  const at = share => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * share))]
-  return { median: at(0.5), p95: at(0.95), max: sorted[sorted.length - 1] }
-}
 
 export default async function runBenchmark (view, text, { typing = 150, moves = 30, onProgress } = {}) {
   const results = []

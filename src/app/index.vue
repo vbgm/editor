@@ -35,6 +35,7 @@
 
     <Metrics
       v-bind='{
+        look: appearance,
         results
       }'
     />
