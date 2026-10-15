@@ -25,14 +25,14 @@ export default async function runBenchmark (view, text, { typing = 150, moves = 
 
   // 'no cards' is plain CodeMirror with the same document, as a baseline
   const runs = [
-    { name: 'no cards', granularity: 'element', cards: false },
+    { name: 'no cards', granularity: 'element', appearance: 'plain' },
     ...granularities.map(granularity => ({ name: granularity, granularity }))
   ]
 
-  for (const { name, granularity, cards } of runs) {
+  for (const { name, granularity, appearance } of runs) {
     onProgress?.(`${name}: loading`)
     let startedAt = performance.now()
-    view.setState(createState(text, { granularity, cards }))
+    view.setState(createState(text, { granularity, appearance }))
     await nextPaint()
     const load = performance.now() - startedAt
 

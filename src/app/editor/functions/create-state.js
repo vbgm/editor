@@ -10,8 +10,9 @@ import { granularity } from './blocks/index.js'
 import blockDecorations from './blocks/decorations.js'
 import { moveBlockUp, moveBlockDown } from './move/index.js'
 
-// Granularity can be switched without recreating the editor
+// Granularity and appearance can be switched without recreating the editor
 export const granularityCompartment = new Compartment()
+export const appearanceCompartment = new Compartment()
 
 // Classes instead of inline styles, so the look lives in LESS
 const highlightStyle = HighlightStyle.define([
@@ -28,6 +29,13 @@ const highlightStyle = HighlightStyle.define([
   { tag: [tags.processingInstruction, tags.meta, tags.contentSeparator], class: 'cm-mark' },
   { tag: tags.quote, class: 'cm-quote' }
 ])
+
+// 'cards': blocks as cards and styled Markdown
+// 'plain': bare CodeMirror (no cards, no heading sizes), as a baseline for speed
+export function appearanceExtensions (appearance) {
+  if (appearance == 'plain') return []
+  return [syntaxHighlighting(highlightStyle), blockDecorations]
+}
 
 // Files keep their own line breaks: CRLF files are saved as CRLF.
 // Files with mixed line breaks are normalized to LF (lineBreakOf returns null for them).
@@ -50,9 +58,7 @@ export function createState (text, options = {}) {
       // no drawSelection(): the browser's own caret and selection move in the same frame as the
       // text; CodeMirror's drawn cursor is positioned one frame later and feels slower
       EditorView.lineWrapping,
-      syntaxHighlighting(highlightStyle),
-      // cards: false gives plain CodeMirror, as a baseline for measuring
-      options.cards === false ? [] : blockDecorations,
+      appearanceCompartment.of(appearanceExtensions(options.appearance)),
       Prec.high(keymap.of([
         { key: 'Alt-Shift-ArrowUp', run: moveBlockUp },
         { key: 'Alt-Shift-ArrowDown', run: moveBlockDown }

@@ -7,19 +7,29 @@
         documentName,
         granularities,
         granularity,
+        appearances,
+        appearance,
         progress
       }'
       @open='open'
       @openFile='openFile'
       @granularity='granularity = $event'
+      @appearance='setAppearance'
       @benchmark='benchmark'
     />
 
+    <PlainTextarea
+      v-if='appearance == `textarea`'
+      ref='textarea'
+      :text='text'
+    />
     <Editor
+      v-else
       ref='editor'
       v-bind='{
         text,
-        granularity
+        granularity,
+        appearance
       }'
     />
 
@@ -35,6 +45,7 @@
   // components
   import Toolbar from './toolbar/index.vue'
   import Editor from './editor/index.vue'
+  import PlainTextarea from './textarea/index.vue'
   import Metrics from './metrics/index.vue'
   // functions
   import { granularities } from './editor/functions/blocks/index.js'
@@ -54,6 +65,7 @@
     components: {
       Toolbar,
       Editor,
+      PlainTextarea,
       Metrics
     },
     data () {
@@ -63,6 +75,9 @@
         text: documents['basic.md'],
         granularities,
         granularity: 'item',
+        // 'plain' and 'textarea' are baselines for comparing how typing feels
+        appearances: ['cards', 'plain', 'textarea'],
+        appearance: 'cards',
         results: [],
         progress: null
       }
@@ -77,6 +92,13 @@
         documents[name] = text
         this.documentName = name
         this.text = text
+      },
+      setAppearance (value) {
+        // keep the edits made in the editor or textarea that is being replaced
+        if (value == 'textarea' || this.appearance == 'textarea') {
+          this.text = this.appearance == 'textarea' ? this.$refs.textarea.getText() : this.$refs.editor.getText()
+        }
+        this.appearance = value
       },
       async benchmark () {
         const text = documents[generatedName] ?? (documents[generatedName] = generateDocument())

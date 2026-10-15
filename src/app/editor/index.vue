@@ -15,7 +15,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   import { markRaw } from 'vue'
   import { EditorView } from '@codemirror/view'
   // local functions
-  import { createState, getText, granularityCompartment } from './functions/create-state.js'
+  import { createState, getText, granularityCompartment, appearanceCompartment, appearanceExtensions } from './functions/create-state.js'
   import { granularity as granularityFacet } from './functions/blocks/index.js'
 
   export default {
@@ -23,7 +23,9 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     props: {
       // replaces the whole document (opening a file)
       text: String,
-      granularity: String
+      granularity: String,
+      // 'cards' or 'plain'
+      appearance: String
     },
     data () {
       return {
@@ -37,6 +39,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       'granularity' (value) {
         this.view.dispatch({
           effects: granularityCompartment.reconfigure(granularityFacet.of(value))
+        })
+      },
+      'appearance' (value) {
+        this.view.dispatch({
+          effects: appearanceCompartment.reconfigure(appearanceExtensions(value))
         })
       }
     },
@@ -54,7 +61,8 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     methods: {
       createState () {
         return createState(this.text, {
-          granularity: this.granularity
+          granularity: this.granularity,
+          appearance: this.appearance
         })
       },
       getText () {

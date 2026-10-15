@@ -1,6 +1,7 @@
 <!--
 Temporary development toolbar: pick a test document, open a local file, switch block
-granularity, run the benchmark. Replaced by the native menu and title-bar buttons later.
+granularity and appearance (cards, plain CodeMirror, native textarea), run the benchmark.
+Replaced by the native menu and title-bar buttons later.
 -->
 <template>
 
@@ -40,6 +41,19 @@ granularity, run the benchmark. Replaced by the native menu and title-bar button
       </button>
     </div>
 
+    <div class='group'>
+      <span class='label'>Look</span>
+      <button
+        v-for='value in appearances'
+        :key='value'
+        class='button'
+        :class='{selected: value == appearance}'
+        @click='$emit(`appearance`, value)'
+      >
+        {{ value }}
+      </button>
+    </div>
+
     <div class='spacer' />
 
     <span
@@ -50,7 +64,7 @@ granularity, run the benchmark. Replaced by the native menu and title-bar button
     </span>
     <button
       class='button'
-      :disabled='!!progress'
+      :disabled='!!progress || appearance == `textarea`'
       @click='$emit(`benchmark`)'
     >
       Run benchmark
@@ -66,9 +80,11 @@ granularity, run the benchmark. Replaced by the native menu and title-bar button
       documentName: String,
       granularities: Array,
       granularity: String,
+      appearances: Array,
+      appearance: String,
       progress: String
     },
-    emits: ['open', 'openFile', 'granularity', 'benchmark'],
+    emits: ['open', 'openFile', 'granularity', 'appearance', 'benchmark'],
     methods: {
       async openFile (event) {
         const file = event.target.files[0]
