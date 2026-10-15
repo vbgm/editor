@@ -1,6 +1,6 @@
 <!--
 Temporary development toolbar: pick a test document, open a local file, switch between Document
-and Markdown mode, run the benchmark.
+and Markdown mode, show the stats, run the benchmark.
 Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
 shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
 -->
@@ -49,6 +49,15 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
     </span>
     <button
       class='button'
+      :class='{selected: isStatsShown}'
+      title='Typing latency and benchmark results'
+      @mousedown.prevent=''
+      @click='$emit(`toggleStats`)'
+    >
+      Stats
+    </button>
+    <button
+      class='button'
       :disabled='!!progress'
       @mousedown.prevent=''
       @click='$emit(`benchmark`)'
@@ -65,9 +74,10 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       documentNames: Array,
       documentName: String,
       isMarkdownShown: Boolean,
+      isStatsShown: Boolean,
       progress: String
     },
-    emits: ['open', 'openFile', 'toggleMarkdown', 'benchmark'],
+    emits: ['open', 'openFile', 'toggleMarkdown', 'toggleStats', 'benchmark'],
     methods: {
       async openFile (event) {
         const file = event.target.files[0]

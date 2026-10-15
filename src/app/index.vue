@@ -6,11 +6,13 @@
         documentNames,
         documentName,
         isMarkdownShown,
+        isStatsShown,
         progress
       }'
       @open='open'
       @openFile='openFile'
       @toggleMarkdown='toggleMarkdown'
+      @toggleStats='isStatsShown = !isStatsShown'
       @benchmark='benchmark'
     />
 
@@ -23,7 +25,9 @@
       @toggleMarkdown='toggleMarkdown'
     />
 
+    <!-- v-show: keeps counting key presses while hidden -->
     <Metrics
+      v-show='isStatsShown'
       v-bind='{
         look: isMarkdownShown ? `markdown` : `document`,
         results
@@ -64,6 +68,8 @@
         // Markdown mode (button or Cmd+Shift+M): the file as it is, symbols and blank lines
         // visible; otherwise Document mode
         isMarkdownShown: false,
+        // the stats footer (typing latency, benchmark results)
+        isStatsShown: false,
         results: [],
         progress: null
       }
@@ -83,6 +89,8 @@
         this.isMarkdownShown = !this.isMarkdownShown
       },
       async benchmark () {
+        // the results show in the stats
+        this.isStatsShown = true
         const text = documents[generatedName] ?? (documents[generatedName] = generateDocument())
         const view = this.$refs.editor.view
         this.results = await runBenchmark(view, text, {
