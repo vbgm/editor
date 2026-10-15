@@ -58,6 +58,12 @@ Measured key press → paint per look (cards, styled, plain CodeMirror, raw cont
 - **Chrome on macOS** is late by a frame for most keys even in a native textarea, so it is not optimized for. Windows (WebView2, Chromium) and Linux (WebKitGTK) still need their own measurement.
 - Typing never rebuilds the cards: line marks are mapped through edits and the blocks are re-checked when idle.
 
+## Editing
+
+- **Markdown syntax is hidden by default**; a button and Cmd+Shift+M show it (later a View menu setting). The file is never changed by hiding.
+- **Shortcuts**: Cmd+1…6 heading level, Cmd+0 paragraph, Cmd+7 numbered list, Cmd+8 bullet list, Cmd+B bold, Cmd+I italic, Cmd+E inline code, Cmd+K link, Cmd+Shift+X strikethrough (Cmd+X is cut), Cmd+Shift+M show Markdown (Cmd+M minimizes).
+  - The line formats also work with **Cmd+Alt+number**: browsers reserve Cmd+number for switching tabs (Chrome never lets a page have it), so this second set works everywhere. In the app, Cmd+number are native menu items.
+  - Not Cmd+Shift+number (macOS takes Cmd+Shift+3/4/5 for screenshots), not Alt+number alone (types characters such as `[ ] | { }` on many keyboard layouts).
 ## Files
 
 - Single-file windows first.

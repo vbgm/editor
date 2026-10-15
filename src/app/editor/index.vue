@@ -15,7 +15,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   import { markRaw } from 'vue'
   import { EditorView } from '@codemirror/view'
   // local functions
-  import { createState, getText, granularityCompartment, appearanceCompartment, appearanceExtensions } from './functions/create-state.js'
+  import { createState, getText, granularityCompartment, appearanceCompartment, appearanceExtensions, markdownCompartment, markdownVisibilityExtensions } from './functions/create-state.js'
   import { granularity as granularityFacet } from './functions/blocks/index.js'
 
   export default {
@@ -24,9 +24,12 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       // replaces the whole document (opening a file)
       text: String,
       granularity: String,
-      // 'cards' or 'plain'
-      appearance: String
+      // 'cards', 'styled' or 'plain'
+      appearance: String,
+      // Markdown syntax shown as it is in the file
+      isMarkdownShown: Boolean
     },
+    emits: ['toggleMarkdown'],
     data () {
       return {
         view: null
@@ -45,6 +48,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         this.view.dispatch({
           effects: appearanceCompartment.reconfigure(appearanceExtensions(value))
         })
+      },
+      'isMarkdownShown' (value) {
+        this.view.dispatch({
+          effects: markdownCompartment.reconfigure(markdownVisibilityExtensions(value))
+        })
       }
     },
     mounted () {
@@ -62,7 +70,9 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       createState () {
         return createState(this.text, {
           granularity: this.granularity,
-          appearance: this.appearance
+          appearance: this.appearance,
+          isMarkdownShown: this.isMarkdownShown,
+          onToggleMarkdown: () => this.$emit('toggleMarkdown')
         })
       },
       getText () {
@@ -129,6 +139,37 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       box-sizing: border-box;
       border: 1px solid var(--color--card--border-active);
       border-radius: 0.6rem;
+    }
+
+    // Markdown hidden (syntax/index.js): lines that only hold syntax take no space,
+    // and some symbols are drawn instead of shown
+    :deep(.cm-collapsed-line) {
+      height: 0;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      border-width: 0 !important;
+      overflow: hidden;
+    }
+
+    :deep(.cm-bullet) {
+      display: inline-block;
+      width: 0.9em;
+      color: var(--color--text--secondary);
+    }
+
+    :deep(.cm-task-checkbox) {
+      margin: 0 0.35em 0 0;
+      vertical-align: -0.1em;
+      cursor: pointer;
+    }
+
+    :deep(.cm-quote-line) {
+      box-shadow: inset 3px 0 0 var(--color--border--solid);
+      color: var(--color--text--secondary);
+    }
+
+    :deep(.cm-rule-line) {
+      background: linear-gradient(var(--color--border--solid), var(--color--border--solid)) no-repeat center / 100% 1px;
     }
 
     :deep(.cm-heading) {

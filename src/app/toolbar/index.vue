@@ -54,6 +54,15 @@ Replaced by the native menu and title-bar buttons later.
       </button>
     </div>
 
+    <button
+      class='button'
+      :class='{selected: isMarkdownShown}'
+      title='Show Markdown (Cmd+Shift+M)'
+      @click='$emit(`toggleMarkdown`)'
+    >
+      Markdown
+    </button>
+
     <div class='spacer' />
 
     <span
@@ -82,9 +91,10 @@ Replaced by the native menu and title-bar buttons later.
       granularity: String,
       appearances: Array,
       appearance: String,
+      isMarkdownShown: Boolean,
       progress: String
     },
-    emits: ['open', 'openFile', 'granularity', 'appearance', 'benchmark'],
+    emits: ['open', 'openFile', 'granularity', 'appearance', 'toggleMarkdown', 'benchmark'],
     methods: {
       async openFile (event) {
         const file = event.target.files[0]

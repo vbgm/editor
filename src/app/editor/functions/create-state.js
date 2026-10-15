@@ -9,10 +9,13 @@ import markdown from './markdown/index.js'
 import { granularity } from './blocks/index.js'
 import cardLayers from './blocks/card-layers.js'
 import { moveBlockUp, moveBlockDown } from './move/index.js'
+import formatKeymap from './format/keymap.js'
+import hiddenSyntax from './syntax/index.js'
 
-// Granularity and appearance can be switched without recreating the editor
+// Granularity, appearance and Markdown visibility can be switched without recreating the editor
 export const granularityCompartment = new Compartment()
 export const appearanceCompartment = new Compartment()
+export const markdownCompartment = new Compartment()
 
 // Classes instead of inline styles, so the look lives in LESS
 const highlightStyle = HighlightStyle.define([
@@ -39,6 +42,15 @@ export function appearanceExtensions (appearance) {
   return [syntaxHighlighting(highlightStyle), cardLayers]
 }
 
+// Markdown hidden (the default) or shown as it is in the file (syntax/index.js)
+export function markdownVisibilityExtensions (isMarkdownShown) {
+  if (isMarkdownShown) return []
+  return [
+    EditorView.editorAttributes.of({ class: 'cm-markdown-hidden' }),
+    hiddenSyntax
+  ]
+}
+
 // Files keep their own line breaks: CRLF files are saved as CRLF.
 // Files with mixed line breaks are normalized to LF (lineBreakOf returns null for them).
 export function lineBreakOf (text) {
@@ -61,10 +73,15 @@ export function createState (text, options = {}) {
       // text; CodeMirror's drawn cursor is positioned one frame later and feels slower
       EditorView.lineWrapping,
       appearanceCompartment.of(appearanceExtensions(options.appearance)),
+      markdownCompartment.of(markdownVisibilityExtensions(options.isMarkdownShown)),
       Prec.high(keymap.of([
         { key: 'Alt-Shift-ArrowUp', run: moveBlockUp },
-        { key: 'Alt-Shift-ArrowDown', run: moveBlockDown }
+        { key: 'Alt-Shift-ArrowDown', run: moveBlockDown },
+        // the app owns the setting; the editor only reports the shortcut
+        { key: 'Mod-Shift-m', run: () => { options.onToggleMarkdown?.(); return true } }
       ])),
+      // before the default keymap, which uses Mod-i for selecting the parent syntax node
+      Prec.high(formatKeymap),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       options.extensions || []
     ]

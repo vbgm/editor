@@ -1,19 +1,22 @@
 // npm packages
 import { readFileSync, readdirSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { EditorSelection } from '@codemirror/state'
 import { undo } from '@codemirror/commands'
 // app functions
 import { createState, getText } from '/src/app/editor/functions/create-state.js'
 import { getBlocks } from '/src/app/editor/functions/blocks/index.js'
 
-const fixturesDir = new URL('./fixtures/', import.meta.url)
+// a path, not a URL: tests in the jsdom environment get jsdom's URL, which node:fs does not take
+const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
 export function fixtureNames () {
   return readdirSync(fixturesDir).filter(name => name.endsWith('.md')).sort()
 }
 
 export function readFixture (name) {
-  return readFileSync(new URL(name, fixturesDir))
+  return readFileSync(join(fixturesDir, name))
 }
 
 // '|' in text marks the cursor and is removed

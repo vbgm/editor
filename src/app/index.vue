@@ -9,12 +9,14 @@
         granularity,
         appearances,
         appearance,
+        isMarkdownShown,
         progress
       }'
       @open='open'
       @openFile='openFile'
       @granularity='granularity = $event'
       @appearance='setAppearance'
+      @toggleMarkdown='isMarkdownShown = !isMarkdownShown'
       @benchmark='benchmark'
     />
 
@@ -33,8 +35,10 @@
       v-bind='{
         text,
         granularity,
-        appearance
+        appearance,
+        isMarkdownShown
       }'
+      @toggleMarkdown='isMarkdownShown = !isMarkdownShown'
     />
 
     <Metrics
@@ -84,6 +88,8 @@
         // cards; styled Markdown without cards; bare CodeMirror; browser-native editing
         appearances: ['cards', 'styled', 'plain', 'contenteditable', 'textarea'],
         appearance: 'cards',
+        // Markdown syntax is hidden by default (Cmd+Shift+M or the toolbar button shows it)
+        isMarkdownShown: false,
         results: [],
         progress: null
       }
