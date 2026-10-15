@@ -2,7 +2,9 @@
 import { layer } from '@codemirror/view'
 // local functions
 import { cards, active } from './decorations.js'
+import markdownShown from '../markdown-shown.js'
 
+// Cards are drawn only while Markdown is shown; otherwise the page looks like plain text.
 // Cards are boxes in layers behind the text: one box per visible block, plus one box for the
 // block with the cursor. Moving the cursor to another block only moves that one box, and typing
 // only repositions boxes when the layout changes; the text lines are never repainted for it.
@@ -99,12 +101,15 @@ function changed (view, key, value) {
   return true
 }
 
+const isShownChanged = update => update.state.facet(markdownShown) != update.startState.facet(markdownShown)
+
 const cardsLayer = layer({
   above: false,
   class: 'cm-cards',
-  update: update => update.docChanged || update.viewportChanged ||
+  update: update => update.docChanged || update.viewportChanged || isShownChanged(update) ||
     changed(update.view, 'cards', update.view.plugin(cards)?.decorations),
   markers (view) {
+    if (!view.state.facet(markdownShown)) return []
     const base = measureBase(view)
     if (!base) return []
     return markedBlocks(view)
@@ -116,9 +121,10 @@ const cardsLayer = layer({
 const activeLayer = layer({
   above: false,
   class: 'cm-cards-active',
-  update: update => update.docChanged || update.viewportChanged ||
+  update: update => update.docChanged || update.viewportChanged || isShownChanged(update) ||
     changed(update.view, 'active', update.view.plugin(active)?.block),
   markers (view) {
+    if (!view.state.facet(markdownShown)) return []
     const block = view.plugin(active)?.block
     if (!block || withoutCard.includes(block.type)) return []
     // only when it overlaps the rendered part of the document

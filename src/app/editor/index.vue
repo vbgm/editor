@@ -107,7 +107,8 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     }
 
     :deep(.cm-content ::selection) {
-      background: var(--color--selection);
+      background: var(--color--text-selection);
+      color: var(--color--text-selection--text);
     }
 
     :deep(.cm-line) {
@@ -128,9 +129,32 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       padding-bottom: 0.45rem;
     }
 
-    // headings get more room above, so they read as the start of a section
-    :deep(.cm-markdown-hidden .cm-block--heading.cm-block-first) {
-      border-top-width: 1.1rem;
+    // Markdown hidden: no cards, the page reads as plain text. Blocks are apart by the space
+    // between paragraphs, list items sit close together, headings get more room above.
+    :deep(.cm-markdown-hidden) {
+      .cm-block-first {
+        border-top-width: 0.4rem;
+        padding-top: 0;
+      }
+
+      .cm-block-last {
+        border-bottom-width: 0.4rem;
+        padding-bottom: 0;
+      }
+
+      .cm-block--listItem {
+        &.cm-block-first {
+          border-top-width: 0.1rem;
+        }
+
+        &.cm-block-last {
+          border-bottom-width: 0.1rem;
+        }
+      }
+
+      .cm-block--heading.cm-block-first {
+        border-top-width: 1.1rem;
+      }
     }
 
     // the cards themselves: boxes in layers behind the text (card-layers.js)

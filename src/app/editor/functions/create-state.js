@@ -13,6 +13,7 @@ import { selectBlockUp, selectBlockDown } from './blocks/select.js'
 import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
 import gaps from './gaps/index.js'
+import markdownShown from './markdown-shown.js'
 import { insertNewBlock, joinBackward, joinForward } from './gaps/commands.js'
 
 // Granularity, appearance and Markdown visibility can be switched without recreating the editor
@@ -46,15 +47,18 @@ export function appearanceExtensions (appearance) {
 }
 
 // Markdown hidden (the default): no syntax (syntax/index.js) and no blank lines between blocks
-// (gaps/index.js), with Enter, Backspace and Delete working on blocks. Shown: the file exactly
-// as it is, edited as text.
+// (gaps/index.js), with Enter, Backspace, Delete and Alt+↑/↓ working on blocks.
+// Shown: the file exactly as it is, edited as text.
 export function markdownVisibilityExtensions (isMarkdownShown) {
-  if (isMarkdownShown) return []
+  if (isMarkdownShown) return markdownShown.of(true)
   return [
     EditorView.editorAttributes.of({ class: 'cm-markdown-hidden' }),
     hiddenSyntax,
     gaps,
     Prec.high(keymap.of([
+      // moving lines past hidden blank lines would look like nothing happens: move blocks
+      { key: 'Alt-ArrowUp', run: moveBlockUp },
+      { key: 'Alt-ArrowDown', run: moveBlockDown },
       { key: 'Enter', run: insertNewBlock },
       { key: 'Backspace', run: joinBackward },
       { key: 'Delete', run: joinForward }

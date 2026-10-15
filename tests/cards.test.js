@@ -7,6 +7,7 @@ import { EditorSelection } from '@codemirror/state'
 // local
 import { createState } from './helpers.js'
 import { active } from '/src/app/editor/functions/blocks/decorations.js'
+import { moveBlockDown } from '/src/app/editor/functions/move/index.js'
 
 // Line marks and the active block of a real EditorView. jsdom has no layout, so the measuring
 // functions CodeMirror calls are stubbed (the card boxes themselves need layout to be checked).
@@ -57,6 +58,16 @@ describe('cards while typing', () => {
     type(view, '\n- ', 'x- one'.length - 1)
     expect(lineClasses(view).slice(0, 3).every(name => name.includes('cm-block--listItem'))).toBe(true)
     view.destroy()
+  })
+
+  it('are right at once after a block move (no jump while they catch up)', () => {
+    const view = createView('para\n\n- a\n- b\n')
+    view.dispatch({ selection: EditorSelection.cursor(0) })
+    moveBlockDown(view)
+    const fresh = createView(view.state.doc.toString())
+    expect(lineClasses(view)).toEqual(lineClasses(fresh))
+    view.destroy()
+    fresh.destroy()
   })
 
   it('move the active highlight when the cursor goes to another block', () => {

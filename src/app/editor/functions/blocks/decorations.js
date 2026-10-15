@@ -73,7 +73,17 @@ function idleScheduler (check) {
 }
 
 const granularityChanged = update => update.state.facet(granularity) != update.startState.facet(granularity)
-const linesChanged = update => update.docChanged && update.state.doc.lines != update.startState.doc.lines
+// an edit that is not within one line (a line break typed, deleted or moved, as in a block
+// move): the line classes cannot just be shifted along with the text
+function linesChanged (update) {
+  if (!update.docChanged) return false
+  if (update.state.doc.lines != update.startState.doc.lines) return true
+  let isMultiLine = false
+  update.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+    if (inserted.lines > 1 || update.startState.doc.lineAt(fromA).to < toA) isMultiLine = true
+  })
+  return isMultiLine
+}
 const treeChanged = update => syntaxTree(update.state) != syntaxTree(update.startState)
 
 export const cards = ViewPlugin.fromClass(class {
