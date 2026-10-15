@@ -129,6 +129,15 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     :deep(.cm-markdown .cm-scroller) {
       font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
       font-size: 0.9rem;
+      // a little tighter than Document mode (1.6), so the page keeps about the same height
+      // and switching jumps less
+      line-height: 1.55;
+    }
+
+    // the tighter line has less space above its text: add it back at the top, so the first line
+    // stays exactly where it is in Document mode
+    :deep(.cm-markdown .cm-content) {
+      padding-top: calc(2rem + (1.6 - 1.55) * 0.9rem / 2);
     }
 
     // Document mode (.cm-document) reads as plain text. Space between blocks: transparent borders
@@ -156,6 +165,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
 
       .cm-block--heading.cm-block-first {
         border-top-width: 1.1rem;
+      }
+
+      // nothing above the first block: no space, so the first line stays put when switching modes
+      .cm-content > .cm-line:first-child {
+        border-top-width: 0;
       }
 
       // the empty line after Enter (gaps/index.js) is spaced like a paragraph
