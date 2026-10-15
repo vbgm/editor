@@ -216,4 +216,32 @@ const cursorOffGapsAfterDelete = EditorState.transactionFilter.of(transaction =>
 })
 
 export { computeAll }
-export default [gaps, cursorOffGapsAfterDelete]
+// The hidden blank lines sit at the end of the line above them, so a click to the right of that
+// line's text lands in the gap, and the cursor would be pushed on to the next block. Clicks and
+// drags that land in a gap go to the end of the line above instead.
+// pos inside a gap ([end of the line above, start of the next block)) → the end of the line above
+function outOfGap (state, pos) {
+  let result = pos
+  state.field(gaps).atomicRanges.between(pos, pos, (from, to) => {
+    if (pos > from && pos < to) result = from
+  })
+  return result
+}
+
+const clicksBesideLines = EditorView.mouseSelectionStyle.of((view, event) => {
+  // double and triple clicks select words and lines as usual
+  if (event.button != 0 || event.detail > 1 || event.shiftKey || event.altKey) return null
+  const pointAt = mouseEvent => view.posAtCoords({ x: mouseEvent.clientX, y: mouseEvent.clientY }, false)
+  const start = pointAt(event)
+  if (outOfGap(view.state, start) == start) return null
+  let anchor = outOfGap(view.state, start)
+  return {
+    get: mouseEvent => EditorSelection.single(anchor, outOfGap(view.state, pointAt(mouseEvent))),
+    update: update => {
+      if (update.docChanged) anchor = update.changes.mapPos(anchor)
+      return false
+    }
+  }
+})
+
+export default [gaps, cursorOffGapsAfterDelete, clicksBesideLines]
