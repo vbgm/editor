@@ -7,6 +7,7 @@ import { EditorSelection } from '@codemirror/state'
 import { cursorCharLeft, deleteCharBackward } from '@codemirror/commands'
 // local
 import { createState, getText, readFixture, fixtureNames } from './helpers.js'
+import { switchMode } from '/src/app/editor/functions/create-state.js'
 
 beforeAll(() => {
   const rect = { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0 }
@@ -55,6 +56,12 @@ describe('hidden Markdown', () => {
     view.destroy()
   })
 
+  it('shows everything in Markdown mode', () => {
+    const view = createView('## Title\n\n- **one**\n', { isMarkdownShown: true })
+    expect(shown(view)).toEqual(['## Title', '', '- **one**', ''])
+    view.destroy()
+  })
+
   it('never changes the file', () => {
     for (const name of fixtureNames()) {
       const text = readFixture(name).toString('utf8')
@@ -94,6 +101,32 @@ describe('cursor with hidden Markdown', () => {
     view.dispatch({ selection: EditorSelection.cursor(7) })
     cursorCharLeft(view)
     expect(view.state.selection.main.head).toBe(5)
+    view.destroy()
+  })
+})
+
+describe('switching to Document mode', () => {
+  it('puts a cursor from the start of a heading behind its hidden mark', () => {
+    const view = createView('text\n\n## Title\n', { isMarkdownShown: true })
+    view.dispatch({ selection: EditorSelection.cursor(6) })
+    switchMode(view, false)
+    expect(view.state.selection.main.head).toBe(9)
+    view.destroy()
+  })
+
+  it('moves a cursor off a blank line to the end of the block above', () => {
+    const view = createView('one\n\ntwo\n', { isMarkdownShown: true })
+    view.dispatch({ selection: EditorSelection.cursor(4) })
+    switchMode(view, false)
+    expect(view.state.selection.main.head).toBe(3)
+    view.destroy()
+  })
+
+  it('keeps the cursor where it is in Markdown mode', () => {
+    const view = createView('text\n\n## Title\n')
+    view.dispatch({ selection: EditorSelection.cursor(9) })
+    switchMode(view, true)
+    expect(view.state.selection.main.head).toBe(9)
     view.destroy()
   })
 })

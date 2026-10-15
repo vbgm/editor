@@ -14,23 +14,18 @@
       @benchmark='benchmark'
     />
 
-    <!-- kept mounted while the raw Markdown is shown, so its undo history stays -->
     <Editor
-      v-show='!isMarkdownShown'
       ref='editor'
-      :text='text'
-      @toggleMarkdown='toggleMarkdown'
-    />
-    <MarkdownSource
-      v-if='isMarkdownShown'
-      ref='markdown'
-      :text='markdownText'
+      v-bind='{
+        text,
+        isMarkdownShown
+      }'
       @toggleMarkdown='toggleMarkdown'
     />
 
     <Metrics
       v-bind='{
-        look: isMarkdownShown ? `markdown` : `editor`,
+        look: isMarkdownShown ? `markdown` : `document`,
         results
       }'
     />
@@ -41,7 +36,6 @@
   // components
   import Toolbar from './toolbar/index.vue'
   import Editor from './editor/index.vue'
-  import MarkdownSource from './markdown/index.vue'
   import Metrics from './metrics/index.vue'
   // functions
   import generateDocument from './functions/generate-document.js'
@@ -60,7 +54,6 @@
     components: {
       Toolbar,
       Editor,
-      MarkdownSource,
       Metrics
     },
     data () {
@@ -68,40 +61,28 @@
         documentNames: Object.keys(documents),
         documentName: 'basic.md',
         text: documents['basic.md'],
-        // the raw Markdown in a textarea instead of the editor (button or Cmd+Shift+M)
+        // Markdown mode (button or Cmd+Shift+M): the file as it is, symbols and blank lines
+        // visible; otherwise Document mode
         isMarkdownShown: false,
-        // the textarea's text when it was opened
-        markdownText: '',
         results: [],
         progress: null
       }
     },
     methods: {
       open (name) {
-        this.isMarkdownShown = false
         this.documentName = name
         this.text = documents[name] ?? (documents[name] = generateDocument())
       },
       openFile ({ name, text }) {
-        this.isMarkdownShown = false
         if (!this.documentNames.includes(name)) this.documentNames.push(name)
         documents[name] = text
         this.documentName = name
         this.text = text
       },
       toggleMarkdown () {
-        if (this.isMarkdownShown) {
-          // the edits made in the textarea go back into the editor as one undo step
-          this.$refs.editor.applyLines(this.$refs.markdown.getText())
-          this.isMarkdownShown = false
-          this.$nextTick(() => this.$refs.editor.focus())
-        } else {
-          this.markdownText = this.$refs.editor.getLines()
-          this.isMarkdownShown = true
-        }
+        this.isMarkdownShown = !this.isMarkdownShown
       },
       async benchmark () {
-        if (this.isMarkdownShown) this.toggleMarkdown()
         const text = documents[generatedName] ?? (documents[generatedName] = generateDocument())
         const view = this.$refs.editor.view
         this.results = await runBenchmark(view, text, {

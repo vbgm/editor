@@ -215,6 +215,19 @@ const cursorOffGapsAfterDelete = EditorState.transactionFilter.of(transaction =>
   return [transaction, { selection: EditorSelection.cursor(state.doc.line(number).to), sequential: true }]
 })
 
+// Where the cursor goes when switching to Document mode: from a blank line between blocks, which
+// is hidden there, to the end of the block above (or the start of the one below at the top)
+export function cursorForDocument (state) {
+  const head = state.selection.main.head
+  const line = state.doc.lineAt(head)
+  if (!isGapLine(state, line)) return head
+  let number = line.number
+  while (number > 1 && isBlank(state.doc.line(number).text)) number--
+  if (!isBlank(state.doc.line(number).text)) return state.doc.line(number).to
+  while (number < state.doc.lines && isBlank(state.doc.line(number).text)) number++
+  return isBlank(state.doc.line(number).text) ? head : state.doc.line(number).from
+}
+
 export { computeAll }
 // The hidden blank lines sit at the end of the line above them, so a click to the right of that
 // line's text lands in the gap, and the cursor would be pushed on to the next block. Clicks and

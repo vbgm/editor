@@ -1,5 +1,4 @@
-// Measures what typing feels like, separately for each look (cards, plain, textarea),
-// so the editor can be compared with a native textarea on the same machine.
+// Measures what typing feels like, separately for each mode (Document, Markdown).
 // Collected outside Vue, so measuring does not cause re-renders.
 //
 // Two measurements per key press, both starting at the key event's timestamp (set by the

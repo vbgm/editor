@@ -97,3 +97,10 @@ describe('shiftHeading', () => {
     expect(shiftHeading('Title\n=====\n\nbody', 1, 1, '\n')).toBe('## Title\n\nbody')
   })
 })
+
+describe('moves in Markdown mode', () => {
+  it('move blocks the same way', () => {
+    const state = stateWithCursor('one|\n\ntwo\n\nthree\n', { isMarkdownShown: true })
+    expect(getText(runCommand(moveBlockDown, state))).toBe('two\n\none\n\nthree\n')
+  })
+})

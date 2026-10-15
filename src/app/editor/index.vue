@@ -1,13 +1,13 @@
 <!--
 CodeMirror owns everything inside the root element; Vue never touches it.
-The document is not mirrored into Vue on every keystroke: read it with getText(), or with
-getLines() and applyLines() for the raw Markdown textarea ('\n' line breaks).
+The document is not mirrored into Vue on every keystroke: read it with getText().
 -->
 <template>
 
   <div
     ref='root'
     class='editor'
+    :class='{switching: isSwitching}'
   />
 
 </template><script>
@@ -16,23 +16,47 @@ getLines() and applyLines() for the raw Markdown textarea ('\n' line breaks).
   import { markRaw } from 'vue'
   import { EditorView } from '@codemirror/view'
   // local functions
-  import { createState, getText, replaceText } from './functions/create-state.js'
+  import { createState, getText, switchMode } from './functions/create-state.js'
 
   export default {
     name: 'Editor',
     props: {
       // replaces the whole document (opening a file)
-      text: String
+      text: String,
+      // Markdown mode: symbols and blank lines visible; otherwise Document mode
+      isMarkdownShown: Boolean
     },
     emits: ['toggleMarkdown'],
     data () {
       return {
-        view: null
+        view: null,
+        // the caret is hidden while the lines are redrawn for the other mode
+        isSwitching: false
       }
     },
     watch: {
       'text' () {
         this.view.setState(this.createState())
+      },
+      'isMarkdownShown' (value) {
+        // Safari keeps drawing its caret where it was in the old layout, even though the cursor
+        // is at the same place in the text (so the editor does not touch the browser's selection):
+        // hide the caret, switch, and once the new lines are painted move the cursor away and
+        // back, so the browser's selection is written and the caret drawn anew
+        this.isSwitching = true
+        switchMode(this.view, value)
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const { view } = this
+          const selection = view.state.selection
+          const head = selection.main.head
+          // within the same line: a neighbouring line could be a hidden blank one
+          const line = view.state.doc.lineAt(head)
+          const away = head > line.from ? head - 1 : head < line.to ? head + 1 : null
+          view.focus()
+          if (away != null) view.dispatch({ selection: { anchor: away } })
+          view.dispatch({ selection })
+          this.isSwitching = false
+        }))
       }
     },
     mounted () {
@@ -49,19 +73,12 @@ getLines() and applyLines() for the raw Markdown textarea ('\n' line breaks).
     methods: {
       createState () {
         return createState(this.text, {
+          isMarkdownShown: this.isMarkdownShown,
           onToggleMarkdown: () => this.$emit('toggleMarkdown')
         })
       },
       getText () {
         return getText(this.view.state)
-      },
-      getLines () {
-        return this.view.state.doc.toString()
-      },
-      // the edits made in the raw Markdown, as one change (one undo step)
-      applyLines (text) {
-        const spec = replaceText(this.view.state, text)
-        if (spec) this.view.dispatch(spec)
       },
       focus () {
         this.view.focus()
@@ -94,6 +111,10 @@ getLines() and applyLines() for the raw Markdown textarea ('\n' line breaks).
       caret-color: var(--color--text--primary);
     }
 
+    &.switching :deep(.cm-content) {
+      caret-color: transparent;
+    }
+
     :deep(.cm-content ::selection) {
       background: var(--color--text-selection);
       color: var(--color--text-selection--text);
@@ -103,36 +124,45 @@ getLines() and applyLines() for the raw Markdown textarea ('\n' line breaks).
       padding: 0 1rem;
     }
 
-    // The page reads as plain text. Space between blocks: transparent borders on a block's first
-    // and last line (never margins, which CodeMirror cannot measure); the blank lines between
-    // blocks are hidden (gaps/index.js). List items sit close together, headings get more room
-    // above.
-    :deep(.cm-block-first) {
-      border-top: 0.4rem solid transparent;
+    // Markdown mode (.cm-markdown): the file as it is, in one monospace font, like a plain
+    // text field
+    :deep(.cm-markdown .cm-scroller) {
+      font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 0.9rem;
     }
 
-    :deep(.cm-block-last) {
-      border-bottom: 0.4rem solid transparent;
-    }
-
-    :deep(.cm-block--listItem) {
-      &.cm-block-first {
-        border-top-width: 0.1rem;
+    // Document mode (.cm-document) reads as plain text. Space between blocks: transparent borders
+    // on a block's first and last line (never margins, which CodeMirror cannot measure); the blank
+    // lines between blocks are hidden (gaps/index.js). List items sit close together, headings
+    // get more room above. In Markdown mode the blank lines themselves are the space.
+    :deep(.cm-document) {
+      .cm-block-first {
+        border-top: 0.4rem solid transparent;
       }
 
-      &.cm-block-last {
-        border-bottom-width: 0.1rem;
+      .cm-block-last {
+        border-bottom: 0.4rem solid transparent;
       }
-    }
 
-    :deep(.cm-block--heading.cm-block-first) {
-      border-top-width: 1.1rem;
-    }
+      .cm-block--listItem {
+        &.cm-block-first {
+          border-top-width: 0.1rem;
+        }
 
-    // the empty line after Enter (gaps/index.js) is spaced like a paragraph
-    :deep(.cm-new-block) {
-      border-top: 0.4rem solid transparent;
-      border-bottom: 0.4rem solid transparent;
+        &.cm-block-last {
+          border-bottom-width: 0.1rem;
+        }
+      }
+
+      .cm-block--heading.cm-block-first {
+        border-top-width: 1.1rem;
+      }
+
+      // the empty line after Enter (gaps/index.js) is spaced like a paragraph
+      .cm-new-block {
+        border-top: 0.4rem solid transparent;
+        border-bottom: 0.4rem solid transparent;
+      }
     }
 
     // hidden syntax (syntax/index.js): lines that only hold syntax take no space,

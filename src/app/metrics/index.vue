@@ -1,5 +1,5 @@
 <!--
-Temporary development panel: real typing latency per look, and benchmark results
+Temporary development panel: real typing latency per mode, and benchmark results
 (milliseconds; median / p95 / max).
 Latency is collected outside Vue and copied in twice a second, so typing never re-renders Vue.
 Each cell: own measurement median / p95, share of keys a frame late (32 ms or more, from the
@@ -11,7 +11,7 @@ browser's Event Timing numbers where available, the own measurement elsewhere), 
     <div class='row'>
       <span class='label'>Typing, key press → paint</span>
       <template v-if='!latency.length'>
-        type or move the cursor to measure; the raw Markdown (a plain textarea) is the baseline
+        type or move the cursor to measure
       </template>
       <button
         v-else
@@ -25,7 +25,7 @@ browser's Event Timing numbers where available, the own measurement elsewhere), 
     <table v-if='latency.length'>
       <thead>
         <tr>
-          <th>look</th>
+          <th>mode</th>
           <th
             v-for='column in latencyColumns'
             :key='column.key'
@@ -101,8 +101,8 @@ browser's Event Timing numbers where available, the own measurement elsewhere), 
   import summary from './functions/summary.js'
 
   const inputLatency = createInputLatency()
-  // the editor, and the raw Markdown textarea as the browser's own baseline
-  const looks = ['editor', 'markdown']
+  // Document and Markdown mode
+  const looks = ['document', 'markdown']
 
   export default {
     name: 'Metrics',

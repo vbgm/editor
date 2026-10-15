@@ -1,5 +1,5 @@
 // npm packages
-import { EditorState, Prec, Text } from '@codemirror/state'
+import { EditorState, EditorSelection, Prec, Compartment } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
@@ -11,7 +11,8 @@ import { moveBlockUp, moveBlockDown } from './move/index.js'
 import { selectBlockUp, selectBlockDown } from './blocks/select.js'
 import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
-import gaps from './gaps/index.js'
+import gaps, { cursorForDocument } from './gaps/index.js'
+import markdownShown from './markdown-shown.js'
 import { insertNewBlock, joinBackward, joinForward } from './gaps/commands.js'
 
 // Classes instead of inline styles, so the look lives in LESS
@@ -30,24 +31,62 @@ const highlightStyle = HighlightStyle.define([
   { tag: tags.quote, class: 'cm-quote' }
 ])
 
-// The editor shows Markdown as plain text: no syntax (syntax/index.js), no blank lines between
-// blocks (gaps/index.js), spacing between blocks (blocks/decorations.js), and Enter, Backspace,
-// Delete and Alt+↑/↓ working on blocks. The raw file is shown in a textarea instead (app).
-// bare: plain CodeMirror with the same document, as a speed baseline for the benchmark
-function documentExtensions (bare) {
-  if (bare) return []
+// Document or Markdown mode can be switched without recreating the editor
+export const modeCompartment = new Compartment()
+
+// Document mode (the default): Markdown shown as plain text, with no syntax (syntax/index.js),
+// no blank lines between blocks (gaps/index.js) and spacing between blocks instead; Enter,
+// Backspace and Delete work on blocks.
+// Markdown mode: the file as it is, in one monospace font with no styling (like a plain text
+// field); Enter, Backspace and Delete work as in a text editor. Moving and selecting blocks work in both modes.
+export function modeExtensions (isMarkdownShown) {
+  if (isMarkdownShown) {
+    return [
+      markdownShown.of(true),
+      EditorView.editorAttributes.of({ class: 'cm-markdown' })
+    ]
+  }
   return [
+    EditorView.editorAttributes.of({ class: 'cm-document' }),
     syntaxHighlighting(highlightStyle),
-    blockLines,
     hiddenSyntax,
     gaps,
     Prec.high(keymap.of([
-      // moving lines past hidden blank lines would look like nothing happens: move blocks
-      { key: 'Alt-ArrowUp', run: moveBlockUp },
-      { key: 'Alt-ArrowDown', run: moveBlockDown },
       { key: 'Enter', run: insertNewBlock },
       { key: 'Backspace', run: joinBackward },
       { key: 'Delete', run: joinForward }
+    ]))
+  ]
+}
+
+// Switches the view between Document and Markdown mode, keeping text, undo history and cursor.
+// In Document mode the cursor must not stay where text is hidden: it goes off a hidden blank
+// line, and behind a hidden heading, quote or bullet mark (setting the selection again lets the
+// hidden syntax place it, syntax/index.js).
+export function switchMode (view, isMarkdownShown) {
+  view.dispatch({
+    effects: modeCompartment.reconfigure(modeExtensions(isMarkdownShown)),
+    scrollIntoView: true
+  })
+  if (!isMarkdownShown && view.state.selection.main.empty) {
+    view.dispatch({
+      selection: EditorSelection.cursor(cursorForDocument(view.state)),
+      scrollIntoView: true
+    })
+  }
+}
+
+// bare: plain CodeMirror with the same document, as a speed baseline for the benchmark
+function documentExtensions (bare, isMarkdownShown) {
+  if (bare) return []
+  return [
+    blockLines,
+    modeCompartment.of(modeExtensions(isMarkdownShown)),
+    Prec.high(keymap.of([
+      // Alt+↑/↓ move blocks, not lines (CodeMirror's default would move lines past hidden
+      // blank lines in Document mode, which looks like nothing happens)
+      { key: 'Alt-ArrowUp', run: moveBlockUp },
+      { key: 'Alt-ArrowDown', run: moveBlockDown }
     ]))
   ]
 }
@@ -72,13 +111,13 @@ export function createState (text, options = {}) {
       // no drawSelection(): the browser's own caret and selection move in the same frame as the
       // text; CodeMirror's drawn cursor is positioned one frame later and feels slower
       EditorView.lineWrapping,
-      documentExtensions(options.bare),
+      documentExtensions(options.bare, options.isMarkdownShown),
       Prec.high(keymap.of([
         { key: 'Alt-Shift-ArrowUp', run: moveBlockUp },
         { key: 'Alt-Shift-ArrowDown', run: moveBlockDown },
         { key: 'Shift-ArrowUp', run: selectBlockUp },
         { key: 'Shift-ArrowDown', run: selectBlockDown },
-        // the app switches to the raw Markdown; the editor only reports the shortcut
+        // the app owns the mode; the editor only reports the shortcut
         { key: 'Mod-Shift-m', run: () => { options.onToggleMarkdown?.(); return true } }
       ])),
       // before the default keymap, which uses Mod-i for selecting the parent syntax node
@@ -92,22 +131,4 @@ export function createState (text, options = {}) {
 // The file content, with the file's own line breaks
 export function getText (state) {
   return state.sliceDoc()
-}
-
-// Replaces the document with text (line breaks as '\n', as a textarea gives them) as one change
-// covering only the part that differs, so undo history and the file's own line breaks stay.
-export function replaceText (state, text) {
-  const current = state.doc.toString()
-  if (current == text) return null
-  let start = 0
-  while (start < current.length && start < text.length && current[start] == text[start]) start++
-  let end = 0
-  while (end < current.length - start && end < text.length - start &&
-    current[current.length - 1 - end] == text[text.length - 1 - end]) end++
-  const insert = text.slice(start, text.length - end)
-  return {
-    // in document positions every line break is one character; Text splits the insert into lines
-    changes: { from: start, to: current.length - end, insert: Text.of(insert.split('\n')) },
-    userEvent: 'input.replace'
-  }
 }

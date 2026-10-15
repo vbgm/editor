@@ -1,6 +1,6 @@
 <!--
-Temporary development toolbar: pick a test document, open a local file, show the raw Markdown,
-run the benchmark.
+Temporary development toolbar: pick a test document, open a local file, switch between Document
+and Markdown mode, run the benchmark.
 Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
 shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
 -->
@@ -32,7 +32,7 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
     <button
       class='button'
       :class='{selected: isMarkdownShown}'
-      title='Show the raw Markdown (Cmd+Shift+M)'
+      title='Markdown mode: the file as it is (Cmd+Shift+M)'
       @mousedown.prevent=''
       @click='$emit(`toggleMarkdown`)'
     >
