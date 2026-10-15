@@ -224,7 +224,7 @@ function isInCode (state, pos) {
 }
 
 // A cursor placed at the start of a line with such a mark goes behind it (clicks, Home, ↑ ↓).
-// Moving left from just behind the mark goes on to the end of the line above instead.
+// Moving left from just behind the mark goes on to the end of the block above instead.
 const cursorAfterLineMarks = EditorState.transactionFilter.of(transaction => {
   if (!transaction.selection || transaction.selection.ranges.some(range => !range.empty)) return transaction
   const { state, startState } = transaction
@@ -237,7 +237,12 @@ const cursorAfterLineMarks = EditorState.transactionFilter.of(transaction => {
     isMoved = true
     const contentStart = line.from + mark[0].length
     const oldHead = !transaction.docChanged && startState.selection.ranges[index]?.head
-    if (oldHead == contentStart && line.number > 1) return EditorSelection.cursor(state.doc.line(line.number - 1).to)
+    if (oldHead == contentStart && line.number > 1) {
+      // the end of the block above, past the (hidden) blank lines between them
+      let number = line.number - 1
+      while (number > 1 && /^[ \t]*$/.test(state.doc.line(number).text)) number--
+      return EditorSelection.cursor(state.doc.line(number).to)
+    }
     return EditorSelection.cursor(contentStart)
   })
   if (!isMoved) return transaction

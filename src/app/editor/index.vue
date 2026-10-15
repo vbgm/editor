@@ -115,16 +115,22 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     }
 
     // space between cards: borders and padding on a block's first and last line (never margins,
-    // which CodeMirror cannot measure); the 3px border is the gap between cards (cardGap in
-    // card-layers.js). Lines carry no paint, so changing a card never repaints text.
+    // which CodeMirror cannot measure). With Markdown hidden there are no blank lines between
+    // blocks, so the transparent borders are the whole gap between cards (card-layers.js reads
+    // their width). Lines carry no paint, so changing a card never repaints text.
     :deep(.cm-block-first) {
-      border-top: 3px solid transparent;
+      border-top: 0.3rem solid transparent;
       padding-top: 0.45rem;
     }
 
     :deep(.cm-block-last) {
-      border-bottom: 3px solid transparent;
+      border-bottom: 0.3rem solid transparent;
       padding-bottom: 0.45rem;
+    }
+
+    // headings get more room above, so they read as the start of a section
+    :deep(.cm-markdown-hidden .cm-block--heading.cm-block-first) {
+      border-top-width: 1.1rem;
     }
 
     // the cards themselves: boxes in layers behind the text (card-layers.js)

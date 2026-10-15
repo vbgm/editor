@@ -9,8 +9,11 @@ import markdown from './markdown/index.js'
 import { granularity } from './blocks/index.js'
 import cardLayers from './blocks/card-layers.js'
 import { moveBlockUp, moveBlockDown } from './move/index.js'
+import { selectBlockUp, selectBlockDown } from './blocks/select.js'
 import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
+import gaps from './gaps/index.js'
+import { insertNewBlock, joinBackward, joinForward } from './gaps/commands.js'
 
 // Granularity, appearance and Markdown visibility can be switched without recreating the editor
 export const granularityCompartment = new Compartment()
@@ -42,12 +45,20 @@ export function appearanceExtensions (appearance) {
   return [syntaxHighlighting(highlightStyle), cardLayers]
 }
 
-// Markdown hidden (the default) or shown as it is in the file (syntax/index.js)
+// Markdown hidden (the default): no syntax (syntax/index.js) and no blank lines between blocks
+// (gaps/index.js), with Enter, Backspace and Delete working on blocks. Shown: the file exactly
+// as it is, edited as text.
 export function markdownVisibilityExtensions (isMarkdownShown) {
   if (isMarkdownShown) return []
   return [
     EditorView.editorAttributes.of({ class: 'cm-markdown-hidden' }),
-    hiddenSyntax
+    hiddenSyntax,
+    gaps,
+    Prec.high(keymap.of([
+      { key: 'Enter', run: insertNewBlock },
+      { key: 'Backspace', run: joinBackward },
+      { key: 'Delete', run: joinForward }
+    ]))
   ]
 }
 
@@ -77,6 +88,8 @@ export function createState (text, options = {}) {
       Prec.high(keymap.of([
         { key: 'Alt-Shift-ArrowUp', run: moveBlockUp },
         { key: 'Alt-Shift-ArrowDown', run: moveBlockDown },
+        { key: 'Shift-ArrowUp', run: selectBlockUp },
+        { key: 'Shift-ArrowDown', run: selectBlockDown },
         // the app owns the setting; the editor only reports the shortcut
         { key: 'Mod-Shift-m', run: () => { options.onToggleMarkdown?.(); return true } }
       ])),

@@ -72,6 +72,23 @@ describe('cards while typing', () => {
     view.destroy()
   })
 
+  it('keep the active highlight on a whole line selected with its line break', () => {
+    const view = createView('one\n\ntwo\n', { isMarkdownShown: true })
+    view.dispatch({ selection: EditorSelection.range(0, 4) })
+    const block = view.plugin(active).block
+    expect(view.state.sliceDoc(block.from, block.to)).toBe('one')
+    view.destroy()
+  })
+
+  it('keep the active highlight on a line selected backwards from its end', () => {
+    const view = createView('one\n\ntwo\n')
+    // from the end of 'two' back to the end of 'one' (the cursor skips the hidden blank line)
+    view.dispatch({ selection: EditorSelection.range(8, 3) })
+    const block = view.plugin(active).block
+    expect(view.state.sliceDoc(block.from, block.to)).toBe('two')
+    view.destroy()
+  })
+
   it('keep the same active block object while the cursor stays in the block', () => {
     const view = createView('one two\n\nthree\n')
     view.dispatch({ selection: EditorSelection.cursor(0) })

@@ -69,7 +69,7 @@ describe('blocks in a range', () => {
       const all = getBlocks(state, { complete: true })
       for (const [from, to] of [[0, 500], [20000, 26000], [text.length - 3000, text.length], [55555, 55556]]) {
         const expected = all.filter(block => block.to >= from && block.from <= to)
-        const actual = getBlocksInRange(state, from, to, ensureSyntaxTree(state, state.doc.length)).filter(block => block.to >= from && block.from <= to)
+        const actual = getBlocksInRange(state, from, to, { tree: ensureSyntaxTree(state, state.doc.length) }).filter(block => block.to >= from && block.from <= to)
         expect(actual, `${mode} ${from}-${to}`).toEqual(expected)
       }
     }

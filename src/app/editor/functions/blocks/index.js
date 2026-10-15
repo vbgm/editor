@@ -67,9 +67,11 @@ export function blockIndexAt (blocks, pos) {
 
 // Blocks overlapping from..to, without parsing further than the current syntax tree.
 // Cheap enough to run on every keystroke: decorations only need the visible part.
-// (tests pass a fully parsed tree, since there is no view parsing in the background)
-export function getBlocksInRange (state, from, to, tree = syntaxTree(state)) {
-  return parse(state.doc, tree, state.facet(granularity), from, to)
+// mode: a granularity other than the editor's (the blank lines between blocks are always
+// found with 'item', whatever the cards show)
+// tree: tests pass a fully parsed tree, since there is no view parsing in the background
+export function getBlocksInRange (state, from, to, { mode = state.facet(granularity), tree = syntaxTree(state) } = {}) {
+  return parse(state.doc, tree, mode, from, to)
 }
 
 const startsSection = name => name == 'Frontmatter' || headingLevel(name) > 0

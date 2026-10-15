@@ -10,8 +10,6 @@ import { cards, active } from './decorations.js'
 // The boxes follow the line marks of the cards plugin (they are mapped cheaply while typing),
 // and their positions come from CodeMirror's height map, so nothing here parses Markdown.
 
-// space between cards, matches the transparent border on first/last lines (index.vue)
-const cardGap = 3
 // blocks drawn as structure, not as cards
 const withoutCard = ['heading', 'frontmatter', 'rule']
 
@@ -49,22 +47,26 @@ class CardMarker {
   }
 }
 
-// position of the text lines inside the layer (which scrolls with the content)
+// position of the text lines inside the layer (which scrolls with the content), and the space
+// between cards: the transparent border on a block's first line (index.vue), so the styling
+// stays in LESS
 function measureBase (view) {
   const line = view.contentDOM.querySelector('.cm-line')
   if (!line) return null
   const lineRect = line.getBoundingClientRect()
   const scrollRect = view.scrollDOM.getBoundingClientRect()
+  const firstLine = view.contentDOM.querySelector('.cm-block-first:not(.cm-block--heading)')
   return {
     left: lineRect.left - scrollRect.left + view.scrollDOM.scrollLeft,
     width: lineRect.width,
-    top: view.documentTop - scrollRect.top + view.scrollDOM.scrollTop
+    top: view.documentTop - scrollRect.top + view.scrollDOM.scrollTop,
+    gap: firstLine ? parseFloat(getComputedStyle(firstLine).borderTopWidth) || 0 : 0
   }
 }
 
 function cardMarker (view, base, className, from, to) {
-  const top = view.lineBlockAt(from).top + cardGap
-  const bottom = view.lineBlockAt(to).bottom - cardGap
+  const top = view.lineBlockAt(from).top + base.gap
+  const bottom = view.lineBlockAt(to).bottom - base.gap
   return new CardMarker(className, base.left, base.top + top, base.width, Math.max(bottom - top, 0))
 }
 

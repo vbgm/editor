@@ -32,19 +32,19 @@ const shown = view => [...view.contentDOM.querySelectorAll('.cm-line')].map(line
 describe('hidden Markdown', () => {
   it('hides heading marks, emphasis, code and link syntax', () => {
     const view = createView('## Title ##\n\n*em* **strong** ~~gone~~ `code` [link](http://x "t") <http://a> \\*\n')
-    expect(shown(view)).toEqual(['Title', '', 'em strong gone code link http://a *', ''])
+    expect(shown(view)).toEqual(['Title', 'em strong gone code link http://a *'])
     view.destroy()
   })
 
   it('draws bullets and checkboxes, keeps numbers', () => {
     const view = createView('- one\n- [ ] todo\n- [x] done\n\n1. first\n')
-    expect(shown(view)).toEqual(['• one', '• [ ] todo', '• [x] done', '', '1. first', ''])
+    expect(shown(view)).toEqual(['• one', '• [ ] todo', '• [x] done', '1. first'])
     view.destroy()
   })
 
   it('collapses setext underlines and code fences, keeps the code', () => {
     const view = createView('Title\n===\n\n```js\n# code\n```\n')
-    expect(shown(view)).toEqual(['Title', 'collapsed', '', 'collapsed', '# code', 'collapsed', ''])
+    expect(shown(view)).toEqual(['Title', 'collapsed', 'collapsed', '# code', 'collapsed'])
     view.destroy()
   })
 

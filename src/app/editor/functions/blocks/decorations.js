@@ -115,10 +115,22 @@ export const cards = ViewPlugin.fromClass(class {
 })
 
 // the block at the cursor: in a gap between blocks, the block before it
+// The block with the selected text: a selection made forward that ends at the very start of a
+// line (a whole line selected by triple-click or by dragging past its end) ends on the line above;
+// one made backward that ends at the very end of a line starts on the next line with text.
 function activeBlock (state) {
-  const head = state.selection.main.head
-  const blocks = getBlocksInRange(state, head, head)
-  return blocks[blockIndexAt(blocks, head)] || null
+  const { doc } = state
+  const { head, anchor } = state.selection.main
+  let pos = head
+  if (head > anchor && head == doc.lineAt(head).from) {
+    pos = head - 1
+  } else if (head < anchor && head == doc.lineAt(head).to && head < doc.length) {
+    let line = doc.lineAt(head + 1)
+    while (line.number < doc.lines && line.to < anchor && /^[ \t]*$/.test(line.text)) line = doc.line(line.number + 1)
+    pos = Math.min(line.from, anchor)
+  }
+  const blocks = getBlocksInRange(state, pos, pos)
+  return blocks[blockIndexAt(blocks, pos)] || null
 }
 
 const sameBlock = (a, b) => a?.from == b?.from && a?.to == b?.to
