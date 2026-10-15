@@ -6,9 +6,9 @@
 // browser when the OS delivers the key, before any page code runs):
 // - own: until the frame after the key has been painted (requestAnimationFrame, then a task
 //   that runs after that frame). Works in every browser, including Safari.
-// - Event Timing API (Chrome only): the browser's own key press → paint duration. It only
-//   reports keys of 16 ms or more and rounds to 8 ms, so keys are counted separately and
-//   only the slow ones are recorded.
+// - Event Timing API (Chrome, recent Safari): the browser's own key press → paint duration.
+//   It only reports keys of 16 ms or more and rounds to 8 ms, so keys are counted separately
+//   and only the slow ones are recorded.
 //
 // A key shown in the next frame takes up to one frame (16.7 ms at 60 Hz) plus the input delay;
 // 32 ms or more means it reached the screen at least one frame late.

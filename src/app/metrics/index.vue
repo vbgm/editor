@@ -2,7 +2,7 @@
 Temporary development panel: real typing latency per look, and benchmark results
 (milliseconds; median / p95 / max).
 Latency is collected outside Vue and copied in twice a second, so typing never re-renders Vue.
-'A frame late' uses Chrome's Event Timing numbers where available, the own measurement elsewhere.
+'A frame late' uses the browser's Event Timing numbers where available, the own measurement elsewhere.
 -->
 <template>
 
@@ -28,7 +28,7 @@ Latency is collected outside Vue and copied in twice a second, so typing never r
           <th>keys</th>
           <th>median / p95 / max</th>
           <th>a frame late (≥ 32 ms)</th>
-          <th v-if='isEventTimingSupported'>Chrome: worst</th>
+          <th v-if='isEventTimingSupported'>worst (Event Timing)</th>
         </tr>
       </thead>
       <tbody>
