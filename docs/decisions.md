@@ -31,7 +31,24 @@ One pointer-events engine (no HTML5 drag, because of Tauri's file-drop handling 
 - Blocks are derived from the Markdown structure; no directives, no metadata in the file.
 - Headings are optional. A heading owns everything below it until the next heading of the same or higher level.
 - Levels are relative: moving a heading in the TOC moves its subtree and shifts all heading levels inside it by the same amount (`#` ↔ `##`, …). Max depth is Markdown's 6 for now.
-- **Block granularity is open, decided by measurement:** Notion-like small blocks (each paragraph, each list item) if speed and native text selection hold up; otherwise larger blocks (a whole list, groups of paragraphs). Build it as a parameter and measure both.
+- **Block granularity is decided by measurement:** Notion-like small blocks (each paragraph, each list item) if speed and native text selection hold up; otherwise larger blocks (a whole list, groups of paragraphs). It is a parameter (`item`, `element`, `section`) and the dev toolbar switches it live.
+
+### Measurements (2026-10-15)
+
+Generated document of 10k lines, Vite dev build (not minified), Chromium in the Claude desktop browser pane on this Mac. Milliseconds, median / p95. "Update" is the synchronous state and DOM update; "frame" runs to the next paint and cannot be below one 60 Hz frame (~16.7 ms).
+
+| Blocks | Count | Load | Full parse + blocks | Typing update | Typing frame | Move update | Move frame |
+|---|---|---|---|---|---|---|---|
+| no cards (plain CodeMirror) | – | 21 | 119 | 2.9 / 3.9 | 17 / 18 | 4.9 / 5.6 | 17 / 25 |
+| item | 6234 | 26 | 108 | 2.9 / 3.6 | 17 / 18 | 7.0 / 7.9 | 17 / 19 |
+| element | 2917 | 24 | 96 | 3.3 / 3.6 | 17 / 18 | 5.4 / 6.3 | 17 / 21 |
+| section | 642 | 28 | 96 | 3.1 / 3.6 | 17 / 18 | 9.4 / 11 | 18 / 23 |
+
+- Cards cost nothing measurable while typing: they are computed only for the visible lines. Granularity does not change typing speed.
+- Typing work (~3 ms) fits easily in a frame; moves take 5–10 ms of work and usually paint in the next frame (p95 up to ~25 ms).
+- The first move after opening a large file parses the whole file once (~100 ms for 10k lines). Parsing in idle time after opening would remove that.
+- Selection across blocks is native (one CodeMirror document), so it works the same for every granularity.
+- **Result: use `item` (Notion-like: every paragraph and list item is a block) as the default.** Still to measure: Safari/WKWebView (macOS), WebView2 (Windows), WebKitGTK (Linux), and a production build.
 
 ## Files
 
