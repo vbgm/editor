@@ -1,6 +1,6 @@
 <!--
 Temporary development toolbar: pick a test document, open a local file, switch block
-granularity and appearance (cards, plain CodeMirror, native textarea), run the benchmark.
+granularity and appearance (cards down to a native textarea), run the benchmark.
 Replaced by the native menu and title-bar buttons later.
 -->
 <template>
@@ -64,7 +64,7 @@ Replaced by the native menu and title-bar buttons later.
     </span>
     <button
       class='button'
-      :disabled='!!progress || appearance == `textarea`'
+      :disabled='!!progress || appearance == `textarea` || appearance == `contenteditable`'
       @click='$emit(`benchmark`)'
     >
       Run benchmark

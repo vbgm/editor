@@ -2,7 +2,8 @@
 Temporary development panel: real typing latency per look, and benchmark results
 (milliseconds; median / p95 / max).
 Latency is collected outside Vue and copied in twice a second, so typing never re-renders Vue.
-'A frame late' uses the browser's Event Timing numbers where available, the own measurement elsewhere.
+Each cell: own measurement median / p95, share of keys a frame late (32 ms or more, from the
+browser's Event Timing numbers where available, the own measurement elsewhere), key count.
 -->
 <template>
 
@@ -25,9 +26,12 @@ Latency is collected outside Vue and copied in twice a second, so typing never r
       <thead>
         <tr>
           <th>look</th>
-          <th>keys</th>
-          <th>median / p95 / max</th>
-          <th>a frame late (≥ 32 ms)</th>
+          <th
+            v-for='column in latencyColumns'
+            :key='column.key'
+          >
+            {{ column.title }}
+          </th>
           <th v-if='isEventTimingSupported'>worst (Event Timing)</th>
         </tr>
       </thead>
@@ -38,9 +42,18 @@ Latency is collected outside Vue and copied in twice a second, so typing never r
           :class='{current: row.look == look}'
         >
           <td>{{ row.look }}</td>
-          <td>{{ row.keys }}</td>
-          <td>{{ row.own ? spread(row.own) : `–` }}</td>
-          <td>{{ row.late }} ({{ row.lateShare }}%)</td>
+          <td
+            v-for='column in latencyColumns'
+            :key='column.key'
+          >
+            <template v-if='row.cells[column.key]'>
+              {{ spread(row.cells[column.key].own, false) }} · {{ row.cells[column.key].lateShare }}% late
+              <span class='count'>({{ row.cells[column.key].keys }})</span>
+            </template>
+            <template v-else>
+              –
+            </template>
+          </td>
           <td v-if='isEventTimingSupported'>{{ row.worst ? `${row.worst} ms` : `–` }}</td>
         </tr>
       </tbody>
@@ -88,7 +101,7 @@ Latency is collected outside Vue and copied in twice a second, so typing never r
   import summary from './functions/summary.js'
 
   const inputLatency = createInputLatency()
-  const looks = ['cards', 'plain', 'textarea']
+  const looks = ['cards', 'styled', 'plain', 'contenteditable', 'textarea']
 
   export default {
     name: 'Metrics',
@@ -101,6 +114,12 @@ Latency is collected outside Vue and copied in twice a second, so typing never r
       return {
         columns: ['typing.update', 'typing.frame', 'move.update', 'move.frame'],
         isEventTimingSupported: inputLatency.isEventTimingSupported,
+        latencyColumns: [
+          { key: 'all', title: 'all keys' },
+          { key: 'letters', title: 'letters' },
+          { key: 'edit', title: 'Enter / Backspace' },
+          { key: 'arrows', title: 'arrows' }
+        ],
         latency: [],
         // to skip copying when nothing changed
         latencyVersion: ''
@@ -124,31 +143,39 @@ Latency is collected outside Vue and copied in twice a second, so typing never r
     methods: {
       copyLatency () {
         const { byLook } = inputLatency
-        const version = looks.map(look => `${byLook[look]?.keys}:${byLook[look]?.own.length}:${byLook[look]?.slow.length}`).join()
+        const version = JSON.stringify(looks.map(look => Object.values(byLook[look] || {}).map(({ keys, own, slow }) => [keys, own.length, slow.length])))
         if (version == this.latencyVersion) return
         this.latencyVersion = version
 
-        this.latency = looks.filter(look => byLook[look]?.keys).map(look => {
-          const { keys, own, slow } = byLook[look]
-          const late = this.isEventTimingSupported
-            ? slow.filter(duration => duration >= 32).length
-            : own.filter(duration => duration >= 32).length
+        this.latency = looks.filter(look => byLook[look]?.all.keys).map(look => {
+          const cells = {}
+          for (const { key } of this.latencyColumns) {
+            const samples = byLook[look][key]
+            if (samples?.keys && samples.own.length) cells[key] = this.cell(samples)
+          }
+          const slow = byLook[look].all.slow
           return {
             look,
-            keys,
-            own: own.length ? summary(own) : null,
-            late,
-            lateShare: Math.round(late / keys * 100),
+            cells,
             worst: slow.length ? Math.max(...slow) : 0
           }
         })
+      },
+      cell ({ keys, own, slow }) {
+        const late = (this.isEventTimingSupported ? slow : own).filter(duration => duration >= 32).length
+        return {
+          keys,
+          own: summary(own),
+          lateShare: Math.round(late / keys * 100)
+        }
       },
       reset () {
         inputLatency.reset()
         this.copyLatency()
       },
-      spread ({ median, p95, max }) {
-        return `${this.format(median)} / ${this.format(p95)} / ${this.format(max)}`
+      spread ({ median, p95, max }, withMax = true) {
+        const text = `${this.format(median)} / ${this.format(p95)}`
+        return withMax ? `${text} / ${this.format(max)}` : text
       },
       format (ms) {
         return ms < 10 ? ms.toFixed(1) : Math.round(ms)
@@ -189,6 +216,10 @@ Latency is collected outside Vue and copied in twice a second, so typing never r
       > tbody > tr.current > td:first-child {
         color: var(--color--text--primary);
         font-weight: 600;
+      }
+
+      .count {
+        opacity: 0.6;
       }
 
       border-collapse: collapse;

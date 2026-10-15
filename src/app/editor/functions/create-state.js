@@ -31,9 +31,11 @@ const highlightStyle = HighlightStyle.define([
 ])
 
 // 'cards': blocks as cards and styled Markdown
-// 'plain': bare CodeMirror (no cards, no heading sizes), as a baseline for speed
+// 'styled': styled Markdown (heading sizes, emphasis, …) without cards
+// 'plain': bare CodeMirror, as a baseline for speed
 export function appearanceExtensions (appearance) {
   if (appearance == 'plain') return []
+  if (appearance == 'styled') return [syntaxHighlighting(highlightStyle)]
   return [syntaxHighlighting(highlightStyle), blockDecorations]
 }
 

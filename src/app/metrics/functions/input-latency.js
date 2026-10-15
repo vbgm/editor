@@ -15,6 +15,21 @@
 
 const maxSamples = 2000
 
+// key kinds, measured separately; modifier keys on their own are not counted
+export const kinds = ['letters', 'edit', 'arrows']
+const modifiers = ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Fn']
+const editKeys = ['Enter', 'Backspace', 'Delete', 'Tab']
+const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']
+
+function kindOf (event) {
+  if (event.key.length == 1 && !event.metaKey && !event.ctrlKey) return 'letters'
+  if (editKeys.includes(event.key)) return 'edit'
+  if (arrowKeys.includes(event.key)) return 'arrows'
+  return 'other'
+}
+
+const createSamples = () => ({ keys: 0, own: [], slow: [] })
+
 export default function createInputLatency () {
   const stats = {
     isEventTimingSupported: !!PerformanceObserver.supportedEntryTypes?.includes('event'),
@@ -22,22 +37,31 @@ export default function createInputLatency () {
     byLook: {}
   }
 
-  const bucket = look => stats.byLook[look] || (stats.byLook[look] = { keys: 0, own: [], slow: [] })
+  // samples for a look: 'all' keys, and per kind
+  const buckets = (look, kind) => {
+    const byKind = stats.byLook[look] || (stats.byLook[look] = { all: createSamples() })
+    return [byKind.all, byKind[kind] || (byKind[kind] = createSamples())]
+  }
+  const push = (list, value) => {
+    list.push(value)
+    if (list.length > maxSamples) list.shift()
+  }
 
-  // key presses waiting for their Event Timing entry, to know which look they belong to
+  // key presses waiting for their Event Timing entry, to know their look and kind
   const pending = []
 
   document.addEventListener('keydown', event => {
+    if (modifiers.includes(event.key)) return
     const look = stats.look
-    const samples = bucket(look)
-    samples.keys++
-    pending.push({ startTime: event.timeStamp, look })
-    if (pending.length > maxSamples) pending.shift()
+    const kind = kindOf(event)
+    const samples = buckets(look, kind)
+    for (const sample of samples) sample.keys++
+    push(pending, { startTime: event.timeStamp, look, kind })
 
     const startedAt = event.timeStamp
     requestAnimationFrame(() => setTimeout(() => {
-      samples.own.push(performance.now() - startedAt)
-      if (samples.own.length > maxSamples) samples.own.shift()
+      const duration = performance.now() - startedAt
+      for (const sample of samples) push(sample.own, duration)
     }, 0))
   }, true)
 
@@ -45,9 +69,10 @@ export default function createInputLatency () {
     new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
         if (entry.name != 'keydown' || !entry.interactionId) continue
-        const index = pending.findIndex(press => Math.abs(press.startTime - entry.startTime) < 1)
-        const look = index >= 0 ? pending[index].look : stats.look
-        bucket(look).slow.push(entry.duration)
+        const press = pending.find(press => Math.abs(press.startTime - entry.startTime) < 1)
+        // a key not found (modifier, or too old) is not counted
+        if (!press) continue
+        for (const sample of buckets(press.look, press.kind)) push(sample.slow, entry.duration)
       }
     }).observe({ type: 'event', durationThreshold: 16 })
   }

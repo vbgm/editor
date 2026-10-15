@@ -18,10 +18,14 @@
       @benchmark='benchmark'
     />
 
-    <PlainTextarea
-      v-if='appearance == `textarea`'
-      ref='textarea'
-      :text='text'
+    <NativeEditor
+      v-if='isNative(appearance)'
+      :key='appearance'
+      ref='native'
+      v-bind='{
+        kind: appearance,
+        text
+      }'
     />
     <Editor
       v-else
@@ -46,7 +50,7 @@
   // components
   import Toolbar from './toolbar/index.vue'
   import Editor from './editor/index.vue'
-  import PlainTextarea from './textarea/index.vue'
+  import NativeEditor from './native/index.vue'
   import Metrics from './metrics/index.vue'
   // functions
   import { granularities } from './editor/functions/blocks/index.js'
@@ -66,7 +70,7 @@
     components: {
       Toolbar,
       Editor,
-      PlainTextarea,
+      NativeEditor,
       Metrics
     },
     data () {
@@ -76,8 +80,9 @@
         text: documents['basic.md'],
         granularities,
         granularity: 'item',
-        // 'plain' and 'textarea' are baselines for comparing how typing feels
-        appearances: ['cards', 'plain', 'textarea'],
+        // from full to bare, for comparing how typing feels:
+        // cards; styled Markdown without cards; bare CodeMirror; browser-native editing
+        appearances: ['cards', 'styled', 'plain', 'contenteditable', 'textarea'],
         appearance: 'cards',
         results: [],
         progress: null
@@ -95,11 +100,15 @@
         this.text = text
       },
       setAppearance (value) {
-        // keep the edits made in the editor or textarea that is being replaced
-        if (value == 'textarea' || this.appearance == 'textarea') {
-          this.text = this.appearance == 'textarea' ? this.$refs.textarea.getText() : this.$refs.editor.getText()
+        // keep the edits made in the editor that is being replaced
+        // (CodeMirror looks switch in place and keep their state)
+        if (this.isNative(value) || this.isNative(this.appearance)) {
+          this.text = (this.isNative(this.appearance) ? this.$refs.native : this.$refs.editor).getText()
         }
         this.appearance = value
+      },
+      isNative (appearance) {
+        return appearance == 'textarea' || appearance == 'contenteditable'
       },
       async benchmark () {
         const text = documents[generatedName] ?? (documents[generatedName] = generateDocument())
