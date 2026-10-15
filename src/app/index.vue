@@ -21,12 +21,10 @@
         text,
         granularity
       }'
-      @keystroke='addKeystroke'
     />
 
     <Metrics
       v-bind='{
-        keystrokes,
         results
       }'
     />
@@ -65,7 +63,6 @@
         text: documents['basic.md'],
         granularities,
         granularity: 'item',
-        keystrokes: [],
         results: [],
         progress: null
       }
@@ -80,9 +77,6 @@
         documents[name] = text
         this.documentName = name
         this.text = text
-      },
-      addKeystroke (ms) {
-        this.keystrokes = [...this.keystrokes.slice(-99), ms]
       },
       async benchmark () {
         const text = documents[generatedName] ?? (documents[generatedName] = generateDocument())

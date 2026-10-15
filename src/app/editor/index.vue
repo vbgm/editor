@@ -17,7 +17,6 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   // local functions
   import { createState, getText, granularityCompartment } from './functions/create-state.js'
   import { granularity as granularityFacet } from './functions/blocks/index.js'
-  import keystrokeLatency from './functions/keystroke-latency.js'
 
   export default {
     name: 'Editor',
@@ -26,7 +25,6 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       text: String,
       granularity: String
     },
-    emits: ['keystroke'],
     data () {
       return {
         view: null
@@ -56,8 +54,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     methods: {
       createState () {
         return createState(this.text, {
-          granularity: this.granularity,
-          extensions: keystrokeLatency(ms => this.$emit('keystroke', ms))
+          granularity: this.granularity
         })
       },
       getText () {
@@ -91,12 +88,8 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       caret-color: var(--color--text--primary);
     }
 
-    :deep(.cm-cursor) {
-      border-left-color: var(--color--text--primary);
-    }
-
-    :deep(.cm-selectionBackground) {
-      background: var(--color--selection) !important;
+    :deep(.cm-content ::selection) {
+      background: var(--color--selection);
     }
 
     :deep(.cm-line) {
@@ -109,7 +102,6 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       background: var(--color--card);
       background-clip: padding-box;
       box-shadow: inset 1px 0 0 var(--color--card--border), inset -1px 0 0 var(--color--card--border);
-      transition: box-shadow 0.15s ease;
 
       &.cm-block-first {
         border-top: 3px solid transparent;

@@ -7,7 +7,9 @@ import { getBlocksInRange, blockIndexAt, granularity } from './index.js'
 
 // Draws blocks as cards with line decorations, only for the visible part of the document.
 // Line classes: 'cm-block' on every line of a block, plus '-first' / '-last' on its edges,
-// '--<type>', '--level-<n>' for headings and '--active' for the block with the cursor.
+// '--<type>' and '--level-<n>' for headings.
+// The block with the cursor gets 'cm-block--active' from a separate, much smaller plugin,
+// so moving the cursor does not rebuild the cards.
 
 const decorationCache = new Map()
 
@@ -19,12 +21,10 @@ function lineDecoration (className) {
 
 function build (view) {
   const { state } = view
-  const head = state.selection.main.head
   const builder = new RangeSetBuilder()
 
   for (const { from, to } of view.visibleRanges) {
     const blocks = getBlocksInRange(state, from, to)
-    const activeIndex = blockIndexAt(blocks, head)
     let index = Math.max(blockIndexAt(blocks, from), 0)
     for (; index < blocks.length && blocks[index].from <= to; index++) {
       const block = blocks[index]
@@ -32,9 +32,6 @@ function build (view) {
 
       let base = `cm-block cm-block--${block.type}`
       if (block.level) base += ` cm-block--level-${block.level}`
-      // the cursor may be outside this range; then no block here is active
-      const isActive = index == activeIndex && head <= (blocks[index + 1]?.from ?? to)
-      if (isActive) base += ' cm-block--active'
 
       const firstLine = state.doc.lineAt(Math.max(block.from, from)).number
       const lastLine = state.doc.lineAt(Math.min(block.to, to)).number
@@ -51,19 +48,59 @@ function build (view) {
   return builder.finish()
 }
 
-export default ViewPlugin.fromClass(class {
+const structureChanged = update => update.docChanged ||
+  syntaxTree(update.state) != syntaxTree(update.startState) ||
+  update.state.facet(granularity) != update.startState.facet(granularity)
+
+const cards = ViewPlugin.fromClass(class {
   constructor (view) {
     this.decorations = build(view)
   }
 
   update (update) {
-    const changed = update.docChanged ||
-      update.viewportChanged ||
-      update.selectionSet ||
-      syntaxTree(update.state) != syntaxTree(update.startState) ||
-      update.state.facet(granularity) != update.startState.facet(granularity)
-    if (changed) this.decorations = build(update.view)
+    if (update.viewportChanged || structureChanged(update)) this.decorations = build(update.view)
   }
 }, {
   decorations: plugin => plugin.decorations
 })
+
+const activeDecoration = Decoration.line({ class: 'cm-block--active' })
+
+// the block at the cursor: in a gap between blocks, the block before it
+function activeBlock (state) {
+  const head = state.selection.main.head
+  const blocks = getBlocksInRange(state, head, head)
+  return blocks[blockIndexAt(blocks, head)] || null
+}
+
+const active = ViewPlugin.fromClass(class {
+  constructor (view) {
+    this.set(view.state)
+  }
+
+  set (state) {
+    const block = this.block = activeBlock(state)
+    const builder = new RangeSetBuilder()
+    if (block) {
+      for (let line = state.doc.lineAt(block.from); ; line = state.doc.line(line.number + 1)) {
+        builder.add(line.from, line.from, activeDecoration)
+        if (line.to >= block.to) break
+      }
+    }
+    this.decorations = builder.finish()
+  }
+
+  update (update) {
+    if (structureChanged(update)) return this.set(update.state)
+    if (!update.selectionSet) return
+    // the cursor moved within the same block (or the same gap after it): nothing to redraw
+    const head = update.state.selection.main.head
+    const block = activeBlock(update.state)
+    if (block?.from == this.block?.from && block?.to == this.block?.to && head >= (block?.from ?? 0)) return
+    this.set(update.state)
+  }
+}, {
+  decorations: plugin => plugin.decorations
+})
+
+export default [cards, active]

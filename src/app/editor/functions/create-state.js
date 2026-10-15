@@ -1,6 +1,6 @@
 // npm packages
 import { EditorState, Compartment, Prec } from '@codemirror/state'
-import { EditorView, keymap, drawSelection } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
@@ -47,7 +47,8 @@ export function createState (text, options = {}) {
       markdown(),
       granularityCompartment.of(granularity.of(options.granularity || 'item')),
       history(),
-      drawSelection(),
+      // no drawSelection(): the browser's own caret and selection move in the same frame as the
+      // text; CodeMirror's drawn cursor is positioned one frame later and feels slower
       EditorView.lineWrapping,
       syntaxHighlighting(highlightStyle),
       // cards: false gives plain CodeMirror, as a baseline for measuring
