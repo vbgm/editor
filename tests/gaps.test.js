@@ -35,12 +35,6 @@ describe('hidden blank lines', () => {
     view.destroy()
   })
 
-  it('are shown with Markdown shown', () => {
-    const view = createView('one\n\ntwo\n', { isMarkdownShown: true })
-    expect(visibleLines(view)).toEqual(['one', '', 'two', ''])
-    view.destroy()
-  })
-
   it('stay visible inside code and inside a list item', () => {
     const view = createView('```\na\n\nb\n```\n\n- item\n\n  more\n- next\n')
     expect(visibleLines(view)).toEqual(['', 'a', '', 'b', '', '• item', '', '  more', '• next'])

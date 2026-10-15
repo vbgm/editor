@@ -11,7 +11,7 @@ browser's Event Timing numbers where available, the own measurement elsewhere), 
     <div class='row'>
       <span class='label'>Typing, key press → paint</span>
       <template v-if='!latency.length'>
-        type or move the cursor in the editor to measure; switch the look to compare
+        type or move the cursor to measure; the raw Markdown (a plain textarea) is the baseline
       </template>
       <button
         v-else
@@ -101,7 +101,8 @@ browser's Event Timing numbers where available, the own measurement elsewhere), 
   import summary from './functions/summary.js'
 
   const inputLatency = createInputLatency()
-  const looks = ['cards', 'styled', 'plain', 'contenteditable', 'textarea']
+  // the editor, and the raw Markdown textarea as the browser's own baseline
+  const looks = ['editor', 'markdown']
 
   export default {
     name: 'Metrics',
@@ -187,6 +188,8 @@ browser's Event Timing numbers where available, the own measurement elsewhere), 
 
   .metrics {
     flex: 0 0 auto;
+    // scrolls on its own in a narrow window
+    overflow-x: auto;
     padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;

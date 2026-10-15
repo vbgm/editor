@@ -1,22 +1,14 @@
 // npm packages
-import { Facet } from '@codemirror/state'
 import { syntaxTree, ensureSyntaxTree } from '@codemirror/language'
 
 // Blocks are derived from the Markdown syntax tree; nothing is stored in the file.
 // A block is a whole-line range { from, to, type, level }:
 // - from/to cover the block's first and last line (no surrounding blank lines)
 // - level is the heading level (1–6) for headings, 0 for everything else
-//
-// Granularity (still to be decided by measurement):
-// - 'item':    every top-level element, and every top-level list item separately (Notion-like)
-// - 'element': every top-level element (a whole list is one block)
-// - 'section': a heading together with its body up to the next heading
-
-export const granularities = ['item', 'element', 'section']
-
-export const granularity = Facet.define({
-  combine: values => values[0] || 'item'
-})
+// Every top-level element is a block, and every top-level list item is a block of its own
+// (as in Notion). A heading owns the blocks below it up to the next heading of the same or a
+// higher level, which moves with it (move/index.js).
+// (Bigger blocks, a whole list or a whole section, were tried and dropped.)
 
 const types = {
   Paragraph: 'paragraph',
@@ -34,18 +26,14 @@ const types = {
   Frontmatter: 'frontmatter'
 }
 
-// trees are immutable, so blocks can be cached per tree and granularity
+// trees are immutable, so blocks can be cached per tree
 const cache = new WeakMap()
 
 // complete: parse the whole document first (needed for moves; decorations only need the viewport)
 export function getBlocks (state, { complete = false } = {}) {
   const tree = (complete && ensureSyntaxTree(state, state.doc.length, 5000)) || syntaxTree(state)
-  const mode = state.facet(granularity)
-
-  let byMode = cache.get(tree)
-  if (!byMode) cache.set(tree, byMode = {})
-  if (!byMode[mode]) byMode[mode] = parse(state.doc, tree, mode)
-  return byMode[mode]
+  if (!cache.has(tree)) cache.set(tree, parse(state.doc, tree))
+  return cache.get(tree)
 }
 
 // index of the block at pos; in a gap between blocks, the block before it
@@ -67,26 +55,19 @@ export function blockIndexAt (blocks, pos) {
 
 // Blocks overlapping from..to, without parsing further than the current syntax tree.
 // Cheap enough to run on every keystroke: decorations only need the visible part.
-// mode: a granularity other than the editor's (the blank lines between blocks are always
-// found with 'item', whatever the cards show)
 // tree: tests pass a fully parsed tree, since there is no view parsing in the background
-export function getBlocksInRange (state, from, to, { mode = state.facet(granularity), tree = syntaxTree(state) } = {}) {
-  return parse(state.doc, tree, mode, from, to)
+export function getBlocksInRange (state, from, to, { tree = syntaxTree(state) } = {}) {
+  return parse(state.doc, tree, from, to)
 }
 
-const startsSection = name => name == 'Frontmatter' || headingLevel(name) > 0
-
-function parse (doc, tree, mode, from = 0, to = doc.length) {
+function parse (doc, tree, from = 0, to = doc.length) {
   const elements = []
   let node = (from > 0 && tree.topNode.childBefore(from)) || tree.topNode.firstChild
-  // a section starts at its heading, which may be above the range
-  if (mode == 'section') while (node?.prevSibling && !startsSection(node.name)) node = node.prevSibling
 
   for (; node; node = node.nextSibling) {
-    // a section runs on past the range until the next heading
-    if (node.from > to && (mode != 'section' || startsSection(node.name))) break
+    if (node.from > to) break
     const name = node.name
-    if (mode == 'item' && (name == 'BulletList' || name == 'OrderedList')) {
+    if (name == 'BulletList' || name == 'OrderedList') {
       for (let item = node.firstChild; item; item = item.nextSibling) {
         if (item.name == 'ListItem') elements.push(createBlock(doc, item.from, item.to, 'listItem', 0))
       }
@@ -97,8 +78,7 @@ function parse (doc, tree, mode, from = 0, to = doc.length) {
     }
   }
 
-  const blocks = mergeOverlapping(elements)
-  return mode == 'section' ? groupSections(blocks) : blocks
+  return mergeOverlapping(elements)
 }
 
 function headingLevel (name) {
@@ -126,24 +106,4 @@ function mergeOverlapping (elements) {
     }
   }
   return blocks
-}
-
-function groupSections (elements) {
-  const sections = []
-  let current = null
-  for (const element of elements) {
-    const startsNew = !current || element.type == 'heading' || element.type == 'frontmatter' || current.type == 'frontmatter'
-    if (startsNew) {
-      current = {
-        from: element.from,
-        to: element.to,
-        type: element.type == 'frontmatter' ? 'frontmatter' : 'section',
-        level: element.level
-      }
-      sections.push(current)
-    } else {
-      current.to = element.to
-    }
-  }
-  return sections
 }

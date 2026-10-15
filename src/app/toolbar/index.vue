@@ -1,7 +1,8 @@
 <!--
-Temporary development toolbar: pick a test document, open a local file, switch block
-granularity and appearance (cards down to a native textarea), run the benchmark.
-Replaced by the native menu and title-bar buttons later.
+Temporary development toolbar: pick a test document, open a local file, show the raw Markdown,
+run the benchmark.
+Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
+shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
 -->
 <template>
 
@@ -28,36 +29,11 @@ Replaced by the native menu and title-bar buttons later.
       >
     </label>
 
-    <div class='group'>
-      <span class='label'>Blocks</span>
-      <button
-        v-for='value in granularities'
-        :key='value'
-        class='button'
-        :class='{selected: value == granularity}'
-        @click='$emit(`granularity`, value)'
-      >
-        {{ value }}
-      </button>
-    </div>
-
-    <div class='group'>
-      <span class='label'>Look</span>
-      <button
-        v-for='value in appearances'
-        :key='value'
-        class='button'
-        :class='{selected: value == appearance}'
-        @click='$emit(`appearance`, value)'
-      >
-        {{ value }}
-      </button>
-    </div>
-
     <button
       class='button'
       :class='{selected: isMarkdownShown}'
-      title='Show Markdown (Cmd+Shift+M)'
+      title='Show the raw Markdown (Cmd+Shift+M)'
+      @mousedown.prevent=''
       @click='$emit(`toggleMarkdown`)'
     >
       Markdown
@@ -73,7 +49,8 @@ Replaced by the native menu and title-bar buttons later.
     </span>
     <button
       class='button'
-      :disabled='!!progress || appearance == `textarea` || appearance == `contenteditable`'
+      :disabled='!!progress'
+      @mousedown.prevent=''
       @click='$emit(`benchmark`)'
     >
       Run benchmark
@@ -87,14 +64,10 @@ Replaced by the native menu and title-bar buttons later.
     props: {
       documentNames: Array,
       documentName: String,
-      granularities: Array,
-      granularity: String,
-      appearances: Array,
-      appearance: String,
       isMarkdownShown: Boolean,
       progress: String
     },
-    emits: ['open', 'openFile', 'granularity', 'appearance', 'toggleMarkdown', 'benchmark'],
+    emits: ['open', 'openFile', 'toggleMarkdown', 'benchmark'],
     methods: {
       async openFile (event) {
         const file = event.target.files[0]
@@ -111,6 +84,8 @@ Replaced by the native menu and title-bar buttons later.
 
   .toolbar {
     flex: 0 0 auto;
+    // scrolls on its own in a narrow window
+    overflow-x: auto;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -148,7 +123,7 @@ Replaced by the native menu and title-bar buttons later.
 
     .button {
       &.selected {
-        border-color: var(--color--card--border-active);
+        border-color: var(--color--selected--border);
         background: var(--color--selection);
       }
 

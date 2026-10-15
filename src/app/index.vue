@@ -5,45 +5,32 @@
       v-bind='{
         documentNames,
         documentName,
-        granularities,
-        granularity,
-        appearances,
-        appearance,
         isMarkdownShown,
         progress
       }'
       @open='open'
       @openFile='openFile'
-      @granularity='granularity = $event'
-      @appearance='setAppearance'
-      @toggleMarkdown='isMarkdownShown = !isMarkdownShown'
+      @toggleMarkdown='toggleMarkdown'
       @benchmark='benchmark'
     />
 
-    <NativeEditor
-      v-if='isNative(appearance)'
-      :key='appearance'
-      ref='native'
-      v-bind='{
-        kind: appearance,
-        text
-      }'
-    />
+    <!-- kept mounted while the raw Markdown is shown, so its undo history stays -->
     <Editor
-      v-else
+      v-show='!isMarkdownShown'
       ref='editor'
-      v-bind='{
-        text,
-        granularity,
-        appearance,
-        isMarkdownShown
-      }'
-      @toggleMarkdown='isMarkdownShown = !isMarkdownShown'
+      :text='text'
+      @toggleMarkdown='toggleMarkdown'
+    />
+    <MarkdownSource
+      v-if='isMarkdownShown'
+      ref='markdown'
+      :text='markdownText'
+      @toggleMarkdown='toggleMarkdown'
     />
 
     <Metrics
       v-bind='{
-        look: appearance,
+        look: isMarkdownShown ? `markdown` : `editor`,
         results
       }'
     />
@@ -54,10 +41,9 @@
   // components
   import Toolbar from './toolbar/index.vue'
   import Editor from './editor/index.vue'
-  import NativeEditor from './native/index.vue'
+  import MarkdownSource from './markdown/index.vue'
   import Metrics from './metrics/index.vue'
   // functions
-  import { granularities } from './editor/functions/blocks/index.js'
   import generateDocument from './functions/generate-document.js'
   import runBenchmark from './benchmark/functions/run.js'
 
@@ -74,7 +60,7 @@
     components: {
       Toolbar,
       Editor,
-      NativeEditor,
+      MarkdownSource,
       Metrics
     },
     data () {
@@ -82,47 +68,46 @@
         documentNames: Object.keys(documents),
         documentName: 'basic.md',
         text: documents['basic.md'],
-        granularities,
-        granularity: 'item',
-        // from full to bare, for comparing how typing feels:
-        // cards; styled Markdown without cards; bare CodeMirror; browser-native editing
-        appearances: ['cards', 'styled', 'plain', 'contenteditable', 'textarea'],
-        appearance: 'cards',
-        // Markdown syntax is hidden by default (Cmd+Shift+M or the toolbar button shows it)
+        // the raw Markdown in a textarea instead of the editor (button or Cmd+Shift+M)
         isMarkdownShown: false,
+        // the textarea's text when it was opened
+        markdownText: '',
         results: [],
         progress: null
       }
     },
     methods: {
       open (name) {
+        this.isMarkdownShown = false
         this.documentName = name
         this.text = documents[name] ?? (documents[name] = generateDocument())
       },
       openFile ({ name, text }) {
+        this.isMarkdownShown = false
         if (!this.documentNames.includes(name)) this.documentNames.push(name)
         documents[name] = text
         this.documentName = name
         this.text = text
       },
-      setAppearance (value) {
-        // keep the edits made in the editor that is being replaced
-        // (CodeMirror looks switch in place and keep their state)
-        if (this.isNative(value) || this.isNative(this.appearance)) {
-          this.text = (this.isNative(this.appearance) ? this.$refs.native : this.$refs.editor).getText()
+      toggleMarkdown () {
+        if (this.isMarkdownShown) {
+          // the edits made in the textarea go back into the editor as one undo step
+          this.$refs.editor.applyLines(this.$refs.markdown.getText())
+          this.isMarkdownShown = false
+          this.$nextTick(() => this.$refs.editor.focus())
+        } else {
+          this.markdownText = this.$refs.editor.getLines()
+          this.isMarkdownShown = true
         }
-        this.appearance = value
-      },
-      isNative (appearance) {
-        return appearance == 'textarea' || appearance == 'contenteditable'
       },
       async benchmark () {
+        if (this.isMarkdownShown) this.toggleMarkdown()
         const text = documents[generatedName] ?? (documents[generatedName] = generateDocument())
         const view = this.$refs.editor.view
         this.results = await runBenchmark(view, text, {
           onProgress: progress => { this.progress = progress }
         })
-        // back to the document that was open, in the selected granularity
+        // back to the document that was open
         this.$refs.editor.view.setState(this.$refs.editor.createState())
       }
     }
@@ -134,6 +119,12 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+
+    // nothing may be wider than the window: the editor scrolling the cursor into view would
+    // otherwise scroll the whole app sideways
+    > * {
+      min-width: 0;
+    }
   }
 
 </style>

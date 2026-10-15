@@ -1,25 +1,18 @@
 // npm packages
-import { EditorState, Compartment, Prec } from '@codemirror/state'
+import { EditorState, Prec, Text } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 // local functions
 import markdown from './markdown/index.js'
-import { granularity } from './blocks/index.js'
-import cardLayers from './blocks/card-layers.js'
+import { blockLines } from './blocks/decorations.js'
 import { moveBlockUp, moveBlockDown } from './move/index.js'
 import { selectBlockUp, selectBlockDown } from './blocks/select.js'
 import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
 import gaps from './gaps/index.js'
-import markdownShown from './markdown-shown.js'
 import { insertNewBlock, joinBackward, joinForward } from './gaps/commands.js'
-
-// Granularity, appearance and Markdown visibility can be switched without recreating the editor
-export const granularityCompartment = new Compartment()
-export const appearanceCompartment = new Compartment()
-export const markdownCompartment = new Compartment()
 
 // Classes instead of inline styles, so the look lives in LESS
 const highlightStyle = HighlightStyle.define([
@@ -37,22 +30,15 @@ const highlightStyle = HighlightStyle.define([
   { tag: tags.quote, class: 'cm-quote' }
 ])
 
-// 'cards': blocks as cards and styled Markdown
-// 'styled': styled Markdown (heading sizes, emphasis, …) without cards
-// 'plain': bare CodeMirror, as a baseline for speed
-export function appearanceExtensions (appearance) {
-  if (appearance == 'plain') return []
-  if (appearance == 'styled') return [syntaxHighlighting(highlightStyle)]
-  return [syntaxHighlighting(highlightStyle), cardLayers]
-}
-
-// Markdown hidden (the default): no syntax (syntax/index.js) and no blank lines between blocks
-// (gaps/index.js), with Enter, Backspace, Delete and Alt+↑/↓ working on blocks.
-// Shown: the file exactly as it is, edited as text.
-export function markdownVisibilityExtensions (isMarkdownShown) {
-  if (isMarkdownShown) return markdownShown.of(true)
+// The editor shows Markdown as plain text: no syntax (syntax/index.js), no blank lines between
+// blocks (gaps/index.js), spacing between blocks (blocks/decorations.js), and Enter, Backspace,
+// Delete and Alt+↑/↓ working on blocks. The raw file is shown in a textarea instead (app).
+// bare: plain CodeMirror with the same document, as a speed baseline for the benchmark
+function documentExtensions (bare) {
+  if (bare) return []
   return [
-    EditorView.editorAttributes.of({ class: 'cm-markdown-hidden' }),
+    syntaxHighlighting(highlightStyle),
+    blockLines,
     hiddenSyntax,
     gaps,
     Prec.high(keymap.of([
@@ -82,19 +68,17 @@ export function createState (text, options = {}) {
     extensions: [
       lineBreak ? EditorState.lineSeparator.of(lineBreak) : [],
       markdown(),
-      granularityCompartment.of(granularity.of(options.granularity || 'item')),
       history(),
       // no drawSelection(): the browser's own caret and selection move in the same frame as the
       // text; CodeMirror's drawn cursor is positioned one frame later and feels slower
       EditorView.lineWrapping,
-      appearanceCompartment.of(appearanceExtensions(options.appearance)),
-      markdownCompartment.of(markdownVisibilityExtensions(options.isMarkdownShown)),
+      documentExtensions(options.bare),
       Prec.high(keymap.of([
         { key: 'Alt-Shift-ArrowUp', run: moveBlockUp },
         { key: 'Alt-Shift-ArrowDown', run: moveBlockDown },
         { key: 'Shift-ArrowUp', run: selectBlockUp },
         { key: 'Shift-ArrowDown', run: selectBlockDown },
-        // the app owns the setting; the editor only reports the shortcut
+        // the app switches to the raw Markdown; the editor only reports the shortcut
         { key: 'Mod-Shift-m', run: () => { options.onToggleMarkdown?.(); return true } }
       ])),
       // before the default keymap, which uses Mod-i for selecting the parent syntax node
@@ -108,4 +92,22 @@ export function createState (text, options = {}) {
 // The file content, with the file's own line breaks
 export function getText (state) {
   return state.sliceDoc()
+}
+
+// Replaces the document with text (line breaks as '\n', as a textarea gives them) as one change
+// covering only the part that differs, so undo history and the file's own line breaks stay.
+export function replaceText (state, text) {
+  const current = state.doc.toString()
+  if (current == text) return null
+  let start = 0
+  while (start < current.length && start < text.length && current[start] == text[start]) start++
+  let end = 0
+  while (end < current.length - start && end < text.length - start &&
+    current[current.length - 1 - end] == text[text.length - 1 - end]) end++
+  const insert = text.slice(start, text.length - end)
+  return {
+    // in document positions every line break is one character; Text splits the insert into lines
+    changes: { from: start, to: current.length - end, insert: Text.of(insert.split('\n')) },
+    userEvent: 'input.replace'
+  }
 }

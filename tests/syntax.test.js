@@ -55,12 +55,6 @@ describe('hidden Markdown', () => {
     view.destroy()
   })
 
-  it('shows everything with Markdown shown', () => {
-    const view = createView('## Title\n\n- **one**\n', { isMarkdownShown: true })
-    expect(shown(view)).toEqual(['## Title', '', '- **one**', ''])
-    view.destroy()
-  })
-
   it('never changes the file', () => {
     for (const name of fixtureNames()) {
       const text = readFixture(name).toString('utf8')

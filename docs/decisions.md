@@ -31,7 +31,7 @@ One pointer-events engine (no HTML5 drag, because of Tauri's file-drop handling 
 - Blocks are derived from the Markdown structure; no directives, no metadata in the file.
 - Headings are optional. A heading owns everything below it until the next heading of the same or higher level.
 - Levels are relative: moving a heading in the TOC moves its subtree and shifts all heading levels inside it by the same amount (`#` ↔ `##`, …). Max depth is Markdown's 6 for now.
-- **Block granularity is decided by measurement:** Notion-like small blocks (each paragraph, each list item) if speed and native text selection hold up; otherwise larger blocks (a whole list, groups of paragraphs). It is a parameter (`item`, `element`, `section`) and the dev toolbar switches it live.
+- **Blocks are item-sized** (Notion-like: every paragraph and every list item is a block; a heading moves together with what it owns). Bigger blocks (a whole list, a whole section) were built, measured and tried, and dropped as not useful.
 
 ### Measurements (2026-10-15)
 
@@ -60,10 +60,10 @@ Measured key press → paint per look (cards, styled, plain CodeMirror, raw cont
 
 ## Editing
 
-- **Markdown syntax is hidden by default**; a button and Cmd+Shift+M show it (later a View menu setting). The file is never changed by hiding.
+- **One editor, one look**: the editor always shows Markdown as plain text (no syntax, no blank lines between blocks). The **Markdown** button (Cmd+Shift+M, later a View menu item) shows the raw file in a plain textarea instead; switching back applies its edits to the editor as one undo step, keeping the file's own line breaks. The file is never changed by hiding.
 - **Blank lines between blocks** stay in the file but are hidden on screen while Markdown is hidden: blocks sit right below each other and the cursor skips the gap. The blank line with the cursor (a new block after Enter) stays visible. Enter in a paragraph or heading starts a new block, Backspace at the start of a paragraph joins it to the block above, Delete at the end of a block joins the paragraph below. The hiding is a state field updated only for the edited lines (about 1 ms per key on 10k lines; recomputing the whole document was 7–10 ms).
 - Several blank lines in a row mean the same as one in Markdown (outside code), so collapsing them never changes the document's meaning; the editor still keeps them as they are in the file.
-- **Minimal look**: with Markdown hidden the page looks like plain text: no card boxes, no highlight of the block with the cursor, only spacing between blocks. Cards (and the highlight of the active one) show only with Markdown shown.
+- **Minimal look**: the page looks like plain text: no card boxes, no highlight of the block with the cursor, only spacing between blocks. (Cards were tried and dropped: they were only useful for measuring, and the raw Markdown is clearer in a textarea.)
 - **Drag handle** (to come with drag-and-drop): appears only while the mouse is in the left margin next to a block, never when hovering over the text.
 - **Shortcuts**: Cmd+1…6 heading level, Cmd+0 paragraph, Cmd+7 numbered list, Cmd+8 bullet list, Cmd+B bold, Cmd+I italic, Cmd+E inline code, Cmd+K link, Cmd+Shift+X strikethrough (Cmd+X is cut), Cmd+Shift+M show Markdown (Cmd+M minimizes).
   - The line formats also work with **Cmd+Alt+number**: browsers reserve Cmd+number for switching tabs (Chrome never lets a page have it), so this second set works everywhere. In the app, Cmd+number are native menu items.

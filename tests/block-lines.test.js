@@ -6,11 +6,10 @@ import { EditorView } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
 // local
 import { createState } from './helpers.js'
-import { active } from '/src/app/editor/functions/blocks/decorations.js'
 import { moveBlockDown } from '/src/app/editor/functions/move/index.js'
 
-// Line marks and the active block of a real EditorView. jsdom has no layout, so the measuring
-// functions CodeMirror calls are stubbed (the card boxes themselves need layout to be checked).
+// Line marks of a real EditorView. jsdom has no layout, so the measuring functions CodeMirror
+// calls are stubbed.
 beforeAll(() => {
   const rect = { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0 }
   Range.prototype.getClientRects = () => []
@@ -36,7 +35,7 @@ function type (view, text, at = view.state.selection.main.head) {
   })
 }
 
-describe('cards while typing', () => {
+describe('block line marks', () => {
   it('keep their classes when typing a letter', () => {
     const view = createView('first paragraph\n\nsecond paragraph\n')
     const before = lineClasses(view)
@@ -68,44 +67,5 @@ describe('cards while typing', () => {
     expect(lineClasses(view)).toEqual(lineClasses(fresh))
     view.destroy()
     fresh.destroy()
-  })
-
-  it('move the active highlight when the cursor goes to another block', () => {
-    const view = createView('one\n\ntwo\n')
-    const activeText = () => {
-      const block = view.plugin(active).block
-      return view.state.sliceDoc(block.from, block.to)
-    }
-    view.dispatch({ selection: EditorSelection.cursor(0) })
-    expect(activeText()).toBe('one')
-    view.dispatch({ selection: EditorSelection.cursor(6) })
-    expect(activeText()).toBe('two')
-    view.destroy()
-  })
-
-  it('keep the active highlight on a whole line selected with its line break', () => {
-    const view = createView('one\n\ntwo\n', { isMarkdownShown: true })
-    view.dispatch({ selection: EditorSelection.range(0, 4) })
-    const block = view.plugin(active).block
-    expect(view.state.sliceDoc(block.from, block.to)).toBe('one')
-    view.destroy()
-  })
-
-  it('keep the active highlight on a line selected backwards from its end', () => {
-    const view = createView('one\n\ntwo\n')
-    // from the end of 'two' back to the end of 'one' (the cursor skips the hidden blank line)
-    view.dispatch({ selection: EditorSelection.range(8, 3) })
-    const block = view.plugin(active).block
-    expect(view.state.sliceDoc(block.from, block.to)).toBe('two')
-    view.destroy()
-  })
-
-  it('keep the same active block object while the cursor stays in the block', () => {
-    const view = createView('one two\n\nthree\n')
-    view.dispatch({ selection: EditorSelection.cursor(0) })
-    const before = view.plugin(active).block
-    view.dispatch({ selection: EditorSelection.cursor(4) })
-    expect(view.plugin(active).block).toBe(before)
-    view.destroy()
   })
 })

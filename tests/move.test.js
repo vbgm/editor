@@ -70,8 +70,8 @@ describe('keyboard moves', () => {
     expect(getText(undoOnce(twice))).toBe('two\n\none\n\nthree\n')
   })
 
-  it('section granularity moves whole sections', () => {
-    const state = stateWithCursor('## A|\n\na1\n\na2\n\n## B\n\nb\n', { granularity: 'section' })
+  it('moves a heading with all its paragraphs past its sibling', () => {
+    const state = stateWithCursor('## A|\n\na1\n\na2\n\n## B\n\nb\n')
     expect(getText(runCommand(moveBlockDown, state))).toBe('## B\n\nb\n\n## A\n\na1\n\na2\n')
   })
 })

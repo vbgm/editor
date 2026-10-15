@@ -3,14 +3,11 @@ import { RangeSet, RangeSetBuilder } from '@codemirror/state'
 import { ViewPlugin, Decoration } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 // local functions
-import { getBlocksInRange, blockIndexAt, granularity } from './index.js'
+import { getBlocksInRange, blockIndexAt } from './index.js'
 
 // Marks the lines of blocks, only for the visible part of the document.
 // Line classes: 'cm-block' on every line of a block, plus '-first' / '-last' on its edges,
-// '--<type>' and '--level-<n>' for headings. They only set layout (the space between cards)
-// and text style; the cards themselves are drawn as boxes behind the text (card-layers.js),
-// so no line has to be repainted when a card changes.
-// A separate, much smaller plugin tracks the block with the cursor.
+// '--<type>' and '--level-<n>' for headings. They set the space between blocks (index.vue).
 
 const decorationCache = new Map()
 
@@ -49,11 +46,11 @@ function build (view) {
   return builder.finish()
 }
 
-// Typing must never wait for the cards. An edit that keeps the number of lines (typing a
-// letter, deleting one) only shifts the existing decorations along with the text, which is
-// cheap; the blocks are checked again once the browser is idle, and redrawn only if they
-// changed (for example after typing '# ' or '- ' at the start of a line).
-// Edits that add or remove lines rebuild right away, so a new line never shows without its card.
+// Typing must never wait for the line marks. An edit within one line (typing a letter, deleting
+// one) only shifts the existing marks along with the text, which is cheap; the blocks are
+// checked again once the browser is idle, and redrawn only if they changed (for example after
+// typing '# ' or '- ' at the start of a line). Edits across lines rebuild right away, so the
+// spacing never jumps.
 
 // Runs check when the browser is idle, or right after the next paint where there is no
 // requestIdleCallback (Safari), so it never delays the frame that shows a key press.
@@ -72,7 +69,6 @@ function idleScheduler (check) {
   }
 }
 
-const granularityChanged = update => update.state.facet(granularity) != update.startState.facet(granularity)
 // an edit that is not within one line (a line break typed, deleted or moved, as in a block
 // move): the line classes cannot just be shifted along with the text
 function linesChanged (update) {
@@ -86,7 +82,7 @@ function linesChanged (update) {
 }
 const treeChanged = update => syntaxTree(update.state) != syntaxTree(update.startState)
 
-export const cards = ViewPlugin.fromClass(class {
+export const blockLines = ViewPlugin.fromClass(class {
   constructor (view) {
     this.view = view
     this.decorations = build(view)
@@ -99,7 +95,7 @@ export const cards = ViewPlugin.fromClass(class {
     if (this.next) {
       this.decorations = this.next
       this.next = null
-    } else if (update.viewportChanged || granularityChanged(update) || linesChanged(update)) {
+    } else if (update.viewportChanged || linesChanged(update)) {
       this.decorations = build(update.view)
     } else if (update.docChanged) {
       this.decorations = this.decorations.map(update.changes)
@@ -122,63 +118,4 @@ export const cards = ViewPlugin.fromClass(class {
   }
 }, {
   decorations: plugin => plugin.decorations
-})
-
-// the block at the cursor: in a gap between blocks, the block before it
-// The block with the selected text: a selection made forward that ends at the very start of a
-// line (a whole line selected by triple-click or by dragging past its end) ends on the line above;
-// one made backward that ends at the very end of a line starts on the next line with text.
-function activeBlock (state) {
-  const { doc } = state
-  const { head, anchor } = state.selection.main
-  let pos = head
-  if (head > anchor && head == doc.lineAt(head).from) {
-    pos = head - 1
-  } else if (head < anchor && head == doc.lineAt(head).to && head < doc.length) {
-    let line = doc.lineAt(head + 1)
-    while (line.number < doc.lines && line.to < anchor && /^[ \t]*$/.test(line.text)) line = doc.line(line.number + 1)
-    pos = Math.min(line.from, anchor)
-  }
-  const blocks = getBlocksInRange(state, pos, pos)
-  return blocks[blockIndexAt(blocks, pos)] || null
-}
-
-const sameBlock = (a, b) => a?.from == b?.from && a?.to == b?.to
-
-// block: { from, to, type, level } of the block with the cursor, or null
-export const active = ViewPlugin.fromClass(class {
-  constructor (view) {
-    this.view = view
-    this.block = activeBlock(view.state)
-    this.scheduleCheck = idleScheduler(() => this.check())
-  }
-
-  update (update) {
-    if (update.docChanged && !linesChanged(update)) {
-      // typing: the cursor stays in its block, which only grows or shrinks
-      const { changes } = update
-      if (this.block) this.block = { ...this.block, from: changes.mapPos(this.block.from), to: changes.mapPos(this.block.to, 1) }
-      this.scheduleCheck()
-    } else if (update.docChanged || granularityChanged(update)) {
-      this.block = activeBlock(update.state)
-    } else if (update.selectionSet) {
-      // the cursor moved within the same block (or the gap after it): keep the same object
-      const block = activeBlock(update.state)
-      if (!sameBlock(block, this.block)) this.block = block
-    } else if (treeChanged(update)) {
-      this.scheduleCheck()
-    }
-  }
-
-  check () {
-    if (this.isDestroyed) return
-    const block = activeBlock(this.view.state)
-    if (sameBlock(block, this.block)) return
-    this.block = block
-    this.view.dispatch({})
-  }
-
-  destroy () {
-    this.isDestroyed = true
-  }
 })

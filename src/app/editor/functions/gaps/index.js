@@ -20,7 +20,7 @@ import { getBlocksInRange } from '../blocks/index.js'
 // that leaves the cursor on a blank line between blocks (deleting a whole block) moves it to the
 // end of the block above instead, so no empty line appears.
 // Blank lines inside a block (in code, or between the paragraphs of one list item) are content
-// and stay visible: blocks are found with 'item' granularity, whatever the cards show.
+// and stay visible.
 //
 // Hiding line breaks changes the layout, so CodeMirror needs these ranges from the state, for
 // the whole document. They are computed once, and after that only for the lines an edit touched
@@ -45,7 +45,7 @@ function computeLines (state, first, last, headLine) {
 
   const from = doc.line(first).from
   const to = doc.line(last).to
-  const blocks = getBlocksInRange(state, from, to, { mode: 'item' })
+  const blocks = getBlocksInRange(state, from, to)
   const hide = []
   const atomic = []
   let kept = null
@@ -191,7 +191,7 @@ export const gaps = StateField.define({
 // whether the line is a blank line between blocks (not inside code or a list item)
 function isGapLine (state, line) {
   if (!isBlank(line.text)) return false
-  return !getBlocksInRange(state, line.from, line.to, { mode: 'item' })
+  return !getBlocksInRange(state, line.from, line.to)
     .some(block => block.from <= line.from && line.to <= block.to)
 }
 

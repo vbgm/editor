@@ -1,6 +1,7 @@
 <!--
 CodeMirror owns everything inside the root element; Vue never touches it.
-The document is not mirrored into Vue on every keystroke: read it with getText().
+The document is not mirrored into Vue on every keystroke: read it with getText(), or with
+getLines() and applyLines() for the raw Markdown textarea ('\n' line breaks).
 -->
 <template>
 
@@ -15,19 +16,13 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   import { markRaw } from 'vue'
   import { EditorView } from '@codemirror/view'
   // local functions
-  import { createState, getText, granularityCompartment, appearanceCompartment, appearanceExtensions, markdownCompartment, markdownVisibilityExtensions } from './functions/create-state.js'
-  import { granularity as granularityFacet } from './functions/blocks/index.js'
+  import { createState, getText, replaceText } from './functions/create-state.js'
 
   export default {
     name: 'Editor',
     props: {
       // replaces the whole document (opening a file)
-      text: String,
-      granularity: String,
-      // 'cards', 'styled' or 'plain'
-      appearance: String,
-      // Markdown syntax shown as it is in the file
-      isMarkdownShown: Boolean
+      text: String
     },
     emits: ['toggleMarkdown'],
     data () {
@@ -38,21 +33,6 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     watch: {
       'text' () {
         this.view.setState(this.createState())
-      },
-      'granularity' (value) {
-        this.view.dispatch({
-          effects: granularityCompartment.reconfigure(granularityFacet.of(value))
-        })
-      },
-      'appearance' (value) {
-        this.view.dispatch({
-          effects: appearanceCompartment.reconfigure(appearanceExtensions(value))
-        })
-      },
-      'isMarkdownShown' (value) {
-        this.view.dispatch({
-          effects: markdownCompartment.reconfigure(markdownVisibilityExtensions(value))
-        })
       }
     },
     mounted () {
@@ -69,14 +49,22 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     methods: {
       createState () {
         return createState(this.text, {
-          granularity: this.granularity,
-          appearance: this.appearance,
-          isMarkdownShown: this.isMarkdownShown,
           onToggleMarkdown: () => this.$emit('toggleMarkdown')
         })
       },
       getText () {
         return getText(this.view.state)
+      },
+      getLines () {
+        return this.view.state.doc.toString()
+      },
+      // the edits made in the raw Markdown, as one change (one undo step)
+      applyLines (text) {
+        const spec = replaceText(this.view.state, text)
+        if (spec) this.view.dispatch(spec)
+      },
+      focus () {
+        this.view.focus()
       }
     }
   }
@@ -115,69 +103,39 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       padding: 0 1rem;
     }
 
-    // space between cards: borders and padding on a block's first and last line (never margins,
-    // which CodeMirror cannot measure). With Markdown hidden there are no blank lines between
-    // blocks, so the transparent borders are the whole gap between cards (card-layers.js reads
-    // their width). Lines carry no paint, so changing a card never repaints text.
+    // The page reads as plain text. Space between blocks: transparent borders on a block's first
+    // and last line (never margins, which CodeMirror cannot measure); the blank lines between
+    // blocks are hidden (gaps/index.js). List items sit close together, headings get more room
+    // above.
     :deep(.cm-block-first) {
-      border-top: 0.3rem solid transparent;
-      padding-top: 0.45rem;
+      border-top: 0.4rem solid transparent;
     }
 
     :deep(.cm-block-last) {
-      border-bottom: 0.3rem solid transparent;
-      padding-bottom: 0.45rem;
+      border-bottom: 0.4rem solid transparent;
     }
 
-    // Markdown hidden: no cards, the page reads as plain text. Blocks are apart by the space
-    // between paragraphs, list items sit close together, headings get more room above.
-    :deep(.cm-markdown-hidden) {
-      .cm-block-first {
-        border-top-width: 0.4rem;
-        padding-top: 0;
+    :deep(.cm-block--listItem) {
+      &.cm-block-first {
+        border-top-width: 0.1rem;
       }
 
-      .cm-block-last {
-        border-bottom-width: 0.4rem;
-        padding-bottom: 0;
-      }
-
-      .cm-block--listItem {
-        &.cm-block-first {
-          border-top-width: 0.1rem;
-        }
-
-        &.cm-block-last {
-          border-bottom-width: 0.1rem;
-        }
-      }
-
-      .cm-block--heading.cm-block-first {
-        border-top-width: 1.1rem;
-      }
-
-      // the empty line after Enter (gaps/index.js) is spaced like a paragraph
-      .cm-new-block {
-        border-top: 0.4rem solid transparent;
-        border-bottom: 0.4rem solid transparent;
+      &.cm-block-last {
+        border-bottom-width: 0.1rem;
       }
     }
 
-    // the cards themselves: boxes in layers behind the text (card-layers.js)
-    :deep(.cm-cards > .cm-card) {
-      box-sizing: border-box;
-      background: var(--color--card);
-      border: 1px solid var(--color--card--border);
-      border-radius: 0.6rem;
+    :deep(.cm-block--heading.cm-block-first) {
+      border-top-width: 1.1rem;
     }
 
-    :deep(.cm-cards-active > .cm-card--active) {
-      box-sizing: border-box;
-      border: 1px solid var(--color--card--border-active);
-      border-radius: 0.6rem;
+    // the empty line after Enter (gaps/index.js) is spaced like a paragraph
+    :deep(.cm-new-block) {
+      border-top: 0.4rem solid transparent;
+      border-bottom: 0.4rem solid transparent;
     }
 
-    // Markdown hidden (syntax/index.js): lines that only hold syntax take no space,
+    // hidden syntax (syntax/index.js): lines that only hold syntax take no space,
     // and some symbols are drawn instead of shown
     :deep(.cm-collapsed-line) {
       height: 0;

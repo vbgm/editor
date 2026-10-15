@@ -2,11 +2,11 @@
 import { EditorSelection } from '@codemirror/state'
 // app functions
 import { createState } from '/src/app/editor/functions/create-state.js'
-import { getBlocks, granularities } from '/src/app/editor/functions/blocks/index.js'
+import { getBlocks } from '/src/app/editor/functions/blocks/index.js'
 import { moveBlockDown } from '/src/app/editor/functions/move/index.js'
 import summary from '/src/app/metrics/functions/summary.js'
 
-// Runs the same scripted session for every granularity on the given text:
+// Runs the same scripted session on the editor and on bare CodeMirror with the given text:
 // load, full parse into blocks, typing in the middle of the document, block moves.
 // Typing is dispatched directly (no real key events), so it measures the editor's own
 // update and paint cost, not the browser's input handling.
@@ -18,16 +18,16 @@ const nextPaint = () => new Promise(resolve => requestAnimationFrame(() => setTi
 export default async function runBenchmark (view, text, { typing = 150, moves = 30, onProgress } = {}) {
   const results = []
 
-  // 'no cards' is plain CodeMirror with the same document, as a baseline
+  // 'bare' is plain CodeMirror with the same document, as a baseline for what the editor adds
   const runs = [
-    { name: 'no cards', granularity: 'element', appearance: 'plain' },
-    ...granularities.map(granularity => ({ name: granularity, granularity }))
+    { name: 'bare CodeMirror', bare: true },
+    { name: 'editor' }
   ]
 
-  for (const { name, granularity, appearance } of runs) {
+  for (const { name, bare } of runs) {
     onProgress?.(`${name}: loading`)
     let startedAt = performance.now()
-    view.setState(createState(text, { granularity, appearance }))
+    view.setState(createState(text, { bare }))
     await nextPaint()
     const load = performance.now() - startedAt
 

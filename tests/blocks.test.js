@@ -9,8 +9,8 @@ import generateDocument from '/src/app/functions/generate-document.js'
 const basic = readFixture('basic.md').toString('utf8')
 
 describe('blocks', () => {
-  it('item: every list item is its own block', () => {
-    const blocks = blocksOf(createState(basic, { granularity: 'item' }))
+  it('every list item is its own block', () => {
+    const blocks = blocksOf(createState(basic))
     expect(blocks.map(block => block.type)).toEqual([
       'paragraph', 'heading', 'paragraph', 'heading',
       'listItem', 'listItem', 'listItem', 'paragraph',
@@ -19,17 +19,9 @@ describe('blocks', () => {
     expect(blocks[4].text).toBe('- first task')
   })
 
-  it('element: a list is one block', () => {
-    const blocks = blocksOf(createState(basic, { granularity: 'element' }))
-    expect(blocks[4]).toEqual({ type: 'list', level: 0, text: '- first task\n- second task\n- third task' })
+  it('headings have their level', () => {
+    const blocks = blocksOf(createState(basic))
     expect(blocks.filter(block => block.level).map(block => block.level)).toEqual([1, 2, 2, 3, 2])
-  })
-
-  it('section: a heading with its body, and a preamble without heading', () => {
-    const blocks = blocksOf(createState(basic, { granularity: 'section' }))
-    expect(blocks.map(block => block.level)).toEqual([0, 1, 2, 2, 3, 2])
-    expect(blocks[0].text).toBe('Some text before any heading.')
-    expect(blocks[2].text).toBe('## Tasks\n\n- first task\n- second task\n- third task\n\nParagraph after the list.')
   })
 
   it('front matter is one block and not read as headings', () => {
@@ -49,7 +41,7 @@ describe('blocks', () => {
   })
 
   it('headings inside code and quotes are not blocks', () => {
-    const blocks = blocksOf(createState(readFixture('formatting.md').toString('utf8'), { granularity: 'element' }))
+    const blocks = blocksOf(createState(readFixture('formatting.md').toString('utf8')))
     expect(blocks.filter(block => block.level).map(block => block.text)).toEqual([
       'Setext title\n============',
       'Subtitle\n--------'
@@ -62,16 +54,14 @@ describe('blocks', () => {
 })
 
 describe('blocks in a range', () => {
-  it('match the full list of blocks for every granularity', () => {
+  it('match the full list of blocks', () => {
     const text = generateDocument(3000)
-    for (const mode of ['item', 'element', 'section']) {
-      const state = createState(text, { granularity: mode })
-      const all = getBlocks(state, { complete: true })
-      for (const [from, to] of [[0, 500], [20000, 26000], [text.length - 3000, text.length], [55555, 55556]]) {
-        const expected = all.filter(block => block.to >= from && block.from <= to)
-        const actual = getBlocksInRange(state, from, to, { tree: ensureSyntaxTree(state, state.doc.length) }).filter(block => block.to >= from && block.from <= to)
-        expect(actual, `${mode} ${from}-${to}`).toEqual(expected)
-      }
+    const state = createState(text)
+    const all = getBlocks(state, { complete: true })
+    for (const [from, to] of [[0, 500], [20000, 26000], [text.length - 3000, text.length], [55555, 55556]]) {
+      const expected = all.filter(block => block.to >= from && block.from <= to)
+      const actual = getBlocksInRange(state, from, to, { tree: ensureSyntaxTree(state, state.doc.length) }).filter(block => block.to >= from && block.from <= to)
+      expect(actual, `${from}-${to}`).toEqual(expected)
     }
   })
 })
