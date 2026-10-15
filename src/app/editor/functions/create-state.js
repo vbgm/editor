@@ -7,7 +7,7 @@ import { tags } from '@lezer/highlight'
 // local functions
 import markdown from './markdown/index.js'
 import { granularity } from './blocks/index.js'
-import blockDecorations from './blocks/decorations.js'
+import cardLayers from './blocks/card-layers.js'
 import { moveBlockUp, moveBlockDown } from './move/index.js'
 
 // Granularity and appearance can be switched without recreating the editor
@@ -36,7 +36,7 @@ const highlightStyle = HighlightStyle.define([
 export function appearanceExtensions (appearance) {
   if (appearance == 'plain') return []
   if (appearance == 'styled') return [syntaxHighlighting(highlightStyle)]
-  return [syntaxHighlighting(highlightStyle), blockDecorations]
+  return [syntaxHighlighting(highlightStyle), cardLayers]
 }
 
 // Files keep their own line breaks: CRLF files are saved as CRLF.

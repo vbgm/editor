@@ -104,44 +104,31 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       padding: 0 1rem;
     }
 
-    // cards: drawn with line decorations; borders and padding (never margins,
-    // which CodeMirror cannot measure) make the edges and the space between cards
-    :deep(.cm-block) {
+    // space between cards: borders and padding on a block's first and last line (never margins,
+    // which CodeMirror cannot measure); the 3px border is the gap between cards (cardGap in
+    // card-layers.js). Lines carry no paint, so changing a card never repaints text.
+    :deep(.cm-block-first) {
+      border-top: 3px solid transparent;
+      padding-top: 0.45rem;
+    }
+
+    :deep(.cm-block-last) {
+      border-bottom: 3px solid transparent;
+      padding-bottom: 0.45rem;
+    }
+
+    // the cards themselves: boxes in layers behind the text (card-layers.js)
+    :deep(.cm-cards > .cm-card) {
+      box-sizing: border-box;
       background: var(--color--card);
-      background-clip: padding-box;
-      box-shadow: inset 1px 0 0 var(--color--card--border), inset -1px 0 0 var(--color--card--border);
+      border: 1px solid var(--color--card--border);
+      border-radius: 0.6rem;
+    }
 
-      &.cm-block-first {
-        border-top: 3px solid transparent;
-        padding-top: 0.45rem;
-        border-top-left-radius: 0.6rem;
-        border-top-right-radius: 0.6rem;
-        box-shadow: inset 1px 0 0 var(--color--card--border), inset -1px 0 0 var(--color--card--border), inset 0 1px 0 var(--color--card--border);
-      }
-
-      &.cm-block-last {
-        border-bottom: 3px solid transparent;
-        padding-bottom: 0.45rem;
-        border-bottom-left-radius: 0.6rem;
-        border-bottom-right-radius: 0.6rem;
-        box-shadow: inset 1px 0 0 var(--color--card--border), inset -1px 0 0 var(--color--card--border), inset 0 -1px 0 var(--color--card--border);
-      }
-
-      &.cm-block-first.cm-block-last {
-        box-shadow: inset 0 0 0 1px var(--color--card--border);
-      }
-
-      &.cm-block--active {
-        --color--card--border: var(--color--card--border-active);
-      }
-
-      // headings and rules read as structure, not as content cards
-      &.cm-block--heading,
-      &.cm-block--frontmatter,
-      &.cm-block--rule {
-        --color--card--border: transparent;
-        background: transparent;
-      }
+    :deep(.cm-cards-active > .cm-card--active) {
+      box-sizing: border-box;
+      border: 1px solid var(--color--card--border-active);
+      border-radius: 0.6rem;
     }
 
     :deep(.cm-heading) {

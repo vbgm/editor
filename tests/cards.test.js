@@ -6,9 +6,10 @@ import { EditorView } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
 // local
 import { createState } from './helpers.js'
+import { active } from '/src/app/editor/functions/blocks/decorations.js'
 
-// The cards are decorations of a real EditorView. jsdom has no layout, so the measuring
-// functions CodeMirror calls are stubbed.
+// Line marks and the active block of a real EditorView. jsdom has no layout, so the measuring
+// functions CodeMirror calls are stubbed (the card boxes themselves need layout to be checked).
 beforeAll(() => {
   const rect = { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0 }
   Range.prototype.getClientRects = () => []
@@ -60,11 +61,23 @@ describe('cards while typing', () => {
 
   it('move the active highlight when the cursor goes to another block', () => {
     const view = createView('one\n\ntwo\n')
+    const activeText = () => {
+      const block = view.plugin(active).block
+      return view.state.sliceDoc(block.from, block.to)
+    }
     view.dispatch({ selection: EditorSelection.cursor(0) })
-    expect(lineClasses(view)[0]).toContain('cm-block--active')
+    expect(activeText()).toBe('one')
     view.dispatch({ selection: EditorSelection.cursor(6) })
-    expect(lineClasses(view)[0]).not.toContain('cm-block--active')
-    expect(lineClasses(view)[2]).toContain('cm-block--active')
+    expect(activeText()).toBe('two')
+    view.destroy()
+  })
+
+  it('keep the same active block object while the cursor stays in the block', () => {
+    const view = createView('one two\n\nthree\n')
+    view.dispatch({ selection: EditorSelection.cursor(0) })
+    const before = view.plugin(active).block
+    view.dispatch({ selection: EditorSelection.cursor(4) })
+    expect(view.plugin(active).block).toBe(before)
     view.destroy()
   })
 })

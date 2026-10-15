@@ -5,11 +5,12 @@ import { syntaxTree } from '@codemirror/language'
 // local functions
 import { getBlocksInRange, blockIndexAt, granularity } from './index.js'
 
-// Draws blocks as cards with line decorations, only for the visible part of the document.
+// Marks the lines of blocks, only for the visible part of the document.
 // Line classes: 'cm-block' on every line of a block, plus '-first' / '-last' on its edges,
-// '--<type>' and '--level-<n>' for headings.
-// The block with the cursor gets 'cm-block--active' from a separate, much smaller plugin,
-// so moving the cursor does not rebuild the cards.
+// '--<type>' and '--level-<n>' for headings. They only set layout (the space between cards)
+// and text style; the cards themselves are drawn as boxes behind the text (card-layers.js),
+// so no line has to be repainted when a card changes.
+// A separate, much smaller plugin tracks the block with the cursor.
 
 const decorationCache = new Map()
 
@@ -75,7 +76,7 @@ const granularityChanged = update => update.state.facet(granularity) != update.s
 const linesChanged = update => update.docChanged && update.state.doc.lines != update.startState.doc.lines
 const treeChanged = update => syntaxTree(update.state) != syntaxTree(update.startState)
 
-const cards = ViewPlugin.fromClass(class {
+export const cards = ViewPlugin.fromClass(class {
   constructor (view) {
     this.view = view
     this.decorations = build(view)
@@ -113,8 +114,6 @@ const cards = ViewPlugin.fromClass(class {
   decorations: plugin => plugin.decorations
 })
 
-const activeDecoration = Decoration.line({ class: 'cm-block--active' })
-
 // the block at the cursor: in a gap between blocks, the block before it
 function activeBlock (state) {
   const head = state.selection.main.head
@@ -124,38 +123,26 @@ function activeBlock (state) {
 
 const sameBlock = (a, b) => a?.from == b?.from && a?.to == b?.to
 
-const active = ViewPlugin.fromClass(class {
+// block: { from, to, type, level } of the block with the cursor, or null
+export const active = ViewPlugin.fromClass(class {
   constructor (view) {
     this.view = view
-    this.set(view.state, activeBlock(view.state))
+    this.block = activeBlock(view.state)
     this.scheduleCheck = idleScheduler(() => this.check())
-  }
-
-  set (state, block) {
-    this.block = block
-    const builder = new RangeSetBuilder()
-    if (block) {
-      for (let line = state.doc.lineAt(block.from); ; line = state.doc.line(line.number + 1)) {
-        builder.add(line.from, line.from, activeDecoration)
-        if (line.to >= block.to) break
-      }
-    }
-    this.decorations = builder.finish()
   }
 
   update (update) {
     if (update.docChanged && !linesChanged(update)) {
       // typing: the cursor stays in its block, which only grows or shrinks
       const { changes } = update
-      this.decorations = this.decorations.map(changes)
       if (this.block) this.block = { ...this.block, from: changes.mapPos(this.block.from), to: changes.mapPos(this.block.to, 1) }
       this.scheduleCheck()
     } else if (update.docChanged || granularityChanged(update)) {
-      this.set(update.state, activeBlock(update.state))
+      this.block = activeBlock(update.state)
     } else if (update.selectionSet) {
-      // the cursor moved within the same block (or the gap after it): nothing to redraw
+      // the cursor moved within the same block (or the gap after it): keep the same object
       const block = activeBlock(update.state)
-      if (!sameBlock(block, this.block)) this.set(update.state, block)
+      if (!sameBlock(block, this.block)) this.block = block
     } else if (treeChanged(update)) {
       this.scheduleCheck()
     }
@@ -165,15 +152,11 @@ const active = ViewPlugin.fromClass(class {
     if (this.isDestroyed) return
     const block = activeBlock(this.view.state)
     if (sameBlock(block, this.block)) return
-    this.set(this.view.state, block)
+    this.block = block
     this.view.dispatch({})
   }
 
   destroy () {
     this.isDestroyed = true
   }
-}, {
-  decorations: plugin => plugin.decorations
 })
-
-export default [cards, active]

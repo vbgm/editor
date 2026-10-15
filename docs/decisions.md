@@ -50,6 +50,14 @@ Generated document of 10k lines, Vite dev build (not minified), Chromium in the 
 - Selection across blocks is native (one CodeMirror document), so it works the same for every granularity.
 - **Result: use `item` (Notion-like: every paragraph and list item is a block) as the default.** Still to measure: Safari/WKWebView (macOS), WebView2 (Windows), WebKitGTK (Linux), and a production build.
 
+### Typing latency (2026-10-15)
+
+Measured key press → paint per look (cards, styled, plain CodeMirror, raw contenteditable, native textarea) in the dev panel.
+
+- **Safari / WebKit is the reference**: the macOS app runs in WKWebView. There, plain and styled CodeMirror are as fast as a native textarea. The remaining cost was the cards (arrow keys between blocks, Enter), so cards are drawn as boxes in layers behind the text and lines carry no paint.
+- **Chrome on macOS** is late by a frame for most keys even in a native textarea, so it is not optimized for. Windows (WebView2, Chromium) and Linux (WebKitGTK) still need their own measurement.
+- Typing never rebuilds the cards: line marks are mapped through edits and the blocks are re-checked when idle.
+
 ## Files
 
 - Single-file windows first.
