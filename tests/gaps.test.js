@@ -77,6 +77,16 @@ describe('hidden blank lines', () => {
     view.destroy()
   })
 
+  it('space the blank line with the cursor like a paragraph', () => {
+    const view = createView('one\n\n\n\ntwo\n')
+    view.dispatch({ selection: EditorSelection.cursor('one\n\n'.length) })
+    const lines = [...view.contentDOM.querySelectorAll('.cm-line')]
+    expect(lines[1].classList.contains('cm-new-block')).toBe(true)
+    view.dispatch({ selection: EditorSelection.cursor(0) })
+    expect(view.contentDOM.querySelector('.cm-new-block')).toBe(null)
+    view.destroy()
+  })
+
   it('stay hidden while typing in a block', () => {
     const view = createView('first paragraph\n\nsecond paragraph\n')
     view.dispatch({ changes: { from: 1, insert: 'x' }, selection: EditorSelection.cursor(2) })

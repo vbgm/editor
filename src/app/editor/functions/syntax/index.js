@@ -216,6 +216,13 @@ export const hiddenSyntax = ViewPlugin.fromClass(class {
 // marks at the start of a line that the cursor goes behind: heading, quote, bullet (with a task box)
 const lineStartMark = /^(?:[ \t]{0,3}#{1,6}[ \t]+|(?:[ \t]*>[ \t]?)+|[ \t]*[-*+][ \t](?:\[[ xX]\][ \t]?)?)/
 
+// where the text of the line at lineFrom starts, behind its hidden heading, quote or bullet mark
+export function textStart (state, lineFrom) {
+  const line = state.doc.lineAt(lineFrom)
+  const mark = lineStartMark.exec(line.text)
+  return mark && !isInCode(state, line.from) ? line.from + mark[0].length : line.from
+}
+
 function isInCode (state, pos) {
   for (let node = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent) {
     if (['FencedCode', 'CodeBlock', 'HTMLBlock', 'Frontmatter'].includes(node.name)) return true

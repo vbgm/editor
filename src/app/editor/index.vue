@@ -155,6 +155,12 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       .cm-block--heading.cm-block-first {
         border-top-width: 1.1rem;
       }
+
+      // the empty line after Enter (gaps/index.js) is spaced like a paragraph
+      .cm-new-block {
+        border-top: 0.4rem solid transparent;
+        border-bottom: 0.4rem solid transparent;
+      }
     }
 
     // the cards themselves: boxes in layers behind the text (card-layers.js)

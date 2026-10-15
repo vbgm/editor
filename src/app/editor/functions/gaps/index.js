@@ -29,6 +29,8 @@ import { getBlocksInRange } from '../blocks/index.js'
 
 const hidden = Decoration.replace({})
 const skip = Decoration.mark({})
+// the cursor's blank line: spaced like a paragraph, it is a new block still to be typed
+const newBlock = Decoration.line({ class: 'cm-new-block' })
 
 const isBlank = text => /^[ \t]*$/.test(text)
 
@@ -83,6 +85,7 @@ function computeLines (state, first, last, headLine) {
       if (headLine >= runStart && headLine <= runEnd) {
         // keep the cursor's blank line, hide the others around it
         kept = doc.line(headLine).from
+        hide.push(newBlock.range(kept))
         if (headLine > runStart) addSegment(runStart, headLine - 1)
         if (headLine < runEnd) addSegment(headLine + 1, runEnd)
       } else {
