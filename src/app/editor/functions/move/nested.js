@@ -2,6 +2,8 @@
 import { EditorSelection, Text } from '@codemirror/state'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { isolateHistory } from '@codemirror/commands'
+// local functions
+import { movedLines } from './animate.js'
 
 // Moving nested list items (Alt+↑/↓ with the cursor in a sub-item); top-level blocks are moved
 // by index.js. A sub-item (with its own sub-items, or every selected sibling):
@@ -50,11 +52,17 @@ export default function nestedMoveSpec (state, direction) {
     const into = lastLineOf(doc, parentAbove)
     const parentText = doc.sliceString(doc.lineAt(parent.from).from, span.from.from - 1)
     const delta = contentColumn(doc, parentAbove) - contentColumn(doc, parent)
+    // the item goes up past its parent's own lines
+    const parentLine = doc.lineAt(parent.from).number
+    const spanLines = span.to.number - span.from.number + 1
     return rewrite(state, span, delta, {
       from: into.to,
       to: span.to.to,
       before: lineBreak,
       after: doc.sliceString(into.to, doc.lineAt(parent.from).from) + parentText
+    }, {
+      above: { from: parentLine, to: span.from.number - 1, newFrom: parentLine + spanLines },
+      below: { from: span.from.number, to: span.to.number, newFrom: into.number + 1 }
     })
   }
 
@@ -65,11 +73,16 @@ export default function nestedMoveSpec (state, direction) {
   // after the parent's own lines below, before its sub-items
   const ownEnd = ownLinesEnd(doc, parentBelow)
   const delta = contentColumn(doc, parentBelow) - contentColumn(doc, parent)
+  // the item goes down past the lines up to the next item's own lines
+  const jumped = ownEnd.number - span.to.number
   return rewrite(state, span, delta, {
     from: doc.line(span.from.number - 1).to,
     to: ownEnd.to,
     before: doc.sliceString(span.to.to, ownEnd.to) + lineBreak,
     after: ''
+  }, {
+    above: { from: span.from.number, to: span.to.number, newFrom: span.from.number + jumped },
+    below: { from: span.to.number + 1, to: ownEnd.number, newFrom: span.from.number }
   })
 }
 
@@ -111,13 +124,18 @@ function swap (state, first, second, moved) {
   const between = doc.sliceString(first.to.to, second.from.from)
   const insert = secondText + between + firstText
   const movedStart = moved == first ? first.from.from + secondText.length + between.length : first.from.from
-  return spec(state, first.from.from, second.to.to, insert, moved, movedStart, 0)
+  const secondLines = second.to.number - second.from.number
+  const swapped = {
+    above: { from: first.from.number, to: first.to.number, newFrom: first.from.number + secondLines + between.split(lineBreak).length - 1 },
+    below: { from: second.from.number, to: second.to.number, newFrom: first.from.number }
+  }
+  return spec(state, first.from.from, second.to.to, insert, moved, movedStart, 0, swapped)
 }
 
 // moves span (indented by delta) to replace from..to, between before and after
-function rewrite (state, span, delta, { from, to, before, after }) {
+function rewrite (state, span, delta, { from, to, before, after }, swapped) {
   const text = reindent(state.doc.sliceString(span.from.from, span.to.to), delta)
-  return spec(state, from, to, before + text + after, span, from + before.length, delta)
+  return spec(state, from, to, before + text + after, span, from + before.length, delta, swapped)
 }
 
 function reindent (text, delta) {
@@ -128,7 +146,8 @@ function reindent (text, delta) {
   }).join(lineBreak)
 }
 
-function spec (state, from, to, insert, moved, movedStart, delta) {
+// swapped: the lines that changed places, for the slide (animate.js)
+function spec (state, from, to, insert, moved, movedStart, delta, swapped) {
   const { doc } = state
   // the selection stays on the same text: same line of the moved span, column shifted by delta
   const map = position => {
@@ -146,6 +165,6 @@ function spec (state, from, to, insert, moved, movedStart, delta) {
     selection: EditorSelection.single(map(anchor), map(head)),
     scrollIntoView: true,
     userEvent: 'move.block',
-    annotations: isolateHistory.of('full')
+    annotations: [isolateHistory.of('full'), movedLines.of(swapped)]
   }
 }

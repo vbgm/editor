@@ -1,0 +1,110 @@
+// npm packages
+import { Annotation, StateEffect, RangeSetBuilder } from '@codemirror/state'
+import { ViewPlugin, Decoration } from '@codemirror/view'
+
+// Alt+↑/↓ moves slide: every move swaps two neighbouring stretches of lines, and both slide from
+// where they were on screen to their new place. The document changes at once, as before; only the drawing is animated, with CSS
+// transforms on line decorations, so keys are never held up. A move during a slide starts from
+// where the lines are drawn at that moment.
+//
+// The move commands say which lines they swapped (movedLines). dispatchMove reads where those
+// lines are drawn just before the move and right after it (before the browser paints), and the
+// plugin draws them back at the old place, then lets them slide. Only drawn lines are measured
+// (CodeMirror's own heights can lag behind the page); a stretch out of view does not slide.
+
+// { above: { from, to, newFrom }, below: { from, to, newFrom } }:
+// line numbers before the move, and where each stretch starts after it
+export const movedLines = Annotation.define()
+
+// { lines: [{ from, to, offset }] }: new line numbers and how far above (< 0) or below
+// their new place they were drawn
+const slide = StateEffect.define()
+const settle = StateEffect.define()
+const clear = StateEffect.define()
+
+const duration = 150
+
+// Dispatches a move transaction and slides it, when the view is drawn (tests pass a bare
+// { state, dispatch } to the commands).
+export function dispatchMove (view, transaction) {
+  const swapped = transaction.annotation(movedLines)
+  if (!swapped || !view.contentDOM?.isConnected) return view.dispatch(transaction)
+  const old = { above: drawnTop(view, swapped.above.from), below: drawnTop(view, swapped.below.from) }
+  view.dispatch(transaction)
+  const lines = []
+  for (const key of ['above', 'below']) {
+    const span = swapped[key]
+    const now = drawnTop(view, span.newFrom)
+    if (old[key] == null || now == null) continue
+    lines.push({ from: span.newFrom, to: span.newFrom + span.to - span.from, offset: old[key] - now })
+  }
+  if (lines.length) view.dispatch({ effects: slide.of({ lines }) })
+}
+
+// where line number is drawn on screen (with any slide still going on), or null when it is not
+function drawnTop (view, number) {
+  const pos = view.state.doc.line(number).from
+  if (pos < view.viewport.from || pos > view.viewport.to) return null
+  const node = view.domAtPos(pos).node
+  const line = (node.nodeType == 1 ? node : node.parentElement)?.closest('.cm-line')
+  return line ? line.getBoundingClientRect().top : null
+}
+
+class SlidePlugin {
+  constructor (view) {
+    this.view = view
+    this.decorations = Decoration.none
+    this.id = 0
+  }
+
+  update (update) {
+    // a change of the text (the move itself too) ends any slide at once
+    if (update.docChanged) {
+      this.id++
+      this.decorations = Decoration.none
+    }
+    for (const transaction of update.transactions) {
+      for (const effect of transaction.effects) {
+        if (effect.is(slide)) this.start(effect.value)
+        if (effect.is(settle) && effect.value == this.id) this.decorations = this.draw(this.lines, false)
+        if (effect.is(clear) && effect.value == this.id) this.decorations = Decoration.none
+      }
+    }
+  }
+
+  start ({ lines }) {
+    const id = ++this.id
+    this.lines = lines
+    this.decorations = this.draw(lines, true)
+    // drawn at the old place first, then let go in the next frame, so the transition runs
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (id != this.id) return
+      this.view.dispatch({ effects: settle.of(id) })
+      setTimeout(() => {
+        if (id == this.id) this.view.dispatch({ effects: clear.of(id) })
+      }, duration + 50)
+    }))
+  }
+
+  draw (lines, isAtStart) {
+    const { view } = this
+    const { doc } = view.state
+    const builder = new RangeSetBuilder()
+    for (const { from, to, offset } of lines.slice().sort((a, b) => a.from - b.from)) {
+      const decoration = isAtStart
+        ? Decoration.line({ class: 'cm-slide-from', attributes: { style: `transform: translateY(${offset}px)` } })
+        : Decoration.line({ class: 'cm-slide-to' })
+      for (let number = from; number <= Math.min(to, doc.lines); number++) {
+        const pos = doc.line(number).from
+        // a hidden blank line is drawn as part of the line above
+        if (view.lineBlockAt(pos).from != pos) continue
+        builder.add(pos, pos, decoration)
+      }
+    }
+    return builder.finish()
+  }
+}
+
+export const slideMoves = ViewPlugin.fromClass(SlidePlugin, {
+  decorations: plugin => plugin.decorations
+})

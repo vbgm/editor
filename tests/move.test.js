@@ -1,7 +1,9 @@
 // npm packages
 import { describe, it, expect } from 'vitest'
+import { EditorSelection } from '@codemirror/state'
 // local
-import { stateWithCursor, runCommand, undoOnce, getText, createState } from './helpers.js'
+import { stateWithCursor, runCommand, undoOnce, getText, createState, readFixture } from './helpers.js'
+import { movedLines } from '/src/app/editor/functions/move/animate.js'
 import { moveBlockUp, moveBlockDown, moveSpec } from '/src/app/editor/functions/move/index.js'
 import { getBlocks } from '/src/app/editor/functions/blocks/index.js'
 import shiftHeading from '/src/app/editor/functions/move/shift-heading.js'
@@ -170,5 +172,32 @@ describe('moves in Markdown mode', () => {
   it('move blocks the same way', () => {
     const state = stateWithCursor('one|\n\ntwo\n\nthree\n', { isMarkdownShown: true })
     expect(getText(runCommand(moveBlockDown, state))).toBe('two\n\none\n\nthree\n')
+  })
+})
+
+describe('the lines a move reports for the slide', () => {
+  // the same text, apart from indentation and list numbers (sub-items are re-indented, lists renumbered)
+  const plain = text => text.replace(/^[ \t]*(\d+[.)])?/, '')
+
+  it('are where the swapped lines are after the move, for every move in the sample', () => {
+    const state = createState(readFixture('basic.md').toString())
+    let checked = 0
+    for (let number = 1; number <= state.doc.lines; number++) {
+      const line = state.doc.line(number)
+      if (!line.text.trim()) continue
+      for (const command of [moveBlockUp, moveBlockDown]) {
+        let transaction = null
+        command({ state: state.update({ selection: EditorSelection.cursor(line.to) }).state, dispatch: tr => { transaction = tr } })
+        const swapped = transaction?.annotation(movedLines)
+        if (!swapped) continue
+        for (const span of [swapped.above, swapped.below]) {
+          for (let offset = 0; offset <= span.to - span.from; offset++) {
+            expect(plain(transaction.state.doc.line(span.newFrom + offset).text), `line ${number}`).toBe(plain(transaction.startState.doc.line(span.from + offset).text))
+          }
+        }
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(40)
   })
 })

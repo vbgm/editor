@@ -336,6 +336,12 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       cursor: grab;
     }
 
+    // Alt+↑/↓ (move/animate.js): the swapped lines are drawn where they were, then slide into
+    // place
+    :deep(.cm-slide-to) {
+      transition: transform 0.15s ease;
+    }
+
     :deep(.cm-dnd-line) {
       transition: transform 0.15s ease;
     }

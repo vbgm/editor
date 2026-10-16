@@ -6,6 +6,7 @@ import { getBlocks, blockIndexAt } from '../blocks/index.js'
 import shiftHeading from './shift-heading.js'
 import renumber from './renumber.js'
 import nestedMoveSpec from './nested.js'
+import { movedLines, dispatchMove } from './animate.js'
 
 // Every move is a swap of two adjacent spans of blocks, done as one transaction
 // (one undo step). The text of each span moves as it is, including the blank lines inside it;
@@ -38,15 +39,17 @@ export function moveBlockDown (view) {
   return run(view, 'down')
 }
 
-function run ({ state, dispatch }, direction) {
+// view: the editor view, or { state, dispatch } in tests; a drawn view slides the move (animate.js)
+function run (view, direction) {
+  const { state } = view
   const nested = nestedMoveSpec(state, direction == 'up' ? -1 : 1)
   if (nested !== undefined) {
-    if (nested) dispatch(withRenumbering(state, nested))
+    if (nested) dispatchMove(view, withRenumbering(state, nested))
     return true
   }
   const blocks = getBlocks(state, { complete: true })
   const spec = direction == 'up' ? specUp(state, blocks) : specDown(state, blocks)
-  if (spec) dispatch(withRenumbering(state, spec))
+  if (spec) dispatchMove(view, withRenumbering(state, spec))
   // handled even when nothing moved, so the default Alt-Shift-Arrow (copy line) does not run
   return true
 }
@@ -152,13 +155,23 @@ export function moveSpec (state, blocks, { from, to, before, levelDelta = 0, mov
   const mapPosition = position => keptStart + Math.min(Math.max(position - oldStart, 0), keptLength)
   const { anchor, head } = state.selection.main
 
+  // the swapped lines, for the slide: where each span was and where it starts now
+  const lineOf = pos => state.doc.lineAt(pos).number
+  const lineBreaks = text => text.split(lineBreak).length - 1
+  const secondLine = lineOf(regionFrom) + lineBreaks(gapBefore)
+  const lines = span => ({ from: lineOf(blocks[span.from].from), to: lineOf(blocks[span.to].to) })
+  const swapped = {
+    above: { ...lines(first), newFrom: secondLine + lineBreaks(secondText + gapMiddle) },
+    below: { ...lines(second), newFrom: secondLine }
+  }
+
   return {
     changes: { from: regionFrom, to: regionTo, insert: Text.of(insert.split(lineBreak)) },
     selection: EditorSelection.single(mapPosition(anchor), mapPosition(head)),
     scrollIntoView: true,
     userEvent: 'move.block',
     // each move is its own undo step, even when moving fast
-    annotations: isolateHistory.of('full')
+    annotations: [isolateHistory.of('full'), movedLines.of(swapped)]
   }
 }
 

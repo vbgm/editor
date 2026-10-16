@@ -25,7 +25,8 @@ function createView (text) {
   return new EditorView({ state: createState(text), parent })
 }
 
-const lineClasses = view => [...view.contentDOM.querySelectorAll('.cm-line')].map(line => line.className)
+// without the slide of a move (move/animate.js), which is only drawing
+const lineClasses = view => [...view.contentDOM.querySelectorAll('.cm-line')].map(line => line.className.replace(/ cm-slide-\w+/g, ''))
 
 function type (view, text, at = view.state.selection.main.head) {
   view.dispatch({

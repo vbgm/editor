@@ -8,6 +8,7 @@ import { tags } from '@lezer/highlight'
 import markdown from './markdown/index.js'
 import { blockLines } from './blocks/decorations.js'
 import { moveBlockUp, moveBlockDown } from './move/index.js'
+import { slideMoves } from './move/animate.js'
 import { selectBlockUp, selectBlockDown } from './blocks/select.js'
 import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
@@ -115,6 +116,8 @@ function documentExtensions (bare, isMarkdownShown, isLiteral) {
     selectedEmptyParagraphs,
     // dragging blocks by a handle left of them, in both modes (dnd/index.js)
     dragBlocks,
+    // Alt+↑/↓ moves slide into place (move/animate.js)
+    slideMoves,
     modeCompartment.of(modeExtensions(isMarkdownShown)),
     literalCompartment.of(isLiteral ? literalTyping : []),
     Prec.high(keymap.of([

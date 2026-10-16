@@ -13,6 +13,7 @@ Read in this order:
 - "Commit" means: commit everything listed in the last summary on `main`. Write the message as helps later: a summary line, and a body explaining what changed and why when that is useful.
 - After committing, name only the commits that are **not pushed yet** (`git log --oneline @{u}..HEAD`); the user pushes often.
 - The user tests in **Safari** (the engine the macOS app will run on) all the time; don't add "not checked in Safari" caveats. Say what you verified in the browser pane (Chromium) and how.
+- A hidden browser pane (or a Claude window out of view) renders no frames: transitions and `requestAnimationFrame` stand still and timers slow down. Show the pane before measuring anything animated; forcing frames with a `setTimeout` stand-in checks the sequence, not the motion.
 - In the browser pane, use the `dev` server (`localhost:1420`, hot reload). If you use the production preview (`localhost:1421`), rebuild it after every change, or stale code gets tested.
 - Keep it **minimal**: the page must look like plain text; no visual chrome unless asked. Debugging tools go behind a toggle.
 - Before claiming a fix, **verify it in the browser pane**. Measure with JS where a screenshot cannot show it: text positions (x and y), gaps between lines, the caret, the file text after real key presses. Reproduce the user's exact steps (for example Tab at the very start of a paragraph, not just the cursor placed at the text start): fixes that only pass a simplified test get noticed quickly.
@@ -30,7 +31,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421
-npm test             # vitest, 182 tests (node + jsdom)
+npm test             # vitest, 183 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -56,7 +57,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
   - **Tab / Shift+Tab**: nest or un-nest list items (also bullets under a numbered step); quote levels for paragraphs. In Markdown mode they indent the selected lines.
   - **Cmd+7 / Cmd+8**: numbers / bullets, kept nested. Turning an item off and on gives back the same file. A quoted line loses its quote.
   - **Cmd+Enter**: ticks a task, or makes the line a task.
-  - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
+  - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items; the swapped lines slide into place. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
   - **Dragging** (both modes): a handle fades in when the mouse is near it, left of a block; the block goes where Alt+↑/↓ would take it (decisions.md, "Dragging blocks").
   - **Literal** (toolbar): typed Markdown is escaped and stays as typed.
 - Files round-trip byte for byte (BOM kept outside the editor text, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
@@ -77,7 +78,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/blocks/select.js` | block-aware Shift+↑/↓ (empty paragraphs are steps) |
 | `editor/functions/dnd/` | dragging blocks: handle, gap, lines sliding aside, preview (`index.js`); where a drag can go and the drop, replaying Alt+↑/↓ on the region it changes (`slots.js`) |
 | `foundation/dnd/` | drag engine: pointer, preview, auto-scroll, Escape (`index.js`); displace mode (`displace.js`) |
-| `editor/functions/move/` | block moves (`index.js`), sub-item moves (`nested.js`), renumbering numbered lists (`renumber.js`), heading level shift for the outline later |
+| `editor/functions/move/` | block moves (`index.js`), sub-item moves (`nested.js`), the slide of a move (`animate.js`), renumbering numbered lists (`renumber.js`), heading level shift for the outline later |
 | `editor/functions/gaps/index.js` | hiding blank lines (state field, updated only around edits), empty paragraphs, selected empty paragraphs, cursor rules around gaps and the end of the file |
 | `editor/functions/gaps/commands.js` | Enter / Shift+Enter / Backspace / Delete on blocks, list items and quotes |
 | `editor/functions/syntax/index.js` | hiding Markdown syntax, widgets (bullet, checkbox, list indentation), hanging indents, quote levels, cursor placement behind marks, ← at a text start |
