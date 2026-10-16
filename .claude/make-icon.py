@@ -7,7 +7,7 @@ it after changing anything below:
 
 It needs Xcode (for Icon Composer's ictool) and the project's node_modules (for `tauri icon`).
 
-The drawing: a page, tilted a little, on a plate that runs from blue to violet. On the page three
+The drawing: a page, tilted a little, on a dark plate, for contrast. On the page three
 blocks, stepping in like an outline: at the top a near-black one with a big white T and two short
 bars (in dark mode it turns light, with a dark T, so that it stands out from the dark page), in the
 middle the editor's dragged block (the strongest blue, lifted and turned, with the drag handle of
@@ -24,7 +24,7 @@ BLUES = ['#0066FF', '#4D94FF', '#99C2FF']
 INK, INK_DARK = '#1B1E24', '#F2F4F7'     # the T block, the handle; the T block in dark mode
 NAVY = '#0B2D6B'                          # the bars on the lightest block
 PAGE, PAGE_DARK = '#FFFFFF', '#2A2D33'
-PLATE = ('#3D7BFF', '#8A4FE0')            # from the top to the bottom (in dark mode the system's own dark plate)
+PLATE = '#1E2026'                         # Icon Composer makes a gradient of it (in dark mode the system's own dark plate)
 TILT = -5                                 # the page's turn in degrees, about the middle
 
 PAGE_BOX = (14, 8, 72, 84, 7)             # x, y, width, height, corner
@@ -78,7 +78,7 @@ def group(members, shadow='neutral'):
 x, y, w, h = DRAGGED
 t, t_bars = top_block()
 document = {
-    'fill': {'linear-gradient': [srgb(c) for c in PLATE], 'orientation': {'start': {'x': 0.5, 'y': 0}, 'stop': {'x': 0.5, 'y': 0.9}}},
+    'fill': {'automatic-gradient': srgb(PLATE)},
     # The groups from the front to the back: the dragged block casts its own shadow over the page
     'groups': [
         group([
