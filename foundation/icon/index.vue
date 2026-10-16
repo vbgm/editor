@@ -11,16 +11,18 @@ its value (0–1): animating the value morphs it.
     preserveAspectRatio='xMidYMid meet'
     aria-hidden='true'
   >
-    <path
-      v-for='(path, index) in paths'
-      :key='index'
-      :d='path.d'
-      fill='none'
-      stroke='currentColor'
-      :stroke-linecap='path.cap'
-      stroke-linejoin='round'
-      :stroke-width='strokeWidth * path.weight'
-    />
+    <g :transform='shape.scale != 1 ? `translate(64 64) scale(${shape.scale}) translate(-64 -64)` : null'>
+      <path
+        v-for='(path, index) in shape.paths'
+        :key='index'
+        :d='path.d'
+        fill='none'
+        stroke='currentColor'
+        :stroke-linecap='path.cap'
+        stroke-linejoin='round'
+        :stroke-width='strokeWidth * path.weight / shape.scale'
+      />
+    </g>
   </svg>
 
 </template><script>
@@ -44,12 +46,18 @@ its value (0–1): animating the value morphs it.
       }
     },
     computed: {
-      paths () {
-        const shape = shapes[this.name] ?? []
-        return (typeof shape == 'function' ? shape(this.value) : shape).map(path => {
-          const { d, cap = 'butt', weight = 1 } = typeof path == 'string' ? { d: path } : path
-          return { d, cap, weight }
-        })
+      // { scale, paths: [{ d, cap, weight }] }
+      shape () {
+        const entry = shapes[this.name] ?? []
+        const { scale = 1, paths } = Array.isArray(entry) || typeof entry == 'function' ? { paths: entry } : entry
+        const list = typeof paths == 'function' ? paths(this.value) : paths
+        return {
+          scale,
+          paths: list.map(path => {
+            const { d, cap = 'butt', weight = 1 } = typeof path == 'string' ? { d: path } : path
+            return { d, cap, weight }
+          })
+        }
       }
     }
   }
