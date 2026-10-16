@@ -1,6 +1,6 @@
 // npm packages
-import { RangeSetBuilder, EditorState, EditorSelection } from '@codemirror/state'
-import { ViewPlugin, Decoration, WidgetType, EditorView } from '@codemirror/view'
+import { RangeSetBuilder, EditorState, EditorSelection, Prec } from '@codemirror/state'
+import { ViewPlugin, Decoration, WidgetType, EditorView, keymap } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 // local functions
 import { isBareHeading, isBareListItem, isRawLine } from '../raw-markup.js'
@@ -289,8 +289,9 @@ export const hiddenSyntax = ViewPlugin.fromClass(class {
   decorations: plugin => plugin.decorations
 })
 
-// marks at the start of a line that the cursor goes behind: heading, quote, bullet (with a task box)
-const lineStartMark = /^(?:[ \t]{0,3}#{1,6}[ \t]+|(?:[ \t]*>[ \t]?)+|[ \t]*[-*+][ \t](?:\[[ xX]\][ \t]?)?)/
+// marks at the start of a line that the cursor goes behind: heading, quote, bullet or number
+// (with a task box). A number stays visible, but the cursor never goes in front of it either.
+const lineStartMark = /^(?:[ \t]{0,3}#{1,6}[ \t]+|(?:[ \t]*>[ \t]?)+|[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t](?:\[[ xX]\][ \t]?)?)/
 
 // the indentation of a further line of a top-level list item (drawn as wide as the item's mark),
 // 0 for any other line
@@ -306,7 +307,7 @@ export function itemLineIndent (state, line) {
   return 0
 }
 
-// where the text of the line at lineFrom starts, behind its hidden heading, quote or bullet mark
+// where the text of the line at lineFrom starts, behind its heading, quote, bullet or number
 export function textStart (state, lineFrom) {
   const line = state.doc.lineAt(lineFrom)
   const mark = lineStartMark.exec(line.text)
@@ -321,14 +322,13 @@ function isInCode (state, pos) {
 }
 
 // A cursor placed at the start of a line with such a mark, or inside the mark, goes behind it
-// (clicks, also on a bullet, Home, ↑ ↓): the caret is never drawn between a bullet and its text.
-// Moving left from just behind the mark goes on to the end of the block above instead (also
-// where the mark ends in a visible space, as after a task box, so the cursor cannot get stuck).
+// (clicks, also on a bullet or number, Home, ↑ ↓): the caret is never drawn in front of the text.
+// Moving left from there goes to the end of the block above instead (cursorLeftOverLineMark).
 const cursorAfterLineMarks = EditorState.transactionFilter.of(transaction => {
   if (!transaction.selection || transaction.selection.ranges.some(range => !range.empty)) return transaction
-  const { state, startState } = transaction
+  const { state } = transaction
   let isMoved = false
-  const ranges = transaction.selection.ranges.map((range, index) => {
+  const ranges = transaction.selection.ranges.map(range => {
     const line = state.doc.lineAt(range.head)
     const mark = lineStartMark.exec(line.text)
     const markLength = mark ? mark[0].length : itemLineIndent(state, line)
@@ -336,20 +336,25 @@ const cursorAfterLineMarks = EditorState.transactionFilter.of(transaction => {
     const contentStart = line.from + markLength
     if (range.head >= contentStart || isInCode(state, line.from) || (mark && isRawLine(state, line.from))) return range
     isMoved = true
-    // a click is never a move to the left, even with the cursor already behind the mark
-    const isClick = transaction.isUserEvent('select.pointer')
-    const oldHead = !transaction.docChanged && !isClick && startState.selection.ranges[index]?.head
-    if (oldHead == contentStart && line.number > 1) {
-      // the end of the block above, past the (hidden) blank lines between them
-      let number = line.number - 1
-      while (number > 1 && /^[ \t]*$/.test(state.doc.line(number).text)) number--
-      return EditorSelection.cursor(state.doc.line(number).to)
-    }
     return EditorSelection.cursor(contentStart)
   })
   if (!isMoved) return transaction
   return [transaction, { selection: EditorSelection.create(ranges, transaction.selection.mainIndex), sequential: true }]
 })
+
+// ← (and word ←) where the text starts, behind a heading, quote, bullet or number: to the end of
+// the block above, past the hidden blank lines between them. A key of its own, since Home lands
+// at the line start too and must stay on the line.
+export function cursorLeftOverLineMark ({ state, dispatch }) {
+  const { main } = state.selection
+  if (state.selection.ranges.length > 1 || !main.empty) return false
+  const line = state.doc.lineAt(main.head)
+  if (line.number == 1 || main.head == line.from || main.head != textStart(state, line.from)) return false
+  let number = line.number - 1
+  while (number > 1 && /^[ \t]*$/.test(state.doc.line(number).text)) number--
+  dispatch(state.update({ selection: EditorSelection.cursor(state.doc.line(number).to), scrollIntoView: true, userEvent: 'select' }))
+  return true
+}
 
 // Deleting an escaped character ('#' of '\#', typed in Literal mode or from the file) deletes its
 // hidden backslash too: left alone it would no longer escape anything and would show up.
@@ -376,6 +381,10 @@ const deleteEscapeWithCharacter = EditorState.transactionFilter.of(transaction =
 })
 
 export default [
+  Prec.high(keymap.of([
+    { key: 'ArrowLeft', run: cursorLeftOverLineMark },
+    { mac: 'Alt-ArrowLeft', win: 'Ctrl-ArrowLeft', linux: 'Ctrl-ArrowLeft', run: cursorLeftOverLineMark }
+  ])),
   hiddenSyntax,
   deleteEscapeWithCharacter,
   EditorView.atomicRanges.of(view => view.plugin(hiddenSyntax)?.atomicRanges ?? Decoration.none),

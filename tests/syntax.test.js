@@ -4,10 +4,11 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { EditorView } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
-import { cursorCharLeft, deleteCharBackward } from '@codemirror/commands'
+import { cursorCharLeft, cursorLineBoundaryBackward, deleteCharBackward } from '@codemirror/commands'
 // local
 import { createState, getText, readFixture, fixtureNames } from './helpers.js'
 import { switchMode } from '/src/app/editor/functions/create-state.js'
+import { cursorLeftOverLineMark } from '/src/app/editor/functions/syntax/index.js'
 
 beforeAll(() => {
   const rect = { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0 }
@@ -110,7 +111,7 @@ describe('cursor with hidden Markdown', () => {
   it('moves left from the heading text to the line above', () => {
     const view = createView('text\n## Title\n')
     view.dispatch({ selection: EditorSelection.cursor(8) })
-    cursorCharLeft(view)
+    cursorLeftOverLineMark(view)
     expect(view.state.selection.main.head).toBe(4)
     view.destroy()
   })
@@ -121,6 +122,23 @@ describe('cursor with hidden Markdown', () => {
     expect(view.state.selection.main.head).toBe(6)
     view.dispatch({ selection: EditorSelection.cursor(10) })
     expect(view.state.selection.main.head).toBe(10)
+    view.destroy()
+  })
+
+  it('stays behind the number of a numbered list item', () => {
+    const view = createView('text\n\n1. one\n2. two\n')
+    // placed at the line start or on the number (a click)
+    for (const pos of [6, 7]) {
+      view.dispatch({ selection: EditorSelection.cursor(pos), userEvent: 'select.pointer' })
+      expect(view.state.selection.main.head, String(pos)).toBe(9)
+    }
+    // moving left from the text goes to the end of the line above, Home stays on the line
+    view.dispatch({ selection: EditorSelection.cursor(16) })
+    cursorLeftOverLineMark(view)
+    expect(view.state.selection.main.head).toBe(12)
+    view.dispatch({ selection: EditorSelection.cursor(16) })
+    cursorLineBoundaryBackward(view)
+    expect(view.state.selection.main.head).toBe(16)
     view.destroy()
   })
 
@@ -143,7 +161,7 @@ describe('cursor with hidden Markdown', () => {
   it('moves left from a task item text to the line above', () => {
     const view = createView('text\n\n- [ ] item\n')
     view.dispatch({ selection: EditorSelection.cursor(12) })
-    cursorCharLeft(view)
+    cursorLeftOverLineMark(view)
     expect(view.state.selection.main.head).toBe(4)
     view.destroy()
   })
