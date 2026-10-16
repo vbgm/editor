@@ -197,11 +197,15 @@ class DragPlugin {
     preview.style.width = `${rect.width}px`
     view.dom.parentElement.appendChild(preview)
 
-    // the copy's first line is the first line of its content, which has no space above it: put
-    // its text where the original's is
+    // the copy's first line is the first line of its content, which has no space above it (no
+    // border): put its text where the original's is, so grabbing only fades it
     if (lines.length) {
       preview.style.transform = `translateY(${lines[0].getBoundingClientRect().top}px)`
-      const shift = lines[0].getBoundingClientRect().top - content.firstChild.getBoundingClientRect().top
+      const textTop = line => {
+        const style = getComputedStyle(line)
+        return line.getBoundingClientRect().top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop)
+      }
+      const shift = textTop(lines[0]) - textTop(content.firstChild)
       if (shift > 0) content.style.paddingTop = `${shift}px`
     }
     return preview
