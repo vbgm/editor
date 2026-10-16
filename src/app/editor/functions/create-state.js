@@ -17,6 +17,7 @@ import { insertNewBlock, newParagraphAfterQuote, insertLineBreak, joinItemLine, 
 import literalTyping from './literal-typing.js'
 import { indentBlock, outdentBlock, quoteBackspace } from './indent/index.js'
 import { caretRedrawAfterIndent } from './redraw-caret.js'
+import dragBlocks from './dnd/index.js'
 
 // Classes instead of inline styles, so the look lives in LESS
 const highlightStyle = HighlightStyle.define([
@@ -112,6 +113,8 @@ function documentExtensions (bare, isMarkdownShown, isLiteral) {
     blockLines,
     caretRedrawAfterIndent,
     selectedEmptyParagraphs,
+    // dragging blocks by a handle left of them, in both modes (dnd/index.js)
+    dragBlocks,
     modeCompartment.of(modeExtensions(isMarkdownShown)),
     literalCompartment.of(isLiteral ? literalTyping : []),
     Prec.high(keymap.of([

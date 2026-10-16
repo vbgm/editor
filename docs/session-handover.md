@@ -30,7 +30,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421
-npm test             # vitest, 175 tests (node + jsdom)
+npm test             # vitest, 182 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -57,6 +57,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
   - **Cmd+7 / Cmd+8**: numbers / bullets, kept nested. Turning an item off and on gives back the same file. A quoted line loses its quote.
   - **Cmd+Enter**: ticks a task, or makes the line a task.
   - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
+  - **Dragging** (both modes): a handle fades in when the mouse is near it, left of a block; the block goes where Alt+↑/↓ would take it (decisions.md, "Dragging blocks").
   - **Literal** (toolbar): typed Markdown is escaped and stays as typed.
 - Files round-trip byte for byte (BOM kept outside the editor text, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
 
@@ -74,6 +75,8 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/blocks/index.js` | blocks from the syntax tree: every top-level element, every top-level list item (with the list it belongs to) |
 | `editor/functions/blocks/decorations.js` | line classes for spacing (`cm-block-first/last`, type, `cm-after--`/`cm-before--` neighbour types); mapped while typing, re-checked when idle |
 | `editor/functions/blocks/select.js` | block-aware Shift+↑/↓ (empty paragraphs are steps) |
+| `editor/functions/dnd/` | dragging blocks: handle, gap, lines sliding aside, preview (`index.js`); where a drag can go and the drop, replaying Alt+↑/↓ on the region it changes (`slots.js`) |
+| `foundation/dnd/` | drag engine: pointer, preview, auto-scroll, Escape (`index.js`); displace mode (`displace.js`) |
 | `editor/functions/move/` | block moves (`index.js`), sub-item moves (`nested.js`), renumbering numbered lists (`renumber.js`), heading level shift for the outline later |
 | `editor/functions/gaps/index.js` | hiding blank lines (state field, updated only around edits), empty paragraphs, selected empty paragraphs, cursor rules around gaps and the end of the file |
 | `editor/functions/gaps/commands.js` | Enter / Shift+Enter / Backspace / Delete on blocks, list items and quotes |
@@ -85,7 +88,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/redraw-caret.js` | makes Safari draw the caret anew after a mode switch or Tab |
 | `editor/functions/markdown-top.js` | Markdown mode's top padding, measured so the first line's text starts where it does in Document mode |
 | `editor/functions/markdown-shown.js` | facet: is Markdown mode on |
-| `tests/` | fixtures (round-trip), blocks, block lines, moves, gaps (incl. 300 random edits vs full recompute), syntax, formats, indent, literal typing |
+| `tests/` | fixtures (round-trip), blocks, block lines, moves, dragging (drop = key presses), gaps (incl. 300 random edits vs full recompute), syntax, formats, indent, literal typing |
 
 ## Things learned the hard way
 
@@ -111,10 +114,8 @@ Card boxes around blocks (as line styling, then as a layer); a Look switch with 
 
 - **Tauri shell** (Milestone 2 in handover.md): install Rust, Tauri 2, platform adapter, no-flash window, native menu with the shortcuts and Document/Markdown in the View menu; measure in WKWebView, WebView2, WebKitGTK.
 - **Files** (Milestone 4): open/save, autosave, atomic writes, external-change reload (keep undo: apply as a minimal diff), recent files, session.
-- **Outline and drag-and-drop** (Milestone 5): one pointer-events drag engine in `/foundation` with two modes:
-  - Displace mode for blocks.
-  - Target mode for the outline tree, deciding before / after / onto (nest) by the vertical position only, as in Ordner's sidebar (decisions.md).
-  - The drag handle appears only in the left margin next to a block, never over the text.
+- **Outline** (Milestone 5): dragging blocks is done (displace mode); still to do:
+  - Target mode of the drag engine (`foundation/dnd/`) for the outline tree, deciding before / after / onto (nest) by the vertical position only, as in Ordner's sidebar (decisions.md).
   - Outline moves use `moveSpec` with `levelDelta`.
 - Smaller open items:
   - Cmd-click to open links.

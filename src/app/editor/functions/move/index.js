@@ -133,9 +133,10 @@ export function moveSpec (state, blocks, { from, to, before, levelDelta = 0, mov
   const regionTo = next ? next.from : blocks[second.to].to
 
   // each gap: its text, the pair of blocks it separated, the pair it separates now
-  const gapBefore = previous ? junction(doc(previous.to, blocks[first.from].from), [previous, blocks[first.from]], [previous, blocks[second.from]], lineBreak) : ''
-  const gapMiddle = junction(doc(blocks[first.to].to, blocks[second.from].from), [blocks[first.to], blocks[second.from]], [blocks[second.to], blocks[first.from]], lineBreak)
-  const gapAfter = next ? junction(doc(blocks[second.to].to, next.from), [blocks[second.to], next], [blocks[first.to], next], lineBreak) : ''
+  const junction = (gap, oldPair, newPair) => junctionGap(state.doc, gap, oldPair, newPair, lineBreak)
+  const gapBefore = previous ? junction(doc(previous.to, blocks[first.from].from), [previous, blocks[first.from]], [previous, blocks[second.from]]) : ''
+  const gapMiddle = junction(doc(blocks[first.to].to, blocks[second.from].from), [blocks[first.to], blocks[second.from]], [blocks[second.to], blocks[first.from]])
+  const gapAfter = next ? junction(doc(blocks[second.to].to, next.from), [blocks[second.to], next], [blocks[first.to], next]) : ''
 
   const secondText = spanText(second)
   const firstText = spanText(first)
@@ -162,12 +163,19 @@ export function moveSpec (state, blocks, { from, to, before, levelDelta = 0, mov
 }
 
 // Gap between two blocks that are now next to each other.
-// - list items: a blank line between them only if there was one between list items before,
-//   so a paragraph moving through a tight list does not leave it loose
-// - anything else: at least one blank line, so the second block cannot merge into the first
-function junction (gap, [oldBefore, oldAfter], [before, after], lineBreak) {
-  const isItems = (a, b) => a.type == 'listItem' && b.type == 'listItem'
+// - list items of the same kind (both bullets, or both numbered): a blank line between them only
+//   if there was one between list items before, so a paragraph moving through a tight list does
+//   not leave it loose
+// - anything else, also a bullet item next to a numbered one: at least one blank line, so the
+//   second block cannot merge into the first (a numbered item other than '1.' right under a
+//   bullet item would become a line of its text)
+function junctionGap (doc, gap, [oldBefore, oldAfter], [before, after], lineBreak) {
+  const isItems = (a, b) => a.type == 'listItem' && b.type == 'listItem' && isNumbered(doc, a) == isNumbered(doc, b)
   if (isItems(before, after)) return isItems(oldBefore, oldAfter) ? gap : lineBreak
   const hasBlankLine = gap.split(lineBreak).length > 2
   return hasBlankLine ? gap : lineBreak + lineBreak
+}
+
+function isNumbered (doc, block) {
+  return /^[ \t]*\d/.test(doc.lineAt(block.from).text)
 }

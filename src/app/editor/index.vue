@@ -307,6 +307,65 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       background-clip: content-box;
     }
 
+    // dragging blocks (dnd/index.js): a handle of six dots fades in left of the block under the
+    // mouse; while dragging, the block's lines are an empty gap, the lines it passes slide aside,
+    // and a faded copy follows the pointer
+    :deep(.cm-dnd-handle) {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 12px;
+      height: 18px;
+      background: radial-gradient(circle, var(--color--text--secondary) 0 1.3px, transparent 1.7px) 0 0 / 6px 6px;
+      border-radius: 3px;
+      opacity: 0;
+      pointer-events: none;
+      cursor: grab;
+      transition: opacity 0.15s;
+      z-index: 2;
+
+      &.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+
+    // wherever the handle shows for, the mouse is the hand, also off the handle itself
+    :deep(.cm-dnd-hover),
+    :deep(.cm-dnd-hover *) {
+      cursor: grab;
+    }
+
+    :deep(.cm-dnd-line) {
+      transition: transform 0.15s ease;
+    }
+
+    :deep(.cm-dnd-gap) {
+      opacity: 0;
+    }
+
+    :deep(.cm-dnd-preview) {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: auto;
+      opacity: 0.6;
+      pointer-events: none;
+      z-index: 10;
+
+      .cm-scroller {
+        height: auto;
+        overflow: visible;
+      }
+
+      .cm-content {
+        max-width: none;
+        margin: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+    }
+
     // a tighter line than text (1.6): the bigger font would otherwise add empty space under the
     // heading's text, so it would sit further from its paragraph than paragraphs from each other
     :deep(.cm-heading) {

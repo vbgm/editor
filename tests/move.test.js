@@ -33,6 +33,10 @@ describe('numbered lists after a move', () => {
     const state = stateWithCursor('1. a\n2. b|\n')
     expect(getText(undoOnce(runCommand(moveBlockUp, state)))).toBe('1. a\n2. b\n')
   })
+  it('keep a blank line between a bullet item and a numbered one', () => {
+    // right under a bullet item, '2. b' would be a line of its text
+    expect(down('- x|\n\n1. a\n2. b\n')).toBe('1. a\n\n- x\n\n2. b\n')
+  })
 })
 
 describe('moving nested list items', () => {
