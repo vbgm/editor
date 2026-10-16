@@ -112,12 +112,22 @@ export const slideMoves = ViewPlugin.fromClass(SlidePlugin, {
 // When Alt+↑/↓ cannot move the block (at the top or bottom, or a heading with no sibling that
 // way), the block bumps: a short nudge in the pressed direction and back, so the key visibly did
 // something. Each press restarts it (two alternating animations, since re-adding the same one
-// would not restart it).
+// would not restart it). How far it goes depends on the block: a list item least, anything else
+// (paragraphs, quotes, code) a pixel more, headings more again, the bigger the further. A further
+// bump takes longer, as a spring does (by the square root of the distance; '###' takes 0.26 s).
 const bumped = StateEffect.define()
 const bumpEnd = StateEffect.define()
-const bumpDuration = 260
+// pixels: list items 2, anything else 3, headings by level ('####' and deeper 4 … '#' 7)
+function bumpDistance (kind, level) {
+  if (kind == 'heading') return Math.max(4, 8 - level)
+  return kind == 'listItem' ? 2 : 3
+}
 
-// lines: { from, to } line numbers; direction: 'up' or 'down'
+// milliseconds: 260 for a '###' heading (5 px)
+const bumpDuration = distance => Math.round(260 * Math.sqrt(distance / 5))
+
+// lines: { from, to, kind, level } with line numbers, the kind of block ('heading', 'listItem',
+// or anything else) and a heading's level; direction: 'up' or 'down'
 export function bump (view, lines, direction) {
   if (!lines || !view.contentDOM?.isConnected) return
   view.dispatch({ effects: bumped.of({ ...lines, direction }) })
@@ -140,11 +150,16 @@ class BumpPlugin {
     }
   }
 
-  start ({ from, to, direction }) {
+  start ({ from, to, kind, level, direction }) {
     const count = ++this.count
     const { view } = this
     const { doc } = view.state
-    const decoration = Decoration.line({ class: `cm-bump cm-bump--${direction}-${count % 2 ? 'a' : 'b'}` })
+    const distance = bumpDistance(kind, level)
+    const duration = bumpDuration(distance)
+    const decoration = Decoration.line({
+      class: `cm-bump cm-bump--${direction}-${count % 2 ? 'a' : 'b'}`,
+      attributes: { style: `--bump: ${distance}px; --bump-duration: ${duration}ms` }
+    })
     const builder = new RangeSetBuilder()
     for (let number = from; number <= Math.min(to, doc.lines); number++) {
       const pos = doc.line(number).from
@@ -155,7 +170,7 @@ class BumpPlugin {
     this.decorations = builder.finish()
     setTimeout(() => {
       if (count == this.count) view.dispatch({ effects: bumpEnd.of(count) })
-    }, bumpDuration + 50)
+    }, duration + 50)
   }
 }
 

@@ -97,7 +97,7 @@ function selectedItems (state) {
 // the line numbers a sub-item move would move (for the bump when it cannot move, animate.js)
 export function nestedLines (state) {
   const selected = selectedItems(state)
-  return selected && { from: selected.span.from.number, to: selected.span.to.number }
+  return selected && { from: selected.span.from.number, to: selected.span.to.number, kind: 'listItem' }
 }
 
 function sibling (item, direction) {

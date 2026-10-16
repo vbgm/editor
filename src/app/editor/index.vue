@@ -343,27 +343,28 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     }
 
     // Alt+↑/↓ where the block cannot move (move/animate.js): a short nudge in the pressed direction
-    // and back; two copies of each, so every press restarts it
+    // and back, as far as --bump and as long as --bump-duration (by kind of block); two copies of
+    // each, so every press restarts it
     :deep(.cm-bump--up-a) {
-      animation: bump-up-a 0.26s ease-out;
+      animation: bump-up-a var(--bump-duration, 0.26s) ease-out;
     }
 
     :deep(.cm-bump--up-b) {
-      animation: bump-up-b 0.26s ease-out;
+      animation: bump-up-b var(--bump-duration, 0.26s) ease-out;
     }
 
     :deep(.cm-bump--down-a) {
-      animation: bump-down-a 0.26s ease-out;
+      animation: bump-down-a var(--bump-duration, 0.26s) ease-out;
     }
 
     :deep(.cm-bump--down-b) {
-      animation: bump-down-b 0.26s ease-out;
+      animation: bump-down-b var(--bump-duration, 0.26s) ease-out;
     }
 
-    @keyframes bump-up-a { 0%, 100% { transform: none } 30% { transform: translateY(-4px) } 65% { transform: translateY(1.5px) } }
-    @keyframes bump-up-b { 0%, 100% { transform: none } 30% { transform: translateY(-4px) } 65% { transform: translateY(1.5px) } }
-    @keyframes bump-down-a { 0%, 100% { transform: none } 30% { transform: translateY(4px) } 65% { transform: translateY(-1.5px) } }
-    @keyframes bump-down-b { 0%, 100% { transform: none } 30% { transform: translateY(4px) } 65% { transform: translateY(-1.5px) } }
+    @keyframes bump-up-a { 0%, 100% { transform: none } 30% { transform: translateY(calc(-1 * var(--bump, 4px))) } 65% { transform: translateY(calc(0.375 * var(--bump, 4px))) } }
+    @keyframes bump-up-b { 0%, 100% { transform: none } 30% { transform: translateY(calc(-1 * var(--bump, 4px))) } 65% { transform: translateY(calc(0.375 * var(--bump, 4px))) } }
+    @keyframes bump-down-a { 0%, 100% { transform: none } 30% { transform: translateY(calc(1 * var(--bump, 4px))) } 65% { transform: translateY(calc(-0.375 * var(--bump, 4px))) } }
+    @keyframes bump-down-b { 0%, 100% { transform: none } 30% { transform: translateY(calc(1 * var(--bump, 4px))) } 65% { transform: translateY(calc(-0.375 * var(--bump, 4px))) } }
 
     :deep(.cm-dnd-line) {
       transition: transform 0.15s ease;

@@ -90,11 +90,12 @@ function selectedSpan (state, blocks) {
   return { first, last: Math.max(unitEnd(blocks, first), unitEnd(blocks, last)) }
 }
 
-// the line numbers a block move would move
+// the line numbers a block move would move, and the kind (and heading level) of its first block
 function blockLines (state, blocks) {
   const span = selectedSpan(state, blocks)
   if (!span) return null
-  return { from: state.doc.lineAt(blocks[span.first].from).number, to: state.doc.lineAt(blocks[span.last].to).number }
+  const { doc } = state
+  return { from: doc.lineAt(blocks[span.first].from).number, to: doc.lineAt(blocks[span.last].to).number, kind: blocks[span.first].type, level: blocks[span.first].level }
 }
 
 function specUp (state, blocks) {
