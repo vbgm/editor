@@ -1,6 +1,7 @@
 <!--
 CodeMirror owns everything inside the root element; Vue never touches it.
-The document is not mirrored into Vue on every keystroke: read it with getText().
+The document is not mirrored into Vue on every keystroke: read it with getText(); `change` only
+says that it changed.
 The outline (headings, for the TOC sidebar) is sent when the browser is idle after an edit, and
 only when it changed; so is the heading of the section with the cursor.
 -->
@@ -17,6 +18,7 @@ only when it changed; so is the heading of the section with the cursor.
   // npm packages
   import { markRaw } from 'vue'
   import { Transaction } from '@codemirror/state'
+  import { undo, redo } from '@codemirror/commands'
   import { EditorView } from '@codemirror/view'
   import { syntaxTree } from '@codemirror/language'
   // local functions
@@ -30,7 +32,7 @@ only when it changed; so is the heading of the section with the cursor.
   export default {
     name: 'Editor',
     props: {
-      // replaces the whole document (opening a file)
+      // the document when the editor starts; load() replaces it (opening a file)
       text: String,
       // Markdown mode: symbols and blank lines visible; otherwise Document mode
       isMarkdownShown: Boolean,
@@ -38,7 +40,8 @@ only when it changed; so is the heading of the section with the cursor.
       isLiteral: Boolean
     },
     // outline: [{ id, title, level }]; activeSection: index in it of the section with the cursor
-    emits: ['toggleMarkdown', 'outline', 'activeSection'],
+    // change: the document's text changed
+    emits: ['toggleMarkdown', 'outline', 'activeSection', 'change'],
     data () {
       return {
         view: null,
@@ -47,11 +50,6 @@ only when it changed; so is the heading of the section with the cursor.
       }
     },
     watch: {
-      'text' () {
-        this.view.setState(this.createState())
-        if (this.isMarkdownShown) this.alignMarkdownTop()
-        this.scheduleOutline()
-      },
       'isLiteral' (value) {
         switchLiteral(this.view, value)
       },
@@ -85,8 +83,14 @@ only when it changed; so is the heading of the section with the cursor.
       this.view.destroy()
     },
     methods: {
-      createState () {
-        return createState(this.text, {
+      // a new document: new undo history, the cursor at the start
+      load (text) {
+        this.view.setState(this.createState(text))
+        if (this.isMarkdownShown) this.alignMarkdownTop()
+        this.scheduleOutline()
+      },
+      createState (text = this.text) {
+        return createState(text, {
           isMarkdownShown: this.isMarkdownShown,
           isLiteral: this.isLiteral,
           onToggleMarkdown: () => this.$emit('toggleMarkdown'),
@@ -94,6 +98,7 @@ only when it changed; so is the heading of the section with the cursor.
             // the tree also changes while the parser goes on in the background
             const isChanged = update.docChanged || syntaxTree(update.state) != syntaxTree(update.startState)
             if (isChanged || update.selectionSet) this.scheduleOutline()
+            if (update.docChanged) this.$emit('change')
           })
         })
       },
@@ -184,6 +189,13 @@ only when it changed; so is the heading of the section with the cursor.
       },
       getText () {
         return getText(this.view.state)
+      },
+      // from the menu (CodeMirror's own Cmd+Z goes first while the editor has the focus)
+      undo () {
+        undo(this.view)
+      },
+      redo () {
+        redo(this.view)
       },
       focus () {
         this.view.focus()

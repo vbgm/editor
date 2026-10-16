@@ -34,12 +34,15 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421
-npm test             # vitest, 209 tests (node + jsdom)
+npm test             # vitest, 228 tests (node + jsdom)
+npm run tauri:dev    # the desktop app, with its own Vite server on 1420 (stop the pane's first)
+npm run tauri:build  # .app and .dmg in src-tauri/target/release/bundle (unsigned)
+cd src-tauri && cargo test   # the Rust side: reading and saving files
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, shows the **Outline**, has an **Options** menu (for now one checkbox, *Slide text with sidebar*), switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
 
-Rust is **not installed** on this Mac, so there is no Tauri shell yet; everything runs in the browser.
+Rust is installed with rustup (`~/.cargo/bin`; a shell started before that needs `source ~/.cargo/env`). This Mac is Intel (x86_64): a universal build needs `rustup target add aarch64-apple-darwin` and `tauri build --target universal-apple-darwin`. The desktop app's window cannot be seen from a Claude session (no screen recording, and the user will not grant it): the user checks it; test the Rust side with `cargo test` and the saving logic with vitest.
 
 ## This session
 
@@ -87,6 +90,9 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `src/app/sidebar/` | a layout: the sidebar (default slot) beside the center (the editor): shown / hidden by transforms (the center follows its text, `anchor`), drawn over the margin unless *Slide text with sidebar*, resized by its 1 px right edge |
 | `src/app/outline/` | the outline (TOC) tree, a pure component: headings in, `select` / `move` / `renameStart` / `renameInput` / `rename` out; clicks, renaming, dragging in target mode with a label (`index.vue`); a row, folding as a drawer, the rename field, drop markers (`components/node.vue`) |
 | `editor/functions/outline/` | headings as the outline (titles without Markdown, ids by title), which drops are allowed, a drop as a move with the levels shifted, renaming a heading's text (`renameSpec`) |
+| `src-tauri/` | the desktop app: window, menu (`src/menu.rs`), reading and atomic saving (`src/files.rs`, with tests), quitting (`src/lib.rs`); `tauri.conf.json`, permissions in `capabilities/` |
+| `src/platform/` | the only door to Tauri: `tauri.js` in the app, `browser.js` in a browser; the functions are listed in `index.js` |
+| `src/app/functions/saving.js` | the open document's file: path, unsaved edits, autosave, Save, Save As, release before closing or replacing |
 | `src/app/toolbar/` | dev toolbar (buttons use `mousedown.prevent` so the editor keeps focus); the Options menu |
 | `src/app/metrics/` | stats footer: Event Timing + own key-press→paint timing, per mode and key kind |
 | `src/app/benchmark/` | scripted load/typing/move benchmark, editor vs bare CodeMirror |
@@ -150,8 +156,9 @@ Card boxes around blocks (as line styling, then as a layer); a Look switch with 
 ## Next steps (not started)
 
 - **Keyboard in the outline** (the user's next step): the outline is focusable and keeps the focus after renaming with Enter or Escape; still to do: ↑/↓ between headings, ←/→ to close / open (as in Ordner), Enter to rename, a way back to the editor.
-- **Tauri shell** (Milestone 2 in handover.md): install Rust, Tauri 2, platform adapter, no-flash window, native menu with the shortcuts and Document/Markdown in the View menu; measure in WKWebView, WebView2, WebKitGTK.
-- **Files** (Milestone 4): open/save, autosave, atomic writes, external-change reload (keep undo: apply as a minimal diff), recent files, session (with the outline's closed headings and the sidebar's settings, now in `localStorage`).
+- **Files** (rest of Milestone 4): watching the file and taking in outside changes (keep undo: apply as a minimal diff; this also ends the "changed by another app" stop), recent files, reopening the last session (with the outline's closed headings and the sidebar's settings, now in `localStorage`), opening `.md` files from Finder (file associations, "Open With"), single instance, a settings store.
+- **Windows build** (decisions.md, Desktop app): GitHub Actions with `tauri-action`, then check typing latency, fonts and shortcuts there; signing later.
+- **Desktop polish**: the overlay title bar with title-bar buttons replacing the dev toolbar, Cmd+1…6 as menu items, an app icon (the Tauri default for now), signing and notarization (Milestone 7).
 - Smaller open items:
   - Renaming a heading that has Markdown inside (bold, links) replaces it with plain text (the user's choice); undoing a rename opens a heading that was closed (its closed state moved to the new title).
   - In light mode the dragged block's background can barely be brighter than the white page (`#fafafb`); its shadow carries it.

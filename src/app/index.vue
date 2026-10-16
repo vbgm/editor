@@ -3,7 +3,7 @@
   <div class='app'>
     <Toolbar
       v-bind='{
-        documentNames,
+        sampleNames,
         documentName,
         isMarkdownShown,
         isLiteral,
@@ -14,7 +14,7 @@
       }'
       @toggleSidebar='toggleSidebar'
       @toggleTextSliding='toggleTextSliding'
-      @open='open'
+      @openSample='openSample'
       @openFile='openFile'
       @toggleMarkdown='toggleMarkdown'
       @toggleLiteral='isLiteral = !isLiteral'
@@ -53,6 +53,7 @@
             isLiteral
           }'
           @toggleMarkdown='toggleMarkdown'
+          @change='saving.edited()'
           @outline='sections = $event'
           @activeSection='activeSection = $event'
         />
@@ -71,6 +72,8 @@
 
 </template><script>
 
+  // platform
+  import platform from '/src/platform/index.js'
   // components
   import Toolbar from './toolbar/index.vue'
   import Editor from './editor/index.vue'
@@ -80,8 +83,9 @@
   // functions
   import generateDocument from './functions/generate-document.js'
   import runBenchmark from './benchmark/functions/run.js'
+  import Saving, { untitledName } from './functions/saving.js'
 
-  // the test fixtures double as sample documents
+  // the test fixtures double as sample documents: opened without a path, so saving asks where
   const fixtures = import.meta.glob('/tests/fixtures/*.md', { query: '?raw', import: 'default', eager: true })
   const generatedName = 'generated (10k lines)'
 
@@ -101,9 +105,17 @@
       localStorage.setItem(key, JSON.stringify(value))
     } catch {}
   }
-  const documents = {
+  const samples = {
     ...Object.fromEntries(Object.entries(fixtures).map(([path, text]) => [path.split('/').pop(), text])),
     [generatedName]: null
+  }
+  // the app starts with a new document, the browser (development) with the user's sample
+  const first = platform.isApp ? { name: untitledName, text: '' } : { name: 'basic.md', text: samples['basic.md'] }
+
+  // the menu's undo and redo for a text field outside the editor (renaming in the outline)
+  function isInField () {
+    const element = document.activeElement
+    return element?.matches('input, textarea') && !element.closest('.cm-editor')
   }
 
   export default {
@@ -117,9 +129,10 @@
     },
     data () {
       return {
-        documentNames: Object.keys(documents),
-        documentName: 'basic.md',
-        text: documents['basic.md'],
+        sampleNames: Object.keys(samples),
+        documentName: first.name,
+        // the document the editor starts with; others are loaded into it (show)
+        text: first.text,
         // Markdown mode (button or Cmd+Shift+M): the file as it is, symbols and blank lines
         // visible; otherwise Document mode
         isMarkdownShown: false,
@@ -141,7 +154,25 @@
         progress: null
       }
     },
+    created () {
+      // not reactive; the window's title says whether there are unsaved edits
+      this.saving = new Saving({
+        platform,
+        getText: () => this.$refs.editor.getText(),
+        onChange: ({ name, isEdited }) => {
+          this.documentName = name
+          platform.setTitle(isEdited ? `${name} — Edited` : name)
+        }
+      })
+      this.saving.load({ path: null, ...first })
+    },
     mounted () {
+      platform.setTitle(first.name)
+      platform.onMenu(command => this.runMenu(command))
+      platform.onFileDrop(paths => this.openPath(paths[0]))
+      platform.onCloseRequested(() => this.saving.release())
+      // the document is in the page: the window can show without flashing
+      platform.ready()
       this.onKeyDown = event => {
         if (event.metaKey && event.ctrlKey && !event.altKey && !event.shiftKey && event.code == 'KeyS') {
           event.preventDefault()
@@ -166,15 +197,54 @@
         this.sidebarWidth = width
         store('sidebar.width', width)
       },
-      open (name) {
-        this.documentName = name
-        this.text = documents[name] ?? (documents[name] = generateDocument())
+      // native menu commands (src-tauri/src/menu.rs)
+      runMenu (command) {
+        const commands = {
+          new: () => this.newDocument(),
+          open: () => this.openFile(),
+          save: () => this.saving.save({ isAsked: true }),
+          saveAs: () => this.saving.saveAs(),
+          // the window asks to close (onCloseRequested); the app quits with its only window
+          close: () => platform.close(),
+          quit: () => platform.close(),
+          undo: () => isInField() ? document.execCommand('undo') : this.$refs.editor.undo(),
+          redo: () => isInField() ? document.execCommand('redo') : this.$refs.editor.redo(),
+          markdown: () => this.toggleMarkdown(),
+          sidebar: () => this.toggleSidebar()
+        }
+        commands[command]?.()
       },
-      openFile ({ name, text }) {
-        if (!this.documentNames.includes(name)) this.documentNames.push(name)
-        documents[name] = text
-        this.documentName = name
-        this.text = text
+      // a document into the editor: { path (null: none yet), name, text, modified }
+      show (document) {
+        this.saving.load(document)
+        this.documentName = document.name
+        platform.setTitle(document.name)
+        this.$refs.editor.load(document.text)
+        this.$refs.editor.focus()
+      },
+      // each of these first saves the open document, or asks (and may be cancelled)
+      async newDocument () {
+        if (await this.saving.release()) this.show({ path: null, name: untitledName, text: '' })
+      },
+      async openSample (name) {
+        if (!await this.saving.release()) return
+        this.show({ path: null, name, text: samples[name] ?? (samples[name] = generateDocument()) })
+      },
+      async openFile () {
+        const file = await this.readFile(() => platform.pickFile())
+        if (file && await this.saving.release()) this.show(file)
+      },
+      async openPath (path) {
+        const file = await this.readFile(() => platform.readFile(path))
+        if (file && await this.saving.release()) this.show(file)
+      },
+      async readFile (read) {
+        try {
+          return await read()
+        } catch (error) {
+          await platform.tell('The file could not be opened.', error.kind == 'notText' ? 'It is not a text file (UTF-8).' : error.message)
+          return null
+        }
       },
       toggleMarkdown () {
         this.isMarkdownShown = !this.isMarkdownShown
@@ -182,13 +252,18 @@
       async benchmark () {
         // the results show in the stats
         this.isStatsShown = true
-        const text = documents[generatedName] ?? (documents[generatedName] = generateDocument())
+        // the benchmark's typing never reaches the file
+        await this.saving.save()
+        const documentText = this.$refs.editor.getText()
+        this.saving.isPaused = true
+        const text = samples[generatedName] ?? (samples[generatedName] = generateDocument())
         const view = this.$refs.editor.view
         this.results = await runBenchmark(view, text, {
           onProgress: progress => { this.progress = progress }
         })
-        // back to the document that was open
-        this.$refs.editor.view.setState(this.$refs.editor.createState())
+        // back to the document that was open, as it was
+        this.$refs.editor.view.setState(this.$refs.editor.createState(documentText))
+        this.saving.isPaused = false
       }
     }
   }

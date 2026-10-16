@@ -8,7 +8,12 @@ export default defineConfig({
   // Tauri expects a fixed port and must see its own errors
   server: {
     port: 1420,
-    strictPort: true
+    strictPort: true,
+    // Rust builds write thousands of files there; reloading the page for them loses nothing but
+    // interrupts the app
+    watch: {
+      ignored: ['**/src-tauri/**']
+    }
   },
   clearScreen: false
 })

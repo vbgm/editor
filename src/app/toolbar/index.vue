@@ -1,5 +1,5 @@
 <!--
-Temporary development toolbar: pick a test document, open a local file, show the outline, set options, switch between Document
+Temporary development toolbar: pick a sample document, open a file, show the outline, set options, switch between Document
 and Markdown mode, turn literal typing on or off, show the stats, run the benchmark.
 Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
 shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
@@ -7,12 +7,20 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
 <template>
 
   <div class='toolbar'>
+    <!-- the open document, or a sample to open -->
     <select
       :value='documentName'
-      @change='$emit(`open`, $event.target.value)'
+      @change='openSample'
     >
       <option
-        v-for='name in documentNames'
+        v-if='!sampleNames.includes(documentName)'
+        :value='documentName'
+        disabled
+      >
+        {{ documentName }}
+      </option>
+      <option
+        v-for='name in sampleNames'
         :key='name'
         :value='name'
       >
@@ -20,14 +28,14 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       </option>
     </select>
 
-    <label class='button'>
+    <button
+      class='button'
+      title='Open a file (Cmd+O)'
+      @mousedown.prevent=''
+      @click='$emit(`openFile`)'
+    >
       Open file…
-      <input
-        type='file'
-        accept='.md,.markdown,.txt,text/markdown,text/plain'
-        @change='openFile'
-      >
-    </label>
+    </button>
 
     <button
       class='button'
@@ -120,7 +128,7 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
   export default {
     name: 'Toolbar',
     props: {
-      documentNames: Array,
+      sampleNames: Array,
       documentName: String,
       isMarkdownShown: Boolean,
       isLiteral: Boolean,
@@ -129,7 +137,7 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       isTextSliding: Boolean,
       progress: String
     },
-    emits: ['toggleSidebar', 'toggleTextSliding', 'open', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
+    emits: ['toggleSidebar', 'toggleTextSliding', 'openSample', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
     data () {
       return {
         optionsPlace: null
@@ -152,13 +160,11 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       closeOptions (event) {
         if (!this.$refs.options.contains(event.target)) this.$refs.options.open = false
       },
-      async openFile (event) {
-        const file = event.target.files[0]
-        if (!file) return
-        // ignoreBOM keeps a byte order mark in the text, so saving writes it back
-        const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(await file.arrayBuffer())
-        this.$emit('openFile', { name: file.name, text })
-        event.target.value = ''
+      // the list shows the open document until it is replaced: opening may be cancelled (unsaved
+      // edits), and then nothing else changes it back
+      openSample (event) {
+        this.$emit('openSample', event.target.value)
+        event.target.value = this.documentName
       }
     }
   }
@@ -255,10 +261,6 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       &:disabled {
         opacity: 0.5;
         cursor: default;
-      }
-
-      > input {
-        display: none;
       }
     }
   }
