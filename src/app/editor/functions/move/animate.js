@@ -1,6 +1,6 @@
 // npm packages
 import { Annotation, StateEffect, RangeSetBuilder } from '@codemirror/state'
-import { ViewPlugin, Decoration } from '@codemirror/view'
+import { EditorView, ViewPlugin, Decoration } from '@codemirror/view'
 
 // Alt+↑/↓ moves slide: every move swaps two neighbouring stretches of lines, and both slide from
 // where they were on screen to their new place. The document changes at once, as before; only the drawing is animated, with CSS
@@ -22,6 +22,7 @@ const slide = StateEffect.define()
 const settle = StateEffect.define()
 const clear = StateEffect.define()
 
+// also the CSS transitions of moves and drags (--move-duration on the editor)
 const duration = 150
 
 // Dispatches a move transaction and slides it, when the view is drawn (tests pass a bare
@@ -113,9 +114,12 @@ class SlidePlugin {
   }
 }
 
-export const slideMoves = ViewPlugin.fromClass(SlidePlugin, {
-  decorations: plugin => plugin.decorations
-})
+export const slideMoves = [
+  ViewPlugin.fromClass(SlidePlugin, {
+    decorations: plugin => plugin.decorations
+  }),
+  EditorView.editorAttributes.of({ style: `--move-duration: ${duration}ms` })
+]
 
 // When Alt+↑/↓ cannot move the block (at the top or bottom, or a heading with no sibling that
 // way), the block bumps: a short nudge in the pressed direction and back, so the key visibly did

@@ -1,6 +1,6 @@
 // npm packages
 import { StateEffect, RangeSetBuilder } from '@codemirror/state'
-import { ViewPlugin, Decoration } from '@codemirror/view'
+import { EditorView, ViewPlugin, Decoration } from '@codemirror/view'
 // foundation
 import { startDrag } from '/foundation/dnd/index.js'
 import { displace } from '/foundation/dnd/displace.js'
@@ -21,9 +21,10 @@ import { slideLines } from '../move/animate.js'
 // asks the plugin to draw the drag again (a new slot, the start or end of a drag)
 const redraw = StateEffect.define()
 
-// the faded copy's opacity (as in the CSS), where a dropped block fades in from
+// the faded copy's opacity, where a dropped block fades in from (--dnd-preview-opacity in the CSS)
 const previewOpacity = 0.6
 
+// the handle's width and height (--dnd-handle-size in the CSS)
 const handleWidth = 18
 // room between the handle and the text (or a sub-item's bullet)
 const handleGap = 12
@@ -203,6 +204,9 @@ class DragPlugin {
     // editor's own class is always position: relative)
     const preview = document.createElement('div')
     preview.className = 'cm-dnd-preview'
+    // outside the editor's element: the variables set on it (sizes, --move-duration) are set on
+    // the copy too
+    preview.style.cssText = view.dom.style.cssText
     preview.style.opacity = '1'
     const editor = document.createElement('div')
     editor.className = view.dom.className
@@ -272,6 +276,12 @@ const gap = Decoration.line({ class: 'cm-dnd-gap' })
 // lines that can move aside: they slide back and forth
 const still = Decoration.line({ class: 'cm-dnd-line' })
 
-export default ViewPlugin.fromClass(DragPlugin, {
-  decorations: plugin => plugin.decorations
-})
+// the sizes the CSS shares with this file
+const sizes = `--dnd-handle-size: ${handleWidth}px; --dnd-preview-opacity: ${previewOpacity}`
+
+export default [
+  ViewPlugin.fromClass(DragPlugin, {
+    decorations: plugin => plugin.decorations
+  }),
+  EditorView.editorAttributes.of({ style: sizes })
+]

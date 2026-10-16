@@ -199,7 +199,7 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       color: var(--color--text--primary);
       background: var(--color--background);
       border: 1px solid var(--color--border--solid);
-      border-radius: 0.35rem;
+      border-radius: var(--radius--control);
       padding: 0.2rem 0.55rem;
       cursor: pointer;
     }

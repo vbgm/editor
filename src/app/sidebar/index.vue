@@ -187,6 +187,9 @@ sidebar's width in a wide window), not by the sidebar's width.
 
 </script><style scoped lang='less'>
 
+  // how far the resize handle reaches out on each side of the 1 px edge
+  @handle-reach: 3px;
+
   .sidebar-layout {
     flex: 1 1 auto;
     min-height: 0;
@@ -232,8 +235,8 @@ sidebar's width in a wide window), not by the sidebar's width.
     > .handle {
       position: absolute;
       top: 0;
-      right: -3px;
-      width: 7px;
+      right: -@handle-reach;
+      width: @handle-reach * 2 + 1px;
       height: 100%;
       cursor: ew-resize;
       z-index: 100;

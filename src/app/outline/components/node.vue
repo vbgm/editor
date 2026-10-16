@@ -1,7 +1,8 @@
 <!--
 One heading of the outline with the headings under it, as in Ordner's tree: its height is set from
-the rows that show, so opening or closing a heading slides the rows below it (0.25 s), and the
-children fade in sliding down from above (0.25 s) or fade out (0.1 s).
+the rows that show, so opening or closing a heading slides the rows below it, and the
+children fade in sliding down from above, or fade out sliding up, cut off from below by the
+shrinking height, all with the same timing (@fold-duration, @fold-easing).
 -->
 <template>
 
@@ -104,6 +105,14 @@ children fade in sliding down from above (0.25 s) or fade out (0.1 s).
   @indent: 20px;
   @arrow: 23px;
   @drop: var(--color--text-selection);
+  // opening and closing a heading: the rows below sliding and the children fading share them, so
+  // they move together
+  @fold-duration: 0.2s;
+  @fold-easing: cubic-bezier(0.2, 0, 0, 1);
+  // the arrow turning
+  @arrow-turn: 0.2s;
+  // a row's height (rowHeight in index.vue, which also sets the nodes' heights)
+  @row-height: var(--row-height);
 
   .node {
     flex: 0 0 auto;
@@ -113,7 +122,7 @@ children fade in sliding down from above (0.25 s) or fade out (0.1 s).
     box-sizing: border-box;
     white-space: nowrap;
     padding-left: @indent;
-    transition: height 0.25s ease;
+    transition: height @fold-duration @fold-easing;
     // no jitter in Safari: 3d accelerated transforms
     transform: translateZ(0);
 
@@ -132,11 +141,19 @@ children fade in sliding down from above (0.25 s) or fade out (0.1 s).
   }
 
   .t-fade-enter-active {
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transition: opacity @fold-duration @fold-easing, transform @fold-duration @fold-easing;
   }
 
+  // closing mirrors opening, over the same time as the rows below slide up (Ordner's 0.1 s fade
+  // out was abrupt)
   .t-fade-leave-active {
-    transition: opacity 0.1s ease, transform 0.1s ease;
+    transition: opacity @fold-duration @fold-easing, transform @fold-duration @fold-easing;
+  }
+
+  // while the children fade out, the heading's shrinking height cuts them off from below, so the
+  // rows sliding up never pass over them (only up and down: the arrows reach out to the left)
+  .node:has(> .children.t-fade-leave-active) {
+    clip-path: inset(0 -100vw 0 -100vw);
   }
 
   .t-fade-enter-active,
@@ -218,7 +235,7 @@ children fade in sliding down from above (0.25 s) or fade out (0.1 s).
       width: 20px;
       height: 20px;
       opacity: 0.5;
-      transition: transform 0.2s, opacity 0.2s;
+      transition: transform @arrow-turn, opacity @arrow-turn;
       transform: translateZ(0);
       will-change: transform, opacity;
 
@@ -237,10 +254,10 @@ children fade in sliding down from above (0.25 s) or fade out (0.1 s).
     min-width: 0;
     margin-right: 0.5rem;
     padding: 0 0.4rem;
-    border-radius: 0.35rem;
+    border-radius: var(--radius--control);
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 31px;
+    line-height: @row-height;
     cursor: default;
 
     &.active {

@@ -14,6 +14,7 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
   <div
     ref='scroller'
     class='outline'
+    :style='{"--row-height": `${rowHeight}px`}'
     @pointerdown='pointerDown'
   >
     <ul

@@ -155,6 +155,38 @@ only when it changed; so is the heading of the section with the cursor.
 
 </script><style scoped lang='less'>
 
+  // the page
+  @line-height: 1.6;
+  // a little tighter than Document mode, so the page keeps about the same height and switching
+  // jumps less
+  @markdown-line-height: 1.55;
+  @font-size--markdown: 0.9rem;
+  @content-width: 46rem;
+  // above the first line, in both modes
+  @content-top: 2rem;
+  // inside a line, before its text: the text column starts here (also for hanging lists, quote
+  // bars, a selected empty paragraph; dnd/index.js counts on it being 1rem)
+  @text-inset: 1rem;
+
+  // space between blocks (Document mode), as transparent borders
+  @block-space: 0.4rem;
+  @heading-space: 1.1rem;
+  // between list items, and between nested items or an item's further lines
+  @item-space: 0.1rem;
+  @nested-space: 0.2rem;
+
+  // a bullet's width; numbers are at least as wide and a task's checkbox takes as much room, so
+  // all their texts start at the same place
+  @mark-width: 0.9em;
+  @checkbox-size: 1.1em;
+
+  @bold: 650;
+
+  // moves and drags: --move-duration and --dnd-preview-opacity come from move/animate.js and
+  // dnd/index.js, which time and fade the same motions
+  @move-duration: var(--move-duration, 0.15s);
+  @handle-fade: 0.15s;
+
   .editor {
     flex: 1 1 auto;
     min-height: 0;
@@ -168,13 +200,13 @@ only when it changed; so is the heading of the section with the cursor.
 
     :deep(.cm-scroller) {
       font-family: inherit;
-      line-height: 1.6;
+      line-height: @line-height;
     }
 
     :deep(.cm-content) {
-      max-width: 46rem;
+      max-width: @content-width;
       margin: 0 auto;
-      padding: 2rem 1rem 50vh;
+      padding: @content-top 1rem 50vh;
       caret-color: var(--color--text--primary);
     }
 
@@ -188,23 +220,21 @@ only when it changed; so is the heading of the section with the cursor.
     }
 
     :deep(.cm-line) {
-      padding: 0 1rem;
+      padding: 0 @text-inset;
     }
 
     // Markdown mode (.cm-markdown): the file as it is, in one monospace font, like a plain
     // text field
     :deep(.cm-markdown .cm-scroller) {
-      font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-      font-size: 0.9rem;
-      // a little tighter than Document mode (1.6), so the page keeps about the same height
-      // and switching jumps less
-      line-height: 1.55;
+      font-family: var(--font--monospace);
+      font-size: @font-size--markdown;
+      line-height: @markdown-line-height;
     }
 
     // the first line's capital letters start at the same height as in Document mode, whatever
     // the fonts and the first block (--markdown-top, measured in markdown-top.js)
     :deep(.cm-markdown .cm-content) {
-      padding-top: calc(2rem + var(--markdown-top, 0px));
+      padding-top: calc(@content-top + var(--markdown-top, 0px));
     }
 
     // Document mode (.cm-document) reads as plain text. Space between blocks: transparent borders
@@ -213,11 +243,11 @@ only when it changed; so is the heading of the section with the cursor.
     // get more room above. In Markdown mode the blank lines themselves are the space.
     :deep(.cm-document) {
       .cm-block-first {
-        border-top: 0.4rem solid transparent;
+        border-top: @block-space solid transparent;
       }
 
       .cm-block-last {
-        border-bottom: 0.4rem solid transparent;
+        border-bottom: @block-space solid transparent;
       }
 
       // nested items and an item's further lines sit inside the item's block, so they get the
@@ -225,22 +255,22 @@ only when it changed; so is the heading of the section with the cursor.
       .cm-nested-item,
       .cm-item-line,
       .cm-item-paragraph {
-        border-top: 0.2rem solid transparent;
+        border-top: @nested-space solid transparent;
       }
 
       // list items sit close together; a list as a whole is spaced like a paragraph
       .cm-block--listItem {
         &.cm-after--listItem {
-          border-top-width: 0.1rem;
+          border-top-width: @item-space;
         }
 
         &.cm-before--listItem {
-          border-bottom-width: 0.1rem;
+          border-bottom-width: @item-space;
         }
       }
 
       .cm-block--heading.cm-block-first {
-        border-top-width: 1.1rem;
+        border-top-width: @heading-space;
       }
 
       // nothing above the first block: no space, so the first line stays put when switching modes
@@ -252,8 +282,8 @@ only when it changed; so is the heading of the section with the cursor.
       // paragraph
       .cm-new-block,
       .cm-empty-paragraph {
-        border-top: 0.4rem solid transparent;
-        border-bottom: 0.4rem solid transparent;
+        border-top: @block-space solid transparent;
+        border-bottom: @block-space solid transparent;
       }
 
       // the empty line after Shift+Enter is a further line of the block above: no space between
@@ -262,18 +292,18 @@ only when it changed; so is the heading of the section with the cursor.
       }
 
       .cm-new-line {
-        border-bottom: 0.4rem solid transparent;
+        border-bottom: @block-space solid transparent;
       }
 
       .cm-block--listItem.cm-before--listItem + .cm-new-line {
-        border-bottom-width: 0.1rem;
+        border-bottom-width: @item-space;
       }
     }
 
     // a selected empty paragraph, in both modes (gaps/index.js): a selection-coloured block where
     // its text would start
     :deep(.cm-selected-empty) {
-      background: linear-gradient(var(--color--text-selection), var(--color--text-selection)) no-repeat 1rem center / 0.5em 1.2em;
+      background: linear-gradient(var(--color--text-selection), var(--color--text-selection)) no-repeat @text-inset center / 0.5em 1.2em;
       background-clip: padding-box;
       background-origin: padding-box;
     }
@@ -299,13 +329,13 @@ only when it changed; so is the heading of the section with the cursor.
 
     :deep(.cm-bullet) {
       display: inline-block;
-      width: 0.9em;
+      width: @mark-width;
       color: var(--color--text--secondary);
     }
 
     // a list line hangs: wrapped lines start where its text starts (--hang, syntax/index.js)
     :deep(.cm-hanging) {
-      padding-left: calc(1rem + var(--hang));
+      padding-left: calc(@text-inset + var(--hang));
       text-indent: calc(-1 * var(--hang));
 
       // text-indent is inherited: the drawn bullet (an inline-block) would shift its dot as well
@@ -319,26 +349,26 @@ only when it changed; so is the heading of the section with the cursor.
       visibility: hidden;
     }
 
-    // a list number starts where a bullet does and is at least as wide (0.9em): numbers line up
+    // a list number starts where a bullet does and is at least as wide: numbers line up
     // with each other and with bullets, and single-digit items start their text where bullet
     // items do, at every level
     :deep(.cm-number) {
       display: inline-block;
-      min-width: 0.9em;
+      min-width: @mark-width;
     }
 
     // a task's checkbox stands in the bullet's place: round, a little larger than the text, and
-    // taking the bullet's width (0.9em, with its margins), so the task's text starts where other
+    // taking the bullet's width (with its margins), so the task's text starts where other
     // items' text does
     :deep(.cm-task-checkbox) {
       appearance: none;
       box-sizing: border-box;
       // form controls have a smaller font of their own; em must be the text's
       font-size: inherit;
-      width: 1.1em;
-      height: 1.1em;
-      // set a little into the margin, for some room before the text; still 0.9em in all
-      margin: 0 0.05em 0 -0.25em;
+      width: @checkbox-size;
+      height: @checkbox-size;
+      // set a little into the margin, for some room before the text; as wide as a bullet in all
+      margin: 0 0.05em 0 (@mark-width - @checkbox-size - 0.05em);
       vertical-align: -0.2em;
       border: 1.5px solid var(--color--text--secondary);
       border-radius: 50%;
@@ -356,8 +386,8 @@ only when it changed; so is the heading of the section with the cursor.
     // The first bar starts where the text of other lines starts, the quote's text after the bars.
     :deep(.cm-quote-line) {
       --quote-step: 0.75rem;
-      padding-left: calc(1rem + var(--quote-level, 1) * var(--quote-step));
-      background: repeating-linear-gradient(to right, var(--color--border--solid) 0 3px, transparent 3px var(--quote-step)) no-repeat 1rem 0 / calc((var(--quote-level, 1) - 1) * var(--quote-step) + 3px) 100%;
+      padding-left: calc(@text-inset + var(--quote-level, 1) * var(--quote-step));
+      background: repeating-linear-gradient(to right, var(--color--border--solid) 0 3px, transparent 3px var(--quote-step)) no-repeat @text-inset 0 / calc((var(--quote-level, 1) - 1) * var(--quote-step) + 3px) 100%;
       background-clip: padding-box;
       color: var(--color--text--secondary);
     }
@@ -376,14 +406,14 @@ only when it changed; so is the heading of the section with the cursor.
       position: absolute;
       top: 0;
       left: 0;
-      width: 18px;
-      height: 18px;
+      width: var(--dnd-handle-size);
+      height: var(--dnd-handle-size);
       background: radial-gradient(circle, var(--color--text--secondary) 0 1.3px, transparent 1.7px) 0 0 / 6px 6px;
       border-radius: 3px;
       opacity: 0;
       pointer-events: none;
       cursor: grab;
-      transition: opacity 0.15s;
+      transition: opacity @handle-fade;
       z-index: 2;
 
       &.is-visible {
@@ -401,7 +431,7 @@ only when it changed; so is the heading of the section with the cursor.
     // Alt+↑/↓ (move/animate.js): the swapped lines are drawn where they were, then slide into
     // place
     :deep(.cm-slide-to) {
-      transition: transform 0.15s ease, opacity 0.15s ease;
+      transition: transform @move-duration ease, opacity @move-duration ease;
     }
 
     // a dropped block settles into place
@@ -434,7 +464,7 @@ only when it changed; so is the heading of the section with the cursor.
     @keyframes bump-down-b { 0%, 100% { transform: none } 30% { transform: translateY(calc(1 * var(--bump, 4px))) } 65% { transform: translateY(calc(-0.375 * var(--bump, 4px))) } }
 
     :deep(.cm-dnd-line) {
-      transition: transform 0.15s ease;
+      transition: transform @move-duration ease;
     }
 
     :deep(.cm-dnd-gap) {
@@ -446,10 +476,10 @@ only when it changed; so is the heading of the section with the cursor.
       top: 0;
       left: 0;
       height: auto;
-      opacity: 0.6;
+      opacity: var(--dnd-preview-opacity);
       // fading from the block it copies when the drag starts (as long as a drop takes), gently
       // at first
-      transition: opacity 0.15s ease-in;
+      transition: opacity @move-duration ease-in;
       pointer-events: none;
       z-index: 10;
 
@@ -469,7 +499,7 @@ only when it changed; so is the heading of the section with the cursor.
     // a tighter line than text (1.6): the bigger font would otherwise add empty space under the
     // heading's text, so it would sit further from its paragraph than paragraphs from each other
     :deep(.cm-heading) {
-      font-weight: 650;
+      font-weight: @bold;
       text-decoration: none;
       line-height: 1.3;
     }
@@ -487,7 +517,7 @@ only when it changed; so is the heading of the section with the cursor.
     }
 
     :deep(.cm-strong) {
-      font-weight: 650;
+      font-weight: @bold;
     }
 
     :deep(.cm-emphasis) {
@@ -504,7 +534,7 @@ only when it changed; so is the heading of the section with the cursor.
     }
 
     :deep(.cm-monospace) {
-      font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      font-family: var(--font--monospace);
       font-size: 0.9em;
     }
 

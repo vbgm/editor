@@ -47,7 +47,7 @@ Dragging blocks, and motion for moves:
 - **Alt+↑/↓ slides** the two swapped stretches into place (0.15 s); a block that cannot move **bumps** in the pressed direction, by kind: list items 2 px, paragraphs 3 px, headings 4–7 px (`####` … `#`), longer for further bumps (0.26 s for `###`).
 - **Numbering fixes**: a bullet item and a numbered one next to each other get a blank line after a move; a numbered sub-item that ends up first in its sub-list gets `1.` (under a bullet item `2. b` was read as text); lists written `1.` `1.` are told apart from a move's duplicates.
 
-The values to tune are constants at the top of `dnd/index.js` (`handleWidth`, `handleGap`, `handleReach`, `previewOpacity`), `move/animate.js` (`duration`, `bumpDistance`, `bumpDuration`), `foundation/dnd/index.js` (`edge`, `maxSpeed`), and in the editor CSS (`.cm-dnd-*`, `.cm-slide-*`, `.cm-bump*`); a duration lives both in CSS and in the JS that cleans up after it, so change them together.
+The values to tune: constants at the top of `dnd/index.js` (`handleWidth`, `handleGap`, `handleReach`, `previewOpacity`), `move/animate.js` (`duration`, `bumpDistance`, `bumpDuration`), `foundation/dnd/index.js` (`edge`, `maxSpeed`); the motion values the CSS shares with them reach it as CSS variables set from those constants (`--move-duration`, `--dnd-handle-size`, `--dnd-preview-opacity`), so each lives in one place. Style values are LESS variables at the top of each component's `<style>` (the editor's spacing, text inset and mark widths; the outline's `@fold-duration` / `@fold-easing`; the sidebar's handle), and shared ones are CSS variables in `src/styles/index.less` (colors, `--font--monospace`, `--radius--control`).
 
 ## What exists
 
