@@ -10,8 +10,10 @@
   --color--text-selection: #2f7bff;
   --color--text-selection--text: #fff;
   --color--link: #2a62d6;
-  // the outline's row of the section with the cursor
+  // the outline's row of the section with the cursor, and a row under the mouse (a smaller step,
+  // as in Ordner: #ecedee → #e5e5e5 hovered → #dadada selected)
   --color--outline--active: rgba(0, 0, 0, 0.06);
+  --color--outline--hover: rgba(0, 0, 0, 0.03);
 
   // Markdown mode, inline code
   --font--monospace: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -28,6 +30,7 @@
     --color--selection: #34466e;
     --color--link: #7ea6ff;
     --color--outline--active: rgba(255, 255, 255, 0.08);
+    --color--outline--hover: rgba(255, 255, 255, 0.05);
   }
 }
 

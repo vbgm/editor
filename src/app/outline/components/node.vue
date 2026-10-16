@@ -243,6 +243,8 @@ with the height transition's own duration and easing.
   @arrow-turn: 0.2s;
   // how far past a title's text a click still edits it (the cursor at the end)
   @title-reach: 0.5rem;
+  // a row's background changing (hovered, selected), as in Ordner
+  @row-fade: 0.2s ease-out;
   // a row's height (rowHeight in index.vue, which also sets the nodes' heights)
   @row-height: var(--row-height);
 
@@ -385,10 +387,19 @@ with the height transition's own duration and easing.
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: @row-height;
-    cursor: default;
+    // a click selects (the title's text edits, below)
+    cursor: pointer;
+    transition: background-color @row-fade;
 
     &.active {
       background: var(--color--outline--active);
+    }
+
+    // with a mouse only, and not while dragging (as in Ordner)
+    @media (hover: hover) and (pointer: fine) {
+      html:not(.is-dragging) &:not(.active):hover {
+        background: var(--color--outline--hover);
+      }
     }
 
     &.untitled {
