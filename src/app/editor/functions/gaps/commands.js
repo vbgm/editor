@@ -11,7 +11,8 @@ import { syntaxTree } from '@codemirror/language'
 // mark first (syntax/index.js), which turns them into a paragraph.
 // - Backspace at the start of a list item's text turns it into a paragraph of its own, outside
 //   the list: blank lines around it split it off (Markdown would otherwise read it as a further
-//   line of the item above). Nested items keep the Markdown behaviour (outdenting).
+//   line of the item above). Enter in an empty item does the same: it ends the list and starts a
+//   paragraph. Nested items keep the Markdown behaviour (outdenting).
 
 // blocks where Enter and joining keep their usual Markdown behaviour
 const containers = ['ListItem', 'Blockquote', 'FencedCode', 'CodeBlock', 'HTMLBlock', 'Table', 'Frontmatter', 'CommentBlock']
@@ -59,6 +60,15 @@ function topLevelListItem (state, lineFrom) {
 }
 
 export function listItemToParagraph ({ state, dispatch }) {
+  return toParagraph(state, dispatch, false)
+}
+
+export function emptyListItemToParagraph ({ state, dispatch }) {
+  return toParagraph(state, dispatch, true)
+}
+
+// isEmptyOnly: only an item with no text (Enter)
+function toParagraph (state, dispatch, isEmptyOnly) {
   const { main } = state.selection
   if (state.selection.ranges.length > 1 || !main.empty) return false
   const { doc } = state
@@ -68,6 +78,7 @@ export function listItemToParagraph ({ state, dispatch }) {
   // behind the bullet or number, and a task box
   const contentStart = line.from + listMark.exec(line.text)[0].length
   if (main.head != contentStart) return false
+  if (isEmptyOnly && (!isBlank(line.text.slice(contentStart - line.from)) || doc.lineAt(item.to).number > line.number)) return false
 
   let last = doc.lineAt(item.to)
   if (last.from == item.to && item.to > item.from) last = doc.lineAt(item.to - 1)

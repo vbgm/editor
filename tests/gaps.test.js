@@ -10,7 +10,7 @@ import { cursorCharRight, cursorCharLeft } from '@codemirror/commands'
 import { createState, stateWithCursor, runCommand, getText } from './helpers.js'
 import { gaps, computeAll } from '/src/app/editor/functions/gaps/index.js'
 import { deleteCharBackward } from '@codemirror/commands'
-import { insertNewBlock, joinBackward, joinForward, listItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
+import { insertNewBlock, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
 import generateDocument from '/src/app/functions/generate-document.js'
 
 beforeAll(() => {
@@ -165,6 +165,13 @@ describe('Enter, Backspace and Delete between blocks', () => {
     expect(run(listItemToParagraph, '1. a\n2. |b\n')).toBe('1. a\n\nb\n')
     expect(run(listItemToParagraph, '- a\n- [ ] |b\n')).toBe('- a\n\nb\n')
     expect(run(listItemToParagraph, '- a\n- |b\n  more\n- c\n')).toBe('- a\n\nb\n  more\n\n- c\n')
+  })
+
+  it('Enter in an empty list item ends the list and starts a paragraph', () => {
+    expect(run(emptyListItemToParagraph, '- one\n- |\n\nAfter\n')).toBe('- one\n\n\n\nAfter\n')
+    expect(run(emptyListItemToParagraph, '- a\n- |\n- c\n')).toBe('- a\n\n\n\n- c\n')
+    expect(emptyListItemToParagraph({ state: stateWithCursor('- one|\n'), dispatch: () => {} })).toBe(false)
+    expect(emptyListItemToParagraph({ state: stateWithCursor('- one\n- |\n  more\n'), dispatch: () => {} })).toBe(false)
   })
 
   it('puts the cursor at the start of the new paragraph', () => {

@@ -27,7 +27,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421 (what gets tested)
-npm test             # vitest, 108 tests (node + jsdom)
+npm test             # vitest, 109 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -63,7 +63,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/format/` | formatting commands and their keymap |
 | `editor/functions/markdown-shown.js` | facet: is Markdown mode on |
 | `editor/functions/markdown-top.js` | Markdown mode's top padding, so the first line's text starts where it does in Document mode |
-| `editor/functions/raw-markup.js` | heading and list marks with no text yet: shown as typed, treated as paragraphs |
+| `editor/functions/raw-markup.js` | heading and list marks with no space after them yet: shown as typed, treated as paragraphs |
 | `editor/functions/literal-typing.js` | Literal: typed characters that would become syntax are escaped |
 | `tests/` | fixtures (round-trip), blocks, moves, gaps (incl. 300 random edits vs full recompute), syntax, formats |
 

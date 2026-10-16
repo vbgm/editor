@@ -43,15 +43,15 @@ describe('hidden Markdown', () => {
     view.destroy()
   })
 
-  it('shows heading and list marks as typed until text follows them', () => {
-    for (const text of ['#', '## ', '# #', '-', '- ', '1. ']) {
+  it('shows heading and list marks as typed until a space follows them', () => {
+    for (const text of ['#', '##', '-', '1.']) {
       const view = createView(`${text}\n`)
       expect(shown(view), text).toEqual([text])
       expect(view.contentDOM.querySelectorAll('.cm-raw-line').length, text).toBe(1)
       view.destroy()
     }
-    const view = createView('# Title\n\n- item\n')
-    expect(shown(view)).toEqual(['Title', '• item'])
+    const view = createView('# Title\n\n- item\n\n## \n\n- \n')
+    expect(shown(view)).toEqual(['Title', '• item', '', '• '])
     view.destroy()
   })
 
@@ -106,12 +106,12 @@ describe('cursor with hidden Markdown', () => {
     view.destroy()
   })
 
-  it('stays before a heading or list mark that has no text yet', () => {
-    const view = createView('text\n\n## \n\n- \n')
+  it('stays before a heading or list mark with no space after it yet', () => {
+    const view = createView('text\n\n##\n\n-\n')
     view.dispatch({ selection: EditorSelection.cursor(6) })
     expect(view.state.selection.main.head).toBe(6)
-    view.dispatch({ selection: EditorSelection.cursor(11) })
-    expect(view.state.selection.main.head).toBe(11)
+    view.dispatch({ selection: EditorSelection.cursor(10) })
+    expect(view.state.selection.main.head).toBe(10)
     view.destroy()
   })
 

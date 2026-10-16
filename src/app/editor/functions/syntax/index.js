@@ -3,7 +3,7 @@ import { RangeSetBuilder, EditorState, EditorSelection } from '@codemirror/state
 import { ViewPlugin, Decoration, WidgetType, EditorView } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 // local functions
-import { isEmptyHeading, isLoneEmptyItem, isRawLine } from '../raw-markup.js'
+import { isBareHeading, isBareListItem, isRawLine } from '../raw-markup.js'
 
 // Hides the Markdown syntax while Markdown is not shown: the file stays exactly as it is, only
 // the symbols are not drawn.
@@ -16,7 +16,7 @@ import { isEmptyHeading, isLoneEmptyItem, isRawLine } from '../raw-markup.js'
 // The cursor skips the hidden symbols, and a cursor at the start of a line goes after its
 // heading, quote or bullet mark, so typing there types into the text, and Backspace at the start
 // of a heading, quote or list item removes its mark in one press.
-// A heading or list mark with no text after it yet stays as typed (raw-markup.js).
+// A heading or list mark with no space after it yet stays as typed (raw-markup.js).
 // Only the visible lines are looked at.
 
 class BulletWidget extends WidgetType {
@@ -109,7 +109,7 @@ function build (view) {
         switch (node.name) {
           case 'HeaderMark': {
             const parent = node.node.parent
-            if (/^ATXHeading/.test(parent?.name) && isEmptyHeading(doc, parent)) lines.push([doc.lineAt(node.from).from, rawLine])
+            if (/^ATXHeading/.test(parent?.name) && isBareHeading(doc, parent)) lines.push([doc.lineAt(node.from).from, rawLine])
             else if (/^SetextHeading/.test(parent?.name)) collapseLine(node.from)
             // an opening mark takes the spaces after it, a closing mark the spaces before it
             else if (node.from == parent?.from) hideRange(node.from, node.to + spacesAfter(doc, node.to))
@@ -132,7 +132,7 @@ function build (view) {
             hideRange(node.from, node.to + Math.min(spacesAfter(doc, node.to), 1))
             break
           case 'ListMark':
-            if (isLoneEmptyItem(node.node.parent)) lines.push([doc.lineAt(node.from).from, rawLine])
+            if (isBareListItem(doc, node.node.parent)) lines.push([doc.lineAt(node.from).from, rawLine])
             else if (node.node.parent?.parent?.name == 'BulletList') {
               marks.push([node.from, node.to, bullet])
               atomic.push([node.from, node.to + Math.min(spacesAfter(doc, node.to), 1)])

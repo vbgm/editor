@@ -53,12 +53,12 @@ describe('blocks', () => {
     expect(blocksOf(createState('\uFEFF---\ntitle: x\n---\n\nText\n'))[0].type).toBe('frontmatter')
   })
 
-  it('a heading or list mark with no text yet is a paragraph', () => {
-    for (const text of ['#', '## ', '-', '- ', '1.']) {
+  it('a heading or list mark with no space after it yet is a paragraph', () => {
+    for (const text of ['#', '##', '-', '1.']) {
       expect(blocksOf(createState(`${text}\n`)), text).toEqual([{ type: 'paragraph', level: 0, text }])
     }
-    const blocks = blocksOf(createState('# T\n\n- a\n- \n'))
-    expect(blocks.map(block => [block.type, block.level])).toEqual([['heading', 1], ['listItem', 0], ['listItem', 0]])
+    const blocks = blocksOf(createState('# T\n\n- a\n- \n\n## \n\n- \n'))
+    expect(blocks.map(block => [block.type, block.level])).toEqual([['heading', 1], ['listItem', 0], ['listItem', 0], ['heading', 2], ['listItem', 0]])
   })
 
   it('empty file has no blocks', () => {

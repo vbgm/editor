@@ -1,7 +1,7 @@
 // npm packages
 import { syntaxTree, ensureSyntaxTree } from '@codemirror/language'
 // local functions
-import { isEmptyHeading, isLoneEmptyItem } from '../raw-markup.js'
+import { isBareHeading, isBareListItem } from '../raw-markup.js'
 
 // Blocks are derived from the Markdown syntax tree; nothing is stored in the file.
 // A block is a whole-line range { from, to, type, level }:
@@ -10,7 +10,8 @@ import { isEmptyHeading, isLoneEmptyItem } from '../raw-markup.js'
 // Every top-level element is a block, and every top-level list item is a block of its own
 // (as in Notion). A heading owns the blocks below it up to the next heading of the same or a
 // higher level, which moves with it (move/index.js).
-// A heading or list with no text yet ('#', '- ') is a paragraph, as it is shown (raw-markup.js).
+// A heading or list mark with no space after it yet ('#', '-') is a paragraph, as it is shown
+// (raw-markup.js).
 // (Bigger blocks, a whole list or a whole section, were tried and dropped.)
 
 const types = {
@@ -73,10 +74,10 @@ function parse (doc, tree, from = 0, to = doc.length) {
     if (name == 'BulletList' || name == 'OrderedList') {
       for (let item = node.firstChild; item; item = item.nextSibling) {
         if (item.name != 'ListItem') continue
-        elements.push(createBlock(doc, item.from, item.to, isLoneEmptyItem(item) ? 'paragraph' : 'listItem', 0))
+        elements.push(createBlock(doc, item.from, item.to, isBareListItem(doc, item) ? 'paragraph' : 'listItem', 0))
       }
     } else {
-      const isRaw = /^ATX/.test(name) && isEmptyHeading(doc, node)
+      const isRaw = /^ATX/.test(name) && isBareHeading(doc, node)
       const level = isRaw ? 0 : headingLevel(name)
       const type = isRaw ? 'paragraph' : level ? 'heading' : (types[name] || 'other')
       elements.push(createBlock(doc, node.from, node.to, type, level))
