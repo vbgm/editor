@@ -152,6 +152,37 @@ function rewrite (state, span, delta, { from, to, before, after }, swapped) {
   return spec(state, from, to, before + text + after, span, from + before.length, delta, swapped)
 }
 
+// A numbered sub-item that ends up first in its sub-list gets '1.' (its '.' or ')' kept): right
+// under text, Markdown reads a numbered line as more of that text unless it is '1.', so it would
+// not be a list item, and renumbering would not see it. First: the line above (the last non-blank
+// one) is less indented (the parent's line), or as indented but not an item (the parent's further
+// line). The rest of the list is counted by renumber.js.
+const numbered = /^([ \t]*)\d{1,9}([.)])(?=[ \t]|$)/
+
+function firstItemsFromOne (doc, from, insert) {
+  const indent = text => /^[ \t]*/.exec(text)[0].length
+  const startLine = doc.lineAt(from)
+  // the text before the region on its first line, and the last non-blank line above that
+  const prefix = doc.sliceString(startLine.from, from)
+  let previous = null
+  for (let number = startLine.number - (prefix.trim() ? 0 : 1); number >= 1 && previous == null; number--) {
+    const text = number == startLine.number ? prefix : doc.line(number).text
+    if (text.trim()) previous = text
+  }
+  const lines = insert.split(lineBreak)
+  for (let index = 0; index < lines.length; index++) {
+    // a region starting after text continues that line, which does not move
+    const text = index ? lines[index] : prefix + lines[0]
+    const match = !(index == 0 && prefix) && numbered.exec(text)
+    if (match && previous != null && !/^1[.)]/.test(text.slice(match[1].length))) {
+      const isFirst = indent(previous) < match[1].length || (indent(previous) == match[1].length && !itemStart.test(previous))
+      if (isFirst) lines[index] = `${match[1]}1${match[2]}${text.slice(match[0].length)}`
+    }
+    if (text.trim()) previous = text
+  }
+  return lines.join(lineBreak)
+}
+
 function reindent (text, delta) {
   if (!delta) return text
   return text.split(lineBreak).map(line => {
@@ -163,6 +194,15 @@ function reindent (text, delta) {
 // swapped: the lines that changed places, for the slide (animate.js)
 function spec (state, from, to, insert, moved, movedStart, delta, swapped) {
   const { doc } = state
+  // the line after the region too: an item there may now be first in its sub-list (the first
+  // sub-item moving up leaves the next one first)
+  const toLine = doc.lineAt(to)
+  if (to == toLine.to && toLine.number < doc.lines) {
+    const next = doc.line(toLine.number + 1)
+    insert += lineBreak + next.text
+    to = next.to
+  }
+  insert = firstItemsFromOne(doc, from, insert)
   // the selection stays on the same text: same line of the moved span, column shifted by delta
   const map = position => {
     const line = doc.lineAt(position)

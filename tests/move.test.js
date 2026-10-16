@@ -41,6 +41,28 @@ describe('numbered lists after a move', () => {
   })
 })
 
+describe('numbered sub-lists after a move', () => {
+  it('count up when an item joins a sub-list of one', () => {
+    expect(up('1. one\n   1. x\n2. two\n   1. a|\n   2. b\n')).toBe('1. one\n   1. x\n   2. a\n2. two\n   1. b\n')
+  })
+
+  it('count up under a bullet item, where the first item must be 1. to be an item at all', () => {
+    expect(down('- one\n  1. a|\n  2. b\n')).toBe('- one\n  1. b\n  2. a\n')
+    expect(up('- one\n  1. a\n  2. b|\n')).toBe('- one\n  1. b\n  2. a\n')
+    expect(down('- one\n  with more\n  1. a|\n  2. b\n')).toBe('- one\n  with more\n  1. b\n  2. a\n')
+  })
+
+  it('count up in the sub-list an item left and the one it joined', () => {
+    expect(up('- one\n  1. a\n- two\n  1. c|\n  2. d\n')).toBe('- one\n  1. a\n  2. c\n- two\n  1. d\n')
+    expect(down('- one\n  1. a|\n- two\n  1. c\n  2. d\n')).toBe('- one\n- two\n  1. a\n  2. c\n  3. d\n')
+  })
+
+  it('stay written with one number when they were', () => {
+    expect(up('1. a\n1. b|\n')).toBe('1. b\n1. a\n')
+    expect(up('- one\n  1. x\n  1. y\n- two\n  1. a|\n')).toBe('- one\n  1. x\n  1. y\n  1. a\n- two\n')
+  })
+})
+
 describe('moving nested list items', () => {
   const list = '- A\n  - a1\n  - a2\n- B\n  - b1\n'
 

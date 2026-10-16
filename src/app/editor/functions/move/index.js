@@ -4,7 +4,7 @@ import { isolateHistory } from '@codemirror/commands'
 // local functions
 import { getBlocks, blockIndexAt } from '../blocks/index.js'
 import shiftHeading from './shift-heading.js'
-import renumber from './renumber.js'
+import renumber, { isSameNumberList } from './renumber.js'
 import nestedMoveSpec, { nestedLines } from './nested.js'
 import { movedLines, dispatchMove, bump } from './animate.js'
 
@@ -61,8 +61,24 @@ function run (view, direction) {
 export function withRenumbering (state, spec) {
   const moved = state.update(spec)
   const { from, insert } = spec.changes
-  const changes = renumber(moved.state, from, from + insert.length)
+  const changes = renumber(moved.state, from, from + insert.length, movedRange(state, moved))
   return changes.length ? state.update(spec, { changes, sequential: true }) : moved
+}
+
+// the moved lines after a move (for renumber): of the two swapped stretches (movedLines), the one
+// the selection stays on, and whether the list it came from had one number for every item
+function movedRange (state, transaction) {
+  const swapped = transaction.annotation(movedLines)
+  if (!swapped) return null
+  const { doc } = transaction.state
+  const line = doc.lineAt(transaction.state.selection.main.head).number
+  for (const span of [swapped.above, swapped.below]) {
+    const last = span.newFrom + span.to - span.from
+    if (line >= span.newFrom && line <= last) {
+      return { from: doc.line(span.newFrom).from, to: doc.line(last).to, wasSame: isSameNumberList(state, span.from) }
+    }
+  }
+  return null
 }
 
 // the span under the selection: the block at the cursor, or all blocks the selection touches
