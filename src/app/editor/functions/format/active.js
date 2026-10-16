@@ -2,8 +2,7 @@
 import { syntaxTree } from '@codemirror/language'
 
 // The formats of the text with the main cursor or selection, for the toolbar's buttons:
-// { heading: 0–6, bold, italic, strikethrough, code, link, bullet, ordered, task, paragraph }
-// (paragraph: neither heading nor list item).
+// { heading: 0–6, bold, italic, strikethrough, code, link, bullet, ordered, task }.
 // An inline format is on when the cursor is inside it (not right before or after its marks), or
 // when the whole selection is in it. A list is the innermost one the cursor's line is in.
 
@@ -19,7 +18,7 @@ const headingName = /^(?:ATX|Setext)Heading(\d)$/
 
 export function activeFormats (state) {
   const { from, to, empty } = state.selection.main
-  const formats = { heading: 0, bold: false, italic: false, strikethrough: false, code: false, link: false, bullet: false, ordered: false, task: false, paragraph: false }
+  const formats = { heading: 0, bold: false, italic: false, strikethrough: false, code: false, link: false, bullet: false, ordered: false, task: false }
   let item = null
   syntaxTree(state).iterate({
     from,
@@ -38,10 +37,10 @@ export function activeFormats (state) {
     }
   })
   if (item) {
-    formats.bullet = item.parent?.name == 'BulletList'
-    formats.ordered = item.parent?.name == 'OrderedList'
     formats.task = !!item.getChild('Task')
+    // a task's bullet is its box: only the task button is lit
+    formats.bullet = item.parent?.name == 'BulletList' && !formats.task
+    formats.ordered = item.parent?.name == 'OrderedList'
   }
-  formats.paragraph = !formats.heading && !item
   return formats
 }

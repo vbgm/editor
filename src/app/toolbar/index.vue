@@ -5,7 +5,7 @@ folder header); over a sidebar, the sidebar's colour runs up to the top of the w
 - left: hide or show the toolbar (Cmd+Alt+T), the outline sidebar (Ctrl+Cmd+S)
 - center: formatting for the text with the cursor, lit where the cursor's text has it (formats,
   from the editor), in two groups: what a line is (headings H1–H6, a menu where the toolbar is
-  too narrow for all six; numbered list, bulleted list, task, paragraph), then the inline formats
+  too narrow for all six; numbered list, bulleted list, task), then the inline formats
 - right: the settings sidebar
 Hiding and showing, it slides out at the top and back in, fading, in 0.3 s, as the sidebars do;
 the app moves the text with it (App's toggleToolbar). Hidden, only the arrow to show it again
@@ -197,8 +197,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
   const lineButtons = [
     { name: 'ordered', icon: 'list-ordered', title: 'Numbered list (Cmd+7)', marginLeft: -1 },
     { name: 'bullet', icon: 'list-bullet', title: 'Bulleted list (Cmd+8)' },
-    { name: 'task', icon: 'task', title: 'Task (Cmd+Enter)' },
-    { name: 'paragraph', icon: 'paragraph', title: 'Paragraph: plain text (Cmd+0)' }
+    { name: 'task', icon: 'task', title: 'Task: a checkbox, or back to a paragraph' }
   ]
 
   // the inline formats, a group of their own (marginLeft, marginRight as for lineButtons)
@@ -297,7 +296,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
   @icon: 1.3rem;
   @icon-margin: 0.5rem;
   // in the center's groups: between one icon and the next, as drawn
-  @spacing: 0.75rem;
+  @spacing: 1rem;
   @fade: 0.3s ease;
   // all six heading buttons fit, with the center still in the middle; narrower: the menu
   @compact-width: 37.5rem;
@@ -403,7 +402,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
     background: none;
     font: inherit;
     color: var(--color--text--secondary);
-    cursor: default;
+    cursor: pointer;
     transition: color @fade;
 
     &:hover,
@@ -472,7 +471,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
       color: var(--color--text--primary);
       text-align: left;
       white-space: nowrap;
-      cursor: default;
+      cursor: pointer;
 
       &:hover {
         background: var(--color--outline--active);

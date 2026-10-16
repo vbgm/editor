@@ -32,13 +32,12 @@ is scrolled into view below it.
   import { getOutline, activeIndex, dropLevel, outlineMove, headingTextStart, renameSpec } from './functions/outline/index.js'
   import { dispatchMove } from './functions/move/animate.js'
   import { activeFormats } from './functions/format/active.js'
-  import { setHeading, toggleList, toggleTask } from './functions/format/lines.js'
+  import { setHeading, toggleList, toggleTaskList } from './functions/format/lines.js'
   import { toggleInline, insertLink } from './functions/format/inline.js'
 
   // the toolbar's formats (format())
   const formatCommands = {
     heading: setHeading,
-    paragraph: () => setHeading(0),
     bold: () => toggleInline('**'),
     italic: () => toggleInline('*'),
     strikethrough: () => toggleInline('~~'),
@@ -46,7 +45,7 @@ is scrolled into view below it.
     link: () => insertLink,
     bullet: () => toggleList('bullet'),
     ordered: () => toggleList('ordered'),
-    task: () => toggleTask
+    task: () => toggleTaskList
   }
 
   export default {

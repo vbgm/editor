@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { EditorSelection } from '@codemirror/state'
 // local
 import { createState, stateWithCursor, runCommand, undoOnce, getText } from './helpers.js'
-import { setHeading, toggleList, toggleTask } from '/src/app/editor/functions/format/lines.js'
+import { setHeading, toggleList, toggleTask, toggleTaskList } from '/src/app/editor/functions/format/lines.js'
 import { toggleInline, insertLink } from '/src/app/editor/functions/format/inline.js'
 import { activeFormats } from '/src/app/editor/functions/format/active.js'
 
@@ -62,6 +62,16 @@ describe('line formats', () => {
 
   it('keeps nested items nested', () => {
     expect(runOnSelection(toggleList('ordered'), '[- one\n  - two]\n').text).toBe('1. one\n   1. two\n')
+  })
+
+  it('makes tasks with the toolbar\'s button, and paragraphs of them again', () => {
+    expect(run(toggleTaskList, 'item|\n')).toBe('- [ ] item\n')
+    expect(run(toggleTaskList, '- item|\n')).toBe('- [ ] item\n')
+    // a task, ticked or not, is a paragraph again, out of its list
+    expect(run(toggleTaskList, '- [ ] item|\n')).toBe('item\n')
+    expect(run(toggleTaskList, '- [x] one\n- [ ] two|\n')).toBe('- [x] one\n\ntwo\n')
+    // Cmd+Enter still ticks it
+    expect(run(toggleTask, '- [ ] item|\n')).toBe('- [x] item\n')
   })
 
   it('leaves code and blank lines alone', () => {
@@ -221,6 +231,7 @@ describe('active formats', () => {
   it('finds the innermost list and tasks', () => {
     expect(formatsAt('- a|\n')).toMatchObject({ bullet: true, ordered: false, task: false })
     expect(formatsAt('- a\n  1. b|\n')).toMatchObject({ bullet: false, ordered: true })
-    expect(formatsAt('- [ ] a|\n')).toMatchObject({ bullet: true, task: true })
+    // a task is not lit as a bullet too
+    expect(formatsAt('- [ ] a|\n')).toMatchObject({ bullet: false, task: true })
   })
 })

@@ -10,9 +10,9 @@
 // All with the same stroke, and in the toolbar with their tops and bottoms on the same lines:
 // 80 high, 24 to 104, scaled about the centre from how they are drawn (letters 92 high, 18 to
 // 110); as in type, the shapes that look smaller overshoot the lines a little (the circle 84,
-// the diagonal link 86), and those that look larger stay a little inside them (B, S and ¶ 76,
-// I and the lists 72). The toolbar's H1–H6 are text, their capitals a little inside the lines
-// too. The toolbar's arrow is smaller (56 wide); check and angle-down are for menus.
+// the diagonal link 86), and those that look larger stay a little inside them (B and S 76,
+// I and the lists 72); H1–H6 below. The toolbar's arrow is smaller (56 wide); check and
+// angle-down are for menus.
 // angle-down, check, sliders and link are Ordner's own.
 
 const round = d => ({ d, cap: 'round' })
@@ -101,17 +101,6 @@ export default {
       'M26,18l0,92',
       'M102,18l0,92',
       'M26,64l76,0'
-    ]
-  },
-
-  // the pilcrow: a bowl on the left of two stems, a letter's height
-  paragraph: {
-    optical: [-2, 0],
-    scale: 76 / 92,
-    paths: [
-      'M100,18l-48,0c-14.36,0 -26,10.745 -26,24c0,13.255 11.64,24 26,24l12,0',
-      'M64,18l0,92',
-      'M90,18l0,92'
     ]
   },
 

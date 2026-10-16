@@ -250,8 +250,8 @@ export function toggleTask (view) {
   const { state } = view
   const lines = selectedLines(state).filter(line => !isItemContinuation(state, line))
   if (!lines.length) return true
-  const changes = []
   if (lines.every(line => taskStart.test(line.text))) {
+    const changes = []
     const isChecked = lines.every(line => /x/i.test(taskStart.exec(line.text)[2]))
     for (const line of lines) {
       const box = line.from + taskStart.exec(line.text)[1].length + 1
@@ -259,13 +259,30 @@ export function toggleTask (view) {
     }
     return dispatchChanges(view, changes, 'input.toggle')
   }
+  return dispatchChanges(view, openTasks(state, lines), 'format.list', true)
+}
+
+// the toolbar's task button: the selected lines become open tasks, or, when they all are tasks
+// already, paragraphs again, out of their list (setHeading(0)); ticking is Cmd+Enter's
+export function toggleTaskList (view) {
+  const { state } = view
+  const lines = selectedLines(state).filter(line => !isItemContinuation(state, line))
+  if (!lines.length) return true
+  if (lines.every(line => taskStart.test(line.text))) return setHeading(0)(view)
+  return dispatchChanges(view, openTasks(state, lines), 'format.list', true)
+}
+
+// the lines that are not tasks made open tasks: a list item gets a box after its bullet or
+// number, a paragraph becomes '- [ ] ' with its text
+function openTasks (state, lines) {
+  const changes = []
   for (const line of lines) {
     if (taskStart.test(line.text)) continue
     const item = listItemStart.exec(line.text)
     if (item) changes.push({ from: line.from + item[0].length, insert: '[ ] ' })
     else changes.push(...replacePrefixes(state, [line], () => indentation.exec(line.text)[0] + '- [ ] '))
   }
-  return dispatchChanges(view, changes, 'format.list', true)
+  return changes
 }
 
 // kind: 'bullet' or 'ordered'. Turns the lines into a list, or back into paragraphs when they
