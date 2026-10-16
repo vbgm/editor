@@ -80,46 +80,33 @@ function itemOf (state, line) {
   return null
 }
 
-// where the text of the nearest line with text above starts (behind an item's mark), 0 when
-// there is none; columns: text starts of lines changed already, by line number
-function textColumnAbove (doc, number, columns) {
-  for (let above = number - 1; above >= 1; above--) {
-    if (columns.has(above)) return columns.get(above)
-    const text = doc.line(above).text
-    if (isBlank(text)) return 0
-    const mark = itemStart.exec(text)
-    return mark && itemLine.test(text) ? mark[0].length : indentation.exec(text)[0].length
-  }
-  return 0
-}
-
-// list items turned off: each becomes a further line of the text right above it, lined up under
-// that text, with no space between (as a Shift+Enter line); its own lines and sub-items move along
+// list items turned off: each becomes a further line of the text right above it (drawn lined
+// up under that text, syntax/index.js, with no space between), keeping its own indentation in
+// the file: shallower than a Shift+Enter line, which is indented to the item's text. Turned on
+// again it is an item at its old level (linesToItems). Its own lines and sub-items move along.
 export function itemsToLines (state, lines) {
   const { doc } = state
   const changes = []
-  const columns = new Map()
   const selected = new Set(lines.map(line => line.number))
   for (const line of lines) {
     const item = itemAt(state, line)
     if (!item) continue
     const oldColumn = line.text.length - content(line.text).length
-    const column = textColumnAbove(doc, line.number, columns)
-    columns.set(line.number, column)
-    changes.push({ from: line.from, to: line.from + oldColumn, insert: ' '.repeat(column) })
+    const column = indentation.exec(line.text)[0].length
+    changes.push({ from: line.from + column, to: line.from + oldColumn })
     const delta = column - oldColumn
     for (let number = line.number + 1; number <= lastLineOf(doc, item).number; number++) {
       const further = doc.line(number)
       if (isBlank(further.text) || selected.has(number)) continue
-      if (delta > 0) changes.push({ from: further.from, insert: ' '.repeat(delta) })
-      else changes.push({ from: further.from, to: further.from + Math.min(-delta, indentation.exec(further.text)[0].length) })
+      changes.push({ from: further.from, to: further.from + Math.min(-delta, indentation.exec(further.text)[0].length) })
     }
   }
   return changes
 }
 
-// further lines of items turned into items: each at the level of the item it belongs to, right
-// after it (as it was before its mark was taken off); blank lines between it and the item go
+// further lines of items turned into items: a line indented to its item's text (Shift+Enter)
+// becomes a sub-item of that item; a shallower one (an item whose mark was taken off) an item at
+// its own indentation again, the level it had. Blank lines between it and the item go.
 function linesToItems (state, lines, kind) {
   const { doc } = state
   const changes = []
@@ -134,12 +121,15 @@ function linesToItems (state, lines, kind) {
     const item = itemOf(state, line)
     if (!item) continue
     const itemFirst = doc.lineAt(item.from)
-    const column = indentation.exec(itemFirst.text)[0].length
+    const itemColumn = itemStart.exec(itemFirst.text)?.[0].length ?? 0
+    const own = indentation.exec(line.text)[0].length
+    const isNested = own >= itemColumn
+    const column = isNested ? itemColumn : own
     for (let above = line.number - 1; above > itemFirst.number && isBlank(doc.line(above).text); above--) removeBlank(above)
-    // a number follows the item's own
-    const number = /^[ \t]*(\d+)([.)])/.exec(itemFirst.text)
+    // back at the item's level, a number follows the item's own
+    const number = !isNested && indentation.exec(itemFirst.text)[0].length == own && /^[ \t]*(\d+)([.)])/.exec(itemFirst.text)
     const mark = kind == 'bullet' ? '- ' : number ? `${Number(number[1]) + 1}${number[2]} ` : '1. '
-    changes.push({ from: line.from, to: line.from + indentation.exec(line.text)[0].length, insert: ' '.repeat(column) + mark })
+    changes.push({ from: line.from, to: line.from + own, insert: ' '.repeat(column) + mark })
   }
   return changes
 }
@@ -251,7 +241,7 @@ export function toggleList (kind) {
   return view => {
     const { state } = view
     // a further line of a list item (Shift+Enter, a mark taken off) is part of the item, not an
-    // item; when only such lines are selected, they become items at the level of their item
+    // item; when only such lines are selected, they become items (linesToItems)
     const selected = selectedLines(state)
     const lines = selected.filter(line => !isItemContinuation(state, line))
     if (!lines.length) return dispatchChanges(view, linesToItems(state, selected, kind), 'format.list', true)

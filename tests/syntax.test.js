@@ -224,7 +224,7 @@ describe('Backspace in Markdown mode', () => {
     const view = createView('1. one\n2. two\n')
     view.dispatch({ selection: EditorSelection.cursor(10) })
     backspace(view)
-    expect(getText(view.state)).toBe('1. one\n   two\n')
+    expect(getText(view.state)).toBe('1. one\ntwo\n')
     view.destroy()
   })
 })

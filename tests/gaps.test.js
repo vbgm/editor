@@ -192,11 +192,11 @@ describe('Enter, Backspace and Delete between blocks', () => {
   })
 
   it('Backspace at the start of a list item makes it a further line of the text above', () => {
-    // lined up under that text, no blank line: it stays right below it
-    expect(run(listItemToParagraph, '- one\n- |two\n\nAfter\n')).toBe('- one\n  two\n\nAfter\n')
-    expect(run(listItemToParagraph, '1. a\n2. |b\n3. c\n')).toBe('1. a\n   b\n3. c\n')
-    expect(run(listItemToParagraph, '- a\n- [ ] |b\n')).toBe('- a\n  b\n')
-    expect(run(listItemToParagraph, '- a\n- |b\n  more\n- c\n')).toBe('- a\n  b\n  more\n- c\n')
+    // drawn under that text, no blank line; in the file it keeps its own indentation
+    expect(run(listItemToParagraph, '- one\n- |two\n\nAfter\n')).toBe('- one\ntwo\n\nAfter\n')
+    expect(run(listItemToParagraph, '1. a\n2. |b\n3. c\n')).toBe('1. a\nb\n3. c\n')
+    expect(run(listItemToParagraph, '- a\n- [ ] |b\n')).toBe('- a\nb\n')
+    expect(run(listItemToParagraph, '- a\n- |b\n  more\n- c\n')).toBe('- a\nb\nmore\n- c\n')
     // the first item, with nothing above in the list, is a paragraph
     expect(run(listItemToParagraph, 'Intro\n\n- |a\n- b\n')).toBe('Intro\n\na\n- b\n')
   })
@@ -215,12 +215,12 @@ describe('Enter, Backspace and Delete between blocks', () => {
 
   it('puts the cursor at the start of the text', () => {
     const state = runCommand(listItemToParagraph, stateWithCursor('- one\n- |two\n'))
-    expect(state.selection.main.head).toBe('- one\n  '.length)
+    expect(state.selection.main.head).toBe('- one\n'.length)
   })
 
   it('makes a sub-item a further line of the text above it', () => {
     expect(run(listItemToParagraph, '- a\n  - |b\n')).toBe('- a\n  b\n')
-    expect(run(listItemToParagraph, '1. a\n   - x\n   - |b\n   - c\n')).toBe('1. a\n   - x\n     b\n   - c\n')
+    expect(run(listItemToParagraph, '1. a\n   - x\n   - |b\n   - c\n')).toBe('1. a\n   - x\n   b\n   - c\n')
   })
 
   it('leaves the middle of an item alone', () => {

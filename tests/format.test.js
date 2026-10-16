@@ -103,7 +103,8 @@ describe('switching an item with sub-items between bullets and numbers', () => {
 
   it('turning an item off makes it a line under the text above, and on again an item at the same level', () => {
     const off = runCommand(toggleList('ordered'), stateWithCursor('1. a\n   1. w\n   2. |x\n2. b\n'))
-    expect(getText(off)).toBe('1. a\n   1. w\n      x\n2. b\n')
+    // drawn under w's text, but keeping its own indentation in the file
+    expect(getText(off)).toBe('1. a\n   1. w\n   x\n2. b\n')
     expect(getText(runCommand(toggleList('ordered'), off))).toBe('1. a\n   1. w\n   2. x\n2. b\n')
     const bulletOff = runCommand(toggleList('bullet'), stateWithCursor('- a\n  - w\n  - |x\n'))
     expect(getText(runCommand(toggleList('bullet'), bulletOff))).toBe('- a\n  - w\n  - x\n')
@@ -116,11 +117,14 @@ describe('switching an item with sub-items between bullets and numbers', () => {
     expect(getText(runCommand(toggleList('bullet'), nested))).toBe('- a\n  x\n  y\n')
   })
 
-  it('turns a further line of an item into an item at its level when only such lines are selected', () => {
-    expect(run(toggleList('bullet'), '- a\n  mo|re\n')).toBe('- a\n- more\n')
-    expect(run(toggleList('ordered'), '1. one\n   1. x\n      y|\n')).toBe('1. one\n   1. x\n   2. y\n')
-    // Backspace and back
-    expect(run(toggleList('bullet'), '- one\n  - sub a\n    sub| b\n  - sub c\n')).toBe('- one\n  - sub a\n  - sub b\n  - sub c\n')
+  it('turns a Shift+Enter line of an item into a sub-item of it', () => {
+    expect(run(toggleList('bullet'), '- a\n  mo|re\n')).toBe('- a\n  - more\n')
+    expect(run(toggleList('ordered'), '1. one\n   1. x\n      y|\n')).toBe('1. one\n   1. x\n      1. y\n')
+  })
+
+  it('turns a line whose mark was taken off back into an item at its old level', () => {
+    expect(run(toggleList('bullet'), '- one\n  - sub a\n  sub| b\n  - sub c\n')).toBe('- one\n  - sub a\n  - sub b\n  - sub c\n')
+    expect(run(toggleList('ordered'), '1. one\ntw|o\n')).toBe('1. one\n2. two\n')
   })
 
   it('shifts sub-items that are switched too', () => {
