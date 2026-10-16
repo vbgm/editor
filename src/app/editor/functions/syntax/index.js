@@ -116,8 +116,34 @@ const unchecked = Decoration.replace({ widget: new CheckboxWidget(false) })
 const collapsedLine = Decoration.line({ class: 'cm-collapsed-line' })
 const ruleLine = Decoration.line({ class: 'cm-rule-line' })
 const rawLine = Decoration.line({ class: 'cm-raw-line' })
-// a nested list item's first line: spaced from the line above like items of the first level
-const nestedItemLine = Decoration.line({ class: 'cm-nested-item' })
+// A list line hangs: wrapped lines start where its text starts, not under its bullet or number.
+// The width of what comes before the text (indentation, bullet or number, space) is measured with
+// the editor's font. A nested item's first line is also spaced from the line above like items of
+// the first level ('cm-nested-item').
+const hangingLineCache = new Map()
+
+function hangingLine (width, isNested) {
+  const key = `${width}${isNested ? ' nested' : ''}`
+  if (!hangingLineCache.has(key)) {
+    hangingLineCache.set(key, Decoration.line({
+      class: isNested ? 'cm-hanging cm-nested-item' : 'cm-hanging',
+      attributes: { style: `--hang: ${width}px` }
+    }))
+  }
+  return hangingLineCache.get(key)
+}
+
+let canvas = null
+
+// widths of text in the editor's font, and of the drawn bullet (0.9em wide, index.vue)
+function textMeasurer (view) {
+  canvas ??= document.createElement('canvas')
+  const context = canvas.getContext?.('2d')
+  if (!context) return null
+  const style = getComputedStyle(view.contentDOM)
+  context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+  return { text: text => context.measureText(text).width, bullet: parseFloat(style.fontSize) * 0.9 }
+}
 
 const isBlankText = text => /^[ \t]*$/.test(text)
 
@@ -146,11 +172,15 @@ function build (view) {
   // typed after Shift+Enter): their indentation drawn as wide as the marks of the items they
   // line up under
   const tree = syntaxTree(state)
+  let measure
+  // the width of marks drawn in a row ('1. ' or a bullet and a space for each)
+  const marksWidth = marks => marks.reduce((width, mark) => width + (mark ? measure.text(`${mark} `) : measure.bullet + measure.text(' ')), 0)
   const alignListLines = (list, from, to) => {
+    measure ??= textMeasurer(view)
     let last = doc.lineAt(list.to)
     if (last.from == list.to && list.to > list.from) last = doc.lineAt(list.to - 1)
     const lastNumber = last.number < doc.lines && /^[ \t]+$/.test(doc.line(last.number + 1).text) ? last.number + 1 : last.number
-    const firstNumber = Math.max(doc.lineAt(list.from).number + 1, doc.lineAt(from).number)
+    const firstNumber = Math.max(doc.lineAt(list.from).number, doc.lineAt(from).number)
     for (let number = firstNumber; number <= Math.min(lastNumber, doc.lineAt(to).number); number++) {
       const line = doc.line(number)
       const isAfter = number > last.number
@@ -160,13 +190,28 @@ function build (view) {
       const chain = []
       let startsItem = false
       const inside = isAfter ? doc.line(number - 1).to : line.from + indent
+      let isBare = false
       for (let node = tree.resolveInner(inside, isAfter ? -1 : 1); node && node.from >= list.from; node = node.parent) {
         if (node.name != 'ListItem') continue
-        if (node.from >= line.from) startsItem = true
-        else chain.unshift(itemMark(node))
+        if (node.from >= line.from) {
+          startsItem = true
+          isBare = isBareListItem(doc, node)
+        } else {
+          chain.unshift(itemMark(node))
+        }
       }
+      // a bare mark ('-') is shown as typed (raw-markup.js)
+      if (isBare) continue
+      // what comes before the text: the indentation, and the line's own mark with the spaces after it
+      let width = 0
+      if (measure) {
+        width = marksWidth(chain)
+        const own = startsItem && /^[ \t]*((?:[-*+]|\d{1,9}[.)]))([ \t]*)/.exec(line.text)
+        if (own) width += /\d/.test(own[1]) ? measure.text(own[1] + own[2]) : measure.bullet + measure.text(own[2])
+      }
+      const isNested = startsItem && chain.length > 0
+      if (width || isNested) lines.push([line.from, hangingLine(Math.round(width * 100) / 100, isNested)])
       if (!chain.length) continue
-      if (startsItem) lines.push([line.from, nestedItemLine])
       const widget = listIndent(chain)
       if (indent) {
         marks.push([line.from, line.from + indent, Decoration.replace({ widget })])

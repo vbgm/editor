@@ -20,6 +20,12 @@ function lineDecoration (className) {
   return decoration
 }
 
+// the neighbour's type as seen from block: an item of another list (a numbered list right after a
+// bullet list) is 'otherList', so the two lists are spaced apart like paragraphs
+function neighbourType (block, neighbour) {
+  return neighbour.type == 'listItem' && block.type == 'listItem' && neighbour.list != block.list ? 'otherList' : neighbour.type
+}
+
 // the end of the first line with text below the line at pos (past blank lines)
 function nextTextLineEnd (doc, pos) {
   let number = doc.lineAt(pos).number + 1
@@ -41,8 +47,8 @@ function build (view) {
 
       let base = `cm-block cm-block--${block.type}`
       if (block.level) base += ` cm-block--level-${block.level}`
-      const after = index > 0 ? ` cm-after--${blocks[index - 1].type}` : ''
-      const before = index < blocks.length - 1 ? ` cm-before--${blocks[index + 1].type}` : ''
+      const after = index > 0 ? ` cm-after--${neighbourType(block, blocks[index - 1])}` : ''
+      const before = index < blocks.length - 1 ? ` cm-before--${neighbourType(block, blocks[index + 1])}` : ''
 
       const firstLine = state.doc.lineAt(Math.max(block.from, from)).number
       const lastLine = state.doc.lineAt(Math.min(block.to, to)).number

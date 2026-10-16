@@ -1,29 +1,44 @@
-Some text before any heading.
+A paragraph before the first heading.
 
-# Project
+# Editor sample
 
-Intro paragraph of the project.
+Every paragraph and every list item is a block. Alt+↑/↓ moves the block with the cursor, Shift+↑/↓ selects block by block, and Cmd+Shift+M shows the Markdown.
 
-## Tasks
+## Lists
 
-- first task
-- second task
-- third task
+Below are different lists
 
-Paragraph after the list.
+### Bullet
 
-## Notes
+- A bullet item
+- A bullet item long enough to wrap onto a second line, so that its further lines start where its text starts and not under the bullet
+  - A nested item: Tab nests an item, Shift+Tab moves it back out
+  - Alt+↑/↓ moves a nested item among its siblings and into the item next to it
+- A third item
+  with a second line, written with Shift+Enter
 
-1. one
-   1. one-one
-   2. one-two
-   3. one-three
-2. two
-3. three
+### Numbered
 
-### Detail
+1. Numbered items count again after every move
+2. Second item
+   1. A nested numbered list counts from 1
+   2. Its second item
+3. Third item
 
-A deeper paragraph.
+- [ ] A task
+- [x] A done task
+
+## Quotes
+
+> Tab on a paragraph makes it a quote.
+
+> > Tab again quotes it one level deeper, Backspace where its text starts takes one level off, and Enter starts a new paragraph after it.
+
+A paragraph after the quotes.
+
+### Typing
+
+Type # or - at the start of a line: it becomes a heading or a list once the space follows. With Literal on, Markdown typed in stays as typed.
 
 ## Ideas
 

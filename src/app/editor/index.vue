@@ -219,6 +219,17 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       color: var(--color--text--secondary);
     }
 
+    // a list line hangs: wrapped lines start where its text starts (--hang, syntax/index.js)
+    :deep(.cm-hanging) {
+      padding-left: calc(1rem + var(--hang));
+      text-indent: calc(-1 * var(--hang));
+
+      // text-indent is inherited: the drawn bullet (an inline-block) would shift its dot as well
+      * {
+        text-indent: 0;
+      }
+    }
+
     // a list item's further line: indented as wide as the item's bullet or number (syntax/index.js)
     :deep(.cm-list-indent) {
       visibility: hidden;
@@ -231,10 +242,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     }
 
     // each quote level ('> > ', syntax/index.js) is indented a step further, with a bar of its own
+    // The first bar starts where the text of other lines starts, the quote's text after the bars.
     :deep(.cm-quote-line) {
       --quote-step: 0.75rem;
-      padding-left: calc(1rem + (var(--quote-level, 1) - 1) * var(--quote-step));
-      background: repeating-linear-gradient(to right, var(--color--border--solid) 0 3px, transparent 3px var(--quote-step)) no-repeat left / calc((var(--quote-level, 1) - 1) * var(--quote-step) + 3px) 100%;
+      padding-left: calc(1rem + var(--quote-level, 1) * var(--quote-step));
+      background: repeating-linear-gradient(to right, var(--color--border--solid) 0 3px, transparent 3px var(--quote-step)) no-repeat 1rem 0 / calc((var(--quote-level, 1) - 1) * var(--quote-step) + 3px) 100%;
       background-clip: padding-box;
       color: var(--color--text--secondary);
     }
@@ -243,9 +255,12 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       background: linear-gradient(var(--color--border--solid), var(--color--border--solid)) no-repeat center / 100% 1px;
     }
 
+    // a tighter line than text (1.6): the bigger font would otherwise add empty space under the
+    // heading's text, so it would sit further from its paragraph than paragraphs from each other
     :deep(.cm-heading) {
       font-weight: 650;
       text-decoration: none;
+      line-height: 1.3;
     }
 
     :deep(.cm-heading--1) {

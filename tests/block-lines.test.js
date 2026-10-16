@@ -36,6 +36,15 @@ function type (view, text, at = view.state.selection.main.head) {
 }
 
 describe('block line marks', () => {
+  it('tell an item of another list apart', () => {
+    const view = createView('- a\n- b\n\n1. one\n2. two\n')
+    const of = text => [...view.contentDOM.querySelectorAll('.cm-line')].find(line => line.textContent.includes(text)).className
+    expect(of('b')).toContain('cm-before--otherList')
+    expect(of('one')).toContain('cm-after--otherList')
+    expect(of('one')).toContain('cm-before--listItem')
+    view.destroy()
+  })
+
   it('name the blocks above and below', () => {
     const view = createView('# T\n\n- a\n- b\n\nText\n- c\n\nAfter\n')
     const classes = lineClasses(view)

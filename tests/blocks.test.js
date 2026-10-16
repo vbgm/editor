@@ -12,16 +12,20 @@ describe('blocks', () => {
   it('every list item is its own block', () => {
     const blocks = blocksOf(createState(basic))
     expect(blocks.map(block => block.type)).toEqual([
-      'paragraph', 'heading', 'paragraph', 'heading',
-      'listItem', 'listItem', 'listItem', 'paragraph',
-      'heading', 'listItem', 'listItem', 'listItem', 'heading', 'paragraph', 'heading', 'paragraph'
+      'paragraph', 'heading', 'paragraph', 'heading', 'paragraph',
+      // bullets (a nested item and a Shift+Enter line belong to their item)
+      'heading', 'listItem', 'listItem', 'listItem',
+      // numbers, tasks
+      'heading', 'listItem', 'listItem', 'listItem', 'listItem', 'listItem',
+      'heading', 'quote', 'quote', 'paragraph', 'heading', 'paragraph', 'heading', 'paragraph'
     ])
-    expect(blocks[4].text).toBe('- first task')
+    expect(blocks[6].text).toBe('- A bullet item')
+    expect(blocks[8].text).toBe('- A third item\n  with a second line, written with Shift+Enter')
   })
 
   it('headings have their level', () => {
     const blocks = blocksOf(createState(basic))
-    expect(blocks.filter(block => block.level).map(block => block.level)).toEqual([1, 2, 2, 3, 2])
+    expect(blocks.filter(block => block.level).map(block => block.level)).toEqual([1, 2, 3, 3, 2, 3, 2])
   })
 
   it('front matter is one block and not read as headings', () => {
