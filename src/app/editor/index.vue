@@ -342,6 +342,29 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       transition: transform 0.15s ease;
     }
 
+    // Alt+↑/↓ where the block cannot move (move/animate.js): a short nudge in the pressed direction
+    // and back; two copies of each, so every press restarts it
+    :deep(.cm-bump--up-a) {
+      animation: bump-up-a 0.26s ease-out;
+    }
+
+    :deep(.cm-bump--up-b) {
+      animation: bump-up-b 0.26s ease-out;
+    }
+
+    :deep(.cm-bump--down-a) {
+      animation: bump-down-a 0.26s ease-out;
+    }
+
+    :deep(.cm-bump--down-b) {
+      animation: bump-down-b 0.26s ease-out;
+    }
+
+    @keyframes bump-up-a { 0%, 100% { transform: none } 30% { transform: translateY(-4px) } 65% { transform: translateY(1.5px) } }
+    @keyframes bump-up-b { 0%, 100% { transform: none } 30% { transform: translateY(-4px) } 65% { transform: translateY(1.5px) } }
+    @keyframes bump-down-a { 0%, 100% { transform: none } 30% { transform: translateY(4px) } 65% { transform: translateY(-1.5px) } }
+    @keyframes bump-down-b { 0%, 100% { transform: none } 30% { transform: translateY(4px) } 65% { transform: translateY(-1.5px) } }
+
     :deep(.cm-dnd-line) {
       transition: transform 0.15s ease;
     }

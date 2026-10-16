@@ -5,8 +5,8 @@ import { isolateHistory } from '@codemirror/commands'
 import { getBlocks, blockIndexAt } from '../blocks/index.js'
 import shiftHeading from './shift-heading.js'
 import renumber from './renumber.js'
-import nestedMoveSpec from './nested.js'
-import { movedLines, dispatchMove } from './animate.js'
+import nestedMoveSpec, { nestedLines } from './nested.js'
+import { movedLines, dispatchMove, bump } from './animate.js'
 
 // Every move is a swap of two adjacent spans of blocks, done as one transaction
 // (one undo step). The text of each span moves as it is, including the blank lines inside it;
@@ -39,17 +39,20 @@ export function moveBlockDown (view) {
   return run(view, 'down')
 }
 
-// view: the editor view, or { state, dispatch } in tests; a drawn view slides the move (animate.js)
+// view: the editor view, or { state, dispatch } in tests; a drawn view slides the move, and bumps
+// the block when it cannot move (animate.js)
 function run (view, direction) {
   const { state } = view
   const nested = nestedMoveSpec(state, direction == 'up' ? -1 : 1)
   if (nested !== undefined) {
     if (nested) dispatchMove(view, withRenumbering(state, nested))
+    else bump(view, nestedLines(state), direction)
     return true
   }
   const blocks = getBlocks(state, { complete: true })
   const spec = direction == 'up' ? specUp(state, blocks) : specDown(state, blocks)
   if (spec) dispatchMove(view, withRenumbering(state, spec))
+  else bump(view, blockLines(state, blocks), direction)
   // handled even when nothing moved, so the default Alt-Shift-Arrow (copy line) does not run
   return true
 }
@@ -69,6 +72,13 @@ function selectedSpan (state, blocks) {
   if (first < 0) return null
   const last = Math.max(first, blockIndexAt(blocks, to))
   return { first, last: Math.max(unitEnd(blocks, first), unitEnd(blocks, last)) }
+}
+
+// the line numbers a block move would move
+function blockLines (state, blocks) {
+  const span = selectedSpan(state, blocks)
+  if (!span) return null
+  return { from: state.doc.lineAt(blocks[span.first].from).number, to: state.doc.lineAt(blocks[span.last].to).number }
 }
 
 function specUp (state, blocks) {

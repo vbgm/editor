@@ -108,3 +108,57 @@ class SlidePlugin {
 export const slideMoves = ViewPlugin.fromClass(SlidePlugin, {
   decorations: plugin => plugin.decorations
 })
+
+// When Alt+↑/↓ cannot move the block (at the top or bottom, or a heading with no sibling that
+// way), the block bumps: a short nudge in the pressed direction and back, so the key visibly did
+// something. Each press restarts it (two alternating animations, since re-adding the same one
+// would not restart it).
+const bumped = StateEffect.define()
+const bumpEnd = StateEffect.define()
+const bumpDuration = 260
+
+// lines: { from, to } line numbers; direction: 'up' or 'down'
+export function bump (view, lines, direction) {
+  if (!lines || !view.contentDOM?.isConnected) return
+  view.dispatch({ effects: bumped.of({ ...lines, direction }) })
+}
+
+class BumpPlugin {
+  constructor (view) {
+    this.view = view
+    this.decorations = Decoration.none
+    this.count = 0
+  }
+
+  update (update) {
+    if (update.docChanged) this.decorations = Decoration.none
+    for (const transaction of update.transactions) {
+      for (const effect of transaction.effects) {
+        if (effect.is(bumped)) this.start(effect.value)
+        if (effect.is(bumpEnd) && effect.value == this.count) this.decorations = Decoration.none
+      }
+    }
+  }
+
+  start ({ from, to, direction }) {
+    const count = ++this.count
+    const { view } = this
+    const { doc } = view.state
+    const decoration = Decoration.line({ class: `cm-bump cm-bump--${direction}-${count % 2 ? 'a' : 'b'}` })
+    const builder = new RangeSetBuilder()
+    for (let number = from; number <= Math.min(to, doc.lines); number++) {
+      const pos = doc.line(number).from
+      // a hidden blank line is drawn as part of the line above
+      if (view.lineBlockAt(pos).from != pos) continue
+      builder.add(pos, pos, decoration)
+    }
+    this.decorations = builder.finish()
+    setTimeout(() => {
+      if (count == this.count) view.dispatch({ effects: bumpEnd.of(count) })
+    }, bumpDuration + 50)
+  }
+}
+
+export const bumpBlocked = ViewPlugin.fromClass(BumpPlugin, {
+  decorations: plugin => plugin.decorations
+})

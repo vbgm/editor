@@ -31,7 +31,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421
-npm test             # vitest, 183 tests (node + jsdom)
+npm test             # vitest, 184 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -57,7 +57,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
   - **Tab / Shift+Tab**: nest or un-nest list items (also bullets under a numbered step); quote levels for paragraphs. In Markdown mode they indent the selected lines.
   - **Cmd+7 / Cmd+8**: numbers / bullets, kept nested. Turning an item off and on gives back the same file. A quoted line loses its quote.
   - **Cmd+Enter**: ticks a task, or makes the line a task.
-  - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items; the swapped lines slide into place. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
+  - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items; the swapped lines slide into place; a block that cannot move bumps in the pressed direction. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
   - **Dragging** (both modes): a handle fades in when the mouse is near it, left of a block; the block goes where Alt+↑/↓ would take it (decisions.md, "Dragging blocks").
   - **Literal** (toolbar): typed Markdown is escaped and stays as typed.
 - Files round-trip byte for byte (BOM kept outside the editor text, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
@@ -78,7 +78,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/blocks/select.js` | block-aware Shift+↑/↓ (empty paragraphs are steps) |
 | `editor/functions/dnd/` | dragging blocks: handle, gap, lines sliding aside, preview (`index.js`); where a drag can go and the drop, replaying Alt+↑/↓ on the region it changes (`slots.js`) |
 | `foundation/dnd/` | drag engine: pointer, preview, auto-scroll, Escape (`index.js`); displace mode (`displace.js`) |
-| `editor/functions/move/` | block moves (`index.js`), sub-item moves (`nested.js`), the slide of a move (`animate.js`), renumbering numbered lists (`renumber.js`), heading level shift for the outline later |
+| `editor/functions/move/` | block moves (`index.js`), sub-item moves (`nested.js`), the slide of a move and the bump when a block cannot move (`animate.js`), renumbering numbered lists (`renumber.js`), heading level shift for the outline later |
 | `editor/functions/gaps/index.js` | hiding blank lines (state field, updated only around edits), empty paragraphs, selected empty paragraphs, cursor rules around gaps and the end of the file |
 | `editor/functions/gaps/commands.js` | Enter / Shift+Enter / Backspace / Delete on blocks, list items and quotes |
 | `editor/functions/syntax/index.js` | hiding Markdown syntax, widgets (bullet, checkbox, list indentation), hanging indents, quote levels, cursor placement behind marks, ← at a text start |

@@ -6,7 +6,7 @@ import { EditorView } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
 // local
 import { createState } from './helpers.js'
-import { moveBlockDown } from '/src/app/editor/functions/move/index.js'
+import { moveBlockUp, moveBlockDown } from '/src/app/editor/functions/move/index.js'
 
 // Line marks of a real EditorView. jsdom has no layout, so the measuring functions CodeMirror
 // calls are stubbed.
@@ -93,5 +93,16 @@ describe('block line marks', () => {
     expect(lineClasses(view)).toEqual(lineClasses(fresh))
     view.destroy()
     fresh.destroy()
+  })
+
+  it('bump a block that cannot move, and leave the text as it is', () => {
+    const view = createView('first\n\nsecond\n')
+    view.dispatch({ selection: EditorSelection.cursor(0) })
+    moveBlockUp(view)
+    expect(view.state.doc.toString()).toBe('first\n\nsecond\n')
+    const bumped = [...view.contentDOM.querySelectorAll('.cm-bump')].map(line => line.textContent)
+    expect(bumped).toEqual(['first'])
+    expect(view.contentDOM.querySelector('.cm-bump').className).toContain('cm-bump--up-')
+    view.destroy()
   })
 })

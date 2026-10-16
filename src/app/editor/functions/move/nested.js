@@ -19,28 +19,10 @@ const itemStart = /^([ \t]*)((?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$))/
 const lineBreak = '\n'
 
 export default function nestedMoveSpec (state, direction) {
-  const { main } = state.selection
-  const tree = ensureSyntaxTree(state, state.doc.length, 1000) || syntaxTree(state)
-  let item = null
-  // from where the cursor line's text starts: at the end of a line the position after the cursor
-  // already belongs to the outer item
-  const cursorLine = state.doc.lineAt(main.head)
-  const textStart = cursorLine.from + /^[ \t]*/.exec(cursorLine.text)[0].length
-  for (let node = tree.resolveInner(textStart, 1); node; node = node.parent) {
-    if (node.name == 'ListItem') {
-      item = node
-      break
-    }
-  }
-  if (!item || item.parent?.parent?.name != 'ListItem') return undefined
-
+  const selected = selectedItems(state)
+  if (!selected) return undefined
   const { doc } = state
-  // the selected siblings
-  let last = item
-  for (let next = item.nextSibling; next && next.from <= doc.lineAt(main.to).to; next = next.nextSibling) {
-    if (next.name == 'ListItem') last = next
-  }
-  const span = { from: doc.lineAt(item.from), to: lastLineOf(doc, last) }
+  const { item, last, span } = selected
   const parent = item.parent.parent
 
   if (direction < 0) {
@@ -84,6 +66,38 @@ export default function nestedMoveSpec (state, direction) {
     above: { from: span.from.number, to: span.to.number, newFrom: span.from.number + jumped },
     below: { from: span.to.number + 1, to: ownEnd.number, newFrom: span.from.number }
   })
+}
+
+// The sub-item at the cursor and the selected siblings after it: { item, last, span } with span
+// the first and last line; null when the selection is not in a sub-item
+function selectedItems (state) {
+  const { main } = state.selection
+  const tree = ensureSyntaxTree(state, state.doc.length, 1000) || syntaxTree(state)
+  let item = null
+  // from where the cursor line's text starts: at the end of a line the position after the cursor
+  // already belongs to the outer item
+  const cursorLine = state.doc.lineAt(main.head)
+  const textStart = cursorLine.from + /^[ \t]*/.exec(cursorLine.text)[0].length
+  for (let node = tree.resolveInner(textStart, 1); node; node = node.parent) {
+    if (node.name == 'ListItem') {
+      item = node
+      break
+    }
+  }
+  if (!item || item.parent?.parent?.name != 'ListItem') return null
+
+  const { doc } = state
+  let last = item
+  for (let next = item.nextSibling; next && next.from <= doc.lineAt(main.to).to; next = next.nextSibling) {
+    if (next.name == 'ListItem') last = next
+  }
+  return { item, last, span: { from: doc.lineAt(item.from), to: lastLineOf(doc, last) } }
+}
+
+// the line numbers a sub-item move would move (for the bump when it cannot move, animate.js)
+export function nestedLines (state) {
+  const selected = selectedItems(state)
+  return selected && { from: selected.span.from.number, to: selected.span.to.number }
 }
 
 function sibling (item, direction) {
