@@ -342,6 +342,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       transition: transform 0.15s ease, opacity 0.15s ease;
     }
 
+    // a dropped block settles into place
+    :deep(.cm-slide-drop) {
+      transition-timing-function: ease-out;
+    }
+
     // Alt+↑/↓ where the block cannot move (move/animate.js): a short nudge in the pressed direction
     // and back, as far as --bump and as long as --bump-duration (by kind of block); two copies of
     // each, so every press restarts it
@@ -380,6 +385,9 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       left: 0;
       height: auto;
       opacity: 0.6;
+      // fading from the block it copies when the drag starts (as long as a drop takes), gently
+      // at first
+      transition: opacity 0.15s ease-in;
       pointer-events: none;
       z-index: 10;
 

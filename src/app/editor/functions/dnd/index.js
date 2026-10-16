@@ -203,6 +203,7 @@ class DragPlugin {
     // editor's own class is always position: relative)
     const preview = document.createElement('div')
     preview.className = 'cm-dnd-preview'
+    preview.style.opacity = '1'
     const editor = document.createElement('div')
     editor.className = view.dom.className
     const scroller = document.createElement('div')
@@ -226,6 +227,10 @@ class DragPlugin {
       const shift = textTop(lines[0]) - textTop(content.firstChild)
       if (shift > 0) content.style.paddingTop = `${shift}px`
     }
+    // it starts fully drawn, right over the block, and fades to its own opacity (the measuring
+    // above has drawn it once at 1, so the change is a transition)
+    preview.getBoundingClientRect()
+    preview.style.opacity = ''
     return preview
   }
 

@@ -42,9 +42,9 @@ export function dispatchMove (view, transaction) {
 }
 
 // Slides lines from where they were drawn to their place: lines as in the slide effect (a drop
-// after dragging, from where its faded copy was, dnd/index.js)
+// after dragging, from where its faded copy was, dnd/index.js); a drop eases out, settling
 export function slideLines (view, lines) {
-  view.dispatch({ effects: slide.of({ lines }) })
+  view.dispatch({ effects: slide.of({ lines, isDrop: true }) })
 }
 
 // where line number is drawn on screen (with any slide still going on), or null when it is not
@@ -72,15 +72,16 @@ class SlidePlugin {
     for (const transaction of update.transactions) {
       for (const effect of transaction.effects) {
         if (effect.is(slide)) this.start(effect.value)
-        if (effect.is(settle) && effect.value == this.id) this.decorations = this.draw(this.lines, false)
+        if (effect.is(settle) && effect.value == this.id) this.decorations = this.draw(this.lines, false, this.isDrop)
         if (effect.is(clear) && effect.value == this.id) this.decorations = Decoration.none
       }
     }
   }
 
-  start ({ lines }) {
+  start ({ lines, isDrop = false }) {
     const id = ++this.id
     this.lines = lines
+    this.isDrop = isDrop
     this.decorations = this.draw(lines, true)
     // drawn at the old place first, then let go in the next frame, so the transition runs
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -92,7 +93,7 @@ class SlidePlugin {
     }))
   }
 
-  draw (lines, isAtStart) {
+  draw (lines, isAtStart, isDrop) {
     const { view } = this
     const { doc } = view.state
     const builder = new RangeSetBuilder()
@@ -100,7 +101,7 @@ class SlidePlugin {
       const style = `transform: translateY(${offset}px)${opacity != null ? `; opacity: ${opacity}` : ''}`
       const decoration = isAtStart
         ? Decoration.line({ class: 'cm-slide-from', attributes: { style } })
-        : Decoration.line({ class: 'cm-slide-to' })
+        : Decoration.line({ class: isDrop ? 'cm-slide-to cm-slide-drop' : 'cm-slide-to' })
       for (let number = from; number <= Math.min(to, doc.lines); number++) {
         const pos = doc.line(number).from
         // a hidden blank line is drawn as part of the line above
