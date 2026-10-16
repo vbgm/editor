@@ -1,11 +1,12 @@
 <!--
 The window's title bar where the app draws it (macOS: the native one is laid over the page,
 tauri.macos.conf.json): a row as high as a plain title bar (28 px), above the toolbar. The
-window's buttons and its title (the file name, and "— Edited") are macOS's own, at the left; the
-button that hides and shows the toolbar is at the right, a grey circle a little larger than the
-window's buttons, on their middle line. Its empty parts move the window, and a double click
-zooms it (data-tauri-drag-region). Not drawn in fullscreen, where macOS shows its buttons and
-title in its own bar (App).
+window's buttons are macOS's own, at the left; the button that hides and shows the toolbar is at
+the right, a grey circle a little larger than the window's buttons, on their middle line. The
+title (the file name, and "— Edited") is the app's, centred in the window (macOS would put its
+own right after the buttons; it is hidden, src-tauri/src/title.rs). The row and the title move
+the window, and a double click zooms it (data-tauri-drag-region). Not drawn in fullscreen, where
+macOS shows its buttons and its own title in its own bar (App).
 -->
 <template>
 
@@ -13,6 +14,13 @@ title in its own bar (App).
     class='title-bar'
     data-tauri-drag-region
   >
+    <span
+      class='title'
+      data-tauri-drag-region
+    >
+      {{ title }}
+    </span>
+
     <Toggle
       class='toggle'
       :isShown='isToolbarShown'
@@ -32,6 +40,7 @@ title in its own bar (App).
       Toggle
     },
     props: {
+      title: String,
       isToolbarShown: Boolean
     },
     emits: ['toggleToolbar']
@@ -41,6 +50,9 @@ title in its own bar (App).
 
   // macOS's own title bar, on whose middle line its buttons are (App's titleBarHeight)
   @height: 28px;
+  // kept clear on both sides of the title, so it is centred in the window and never under the
+  // window's buttons (as wide as they are, from the window's left edge)
+  @title-margin: 76px;
 
   .title-bar {
     position: absolute;
@@ -53,6 +65,23 @@ title in its own bar (App).
     background: var(--color--background);
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  // as macOS draws a window's title, on the circle's line (as macOS's own on its buttons'); centred
+  // in the window; cut short with "…" when it does not fit
+  .title {
+    position: absolute;
+    top: calc(50% + 2px);
+    left: @title-margin;
+    right: @title-margin;
+    transform: translateY(-50%);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color--text--secondary);
   }
 
   // the window's buttons' mirror image: on their middle line (a little below the row's), its

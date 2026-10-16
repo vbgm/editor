@@ -10,7 +10,8 @@
         "minWidth": 480,
         "minHeight": 320,
         "visible": false,
-        "titleBarStyle": "Overlay"
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       }
     ]
   }

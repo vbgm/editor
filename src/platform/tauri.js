@@ -12,7 +12,8 @@ const markdownFilter = { name: 'Markdown', extensions: ['md', 'markdown', 'txt']
 
 export const isApp = true
 
-// macOS: tauri.macos.conf.json lays the title bar over the page (its buttons and title stay)
+// macOS: tauri.macos.conf.json lays the title bar over the page (its buttons stay, its title is
+// hidden: the app draws it)
 export const hasOverlayTitleBar = /Mac/.test(navigator.userAgent)
 
 function nameOf (path) {
@@ -30,6 +31,11 @@ export function ready () {
 
 export function setTitle (title) {
   return getCurrentWindow().setTitle(title)
+}
+
+// macOS's own title, hidden while the app draws its title row (src-tauri/src/title.rs)
+export function setNativeTitleHidden (isHidden) {
+  return invoke('set_title_hidden', { hidden: isHidden })
 }
 
 export async function readFile (path) {

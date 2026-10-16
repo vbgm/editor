@@ -13,6 +13,8 @@ export function setTitle (title) {
   document.title = title
 }
 
+export function setNativeTitleHidden () {}
+
 export function readFile () {
   throw { kind: 'io', message: 'A browser cannot read files by path.' }
 }

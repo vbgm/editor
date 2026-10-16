@@ -4,10 +4,12 @@
 //
 //   isApp                                 running in the desktop app
 //   hasOverlayTitleBar                    the window's title bar is laid over the page, its
-//                                         buttons and title at the top left (macOS): the app
-//                                         draws the rest of the title bar (title-bar/)
+//                                         buttons at the top left (macOS): the app draws the
+//                                         rest of the title bar, the title too (title-bar/)
 //   ready ()                              the first document is drawn: show the window
 //   setTitle (title)
+//   setNativeTitleHidden (isHidden)       whether the window's own title is hidden (macOS; hidden
+//                                         at first, shown while the app draws no title row)
 //   pickFile ()                           Open…: { path, name, text, modified } or null
 //   readFile (path)                       { path, name, text, modified }
 //   writeFile (path, text, expected)      the new modification time; throws { kind: `changed` }
