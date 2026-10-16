@@ -22,7 +22,7 @@ const redraw = StateEffect.define()
 
 const handleWidth = 18
 // room between the handle and the text (or a sub-item's bullet)
-const handleGap = 26
+const handleGap = 14
 // how far left of the handle the mouse may be for it to show
 const handleReach = 36
 
