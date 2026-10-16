@@ -6,7 +6,9 @@ translucent, blurred background (as Ordner's folder header).
   from the editor): headings H1–H6 (a menu where the toolbar is too narrow for all six), inline
   formats, lists
 - right: the settings sidebar
-Hidden, only the arrow to show it again stays, in its place, and is drawn only under the mouse.
+Hiding and showing, it slides out at the top and back in, fading, in 0.3 s, as the sidebars do;
+the app moves the text with it (App's toggleToolbar). Hidden, only the arrow to show it again
+stays, in its place, and is drawn only under the mouse.
 Buttons look like Ordner's (ActionIconStyled): icons only, no background; the icon's colour
 changes when hovered, pressed or on. They do not take the keyboard focus (mousedown.prevent):
 the editor keeps the cursor and its selection.
@@ -283,7 +285,6 @@ the editor keeps the cursor and its selection.
       -webkit-backdrop-filter: blur(4px);
       backdrop-filter: blur(4px);
       box-shadow: inset 0 -1px 0 var(--color--border--solid);
-      transition: opacity @fade;
     }
 
     > .start {
@@ -302,26 +303,31 @@ the editor keeps the cursor and its selection.
       display: flex;
     }
 
+    // everything but the arrow slides and fades
+    &::before,
     > .center,
     > .end,
     .sidebar {
-      transition: opacity @fade;
+      transition: transform @fade, opacity @fade;
     }
 
-    // hidden: the bar fades out, the arrow stays, drawn only under the mouse
+    // hidden: the bar is slid up out of sight; the arrow stays, drawn only under the mouse
     &.hidden {
       pointer-events: none;
 
-      &::before {
+      &::before,
+      > .center,
+      > .end,
+      .sidebar {
+        transform: translateY(-@height);
         opacity: 0;
       }
 
       > .center,
       > .end,
       .sidebar {
-        opacity: 0;
         visibility: hidden;
-        transition: opacity @fade, visibility 0s 0.3s;
+        transition: transform @fade, opacity @fade, visibility 0s 0.3s;
       }
 
       .angle {

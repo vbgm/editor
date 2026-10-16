@@ -187,6 +187,9 @@ sidebar's width in a wide window), not by the sidebar's width.
       },
       slide (side, isShown, from, contentFrom) {
         const center = this.$refs.center
+        // both sides toggled at once (with the toolbar): the second slide replaces the first's,
+        // from the same from, covering both
+        this.animations.center?.cancel()
         // the center is laid out for the new width; draw it where it was and let it slide
         const shift = from - this.anchorLeft() + this.currentShift(center)
         // the sidebar slides as far as the text does, fading, so its edge and the text move as

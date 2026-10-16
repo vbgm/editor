@@ -2,14 +2,14 @@
 
   <div
     class='app'
-    :style='{"--top-inset": `${toolbarHeight}px`}'
+    :style='{"--top-inset": `${topInset}px`}'
   >
     <div class='main'>
       <Toolbar
         v-bind='{
           isShown: isToolbarShown,
-          isSidebarShown,
-          isSettingsShown,
+          isSidebarShown: isLeftShown,
+          isSettingsShown: isRightShown,
           formats
         }'
         @toggle='toggleToolbar'
@@ -19,10 +19,11 @@
       />
 
       <Sidebar
+        ref='body'
         v-bind='{
-          isLeftShown: isSidebarShown,
+          isLeftShown,
           leftWidth: sidebarWidth,
-          isRightShown: isSettingsShown,
+          isRightShown,
           rightWidth: settingsWidth,
           isTextSliding,
           anchor: `.cm-content`
@@ -72,7 +73,7 @@
               text,
               isMarkdownShown,
               isLiteral,
-              topInset: toolbarHeight
+              topInset
             }'
             @toggleMarkdown='toggleMarkdown'
             @change='saving.edited()'
@@ -113,7 +114,8 @@
   // the test fixtures double as sample documents: opened without a path, so saving asks where
   const fixtures = import.meta.glob('/tests/fixtures/*.md', { query: '?raw', import: 'default', eager: true })
   const generatedName = 'generated (10k lines)'
-  // the toolbar's height (3rem): the editor and the sidebars start below it, and scroll on under it
+  // the toolbar's height (3rem): while it shows, the editor and the sidebars start below it, and
+  // scroll on under it
   const toolbarHeight = 48
 
   // the sidebars' widths and whether they and the toolbar show, kept in the browser until the app has its own
@@ -177,7 +179,6 @@
         isTextSliding: stored('sidebar.isTextSliding', false),
         // the toolbar (Cmd+Alt+T, as "Show Toolbar" in macOS apps)
         isToolbarShown: stored('toolbar.isShown', true),
-        toolbarHeight,
         // the settings sidebar, on the right
         isSettingsShown: stored('settings.isShown', false),
         settingsWidth: stored('settings.width', 240),
@@ -188,6 +189,19 @@
         activeSection: -1,
         results: [],
         progress: null
+      }
+    },
+    computed: {
+      // px at the top covered by the toolbar
+      topInset () {
+        return this.isToolbarShown ? toolbarHeight : 0
+      },
+      // the sidebars hide with the toolbar, and come back with it as they were
+      isLeftShown () {
+        return this.isToolbarShown && this.isSidebarShown
+      },
+      isRightShown () {
+        return this.isToolbarShown && this.isSettingsShown
       }
     },
     created () {
@@ -227,16 +241,33 @@
     },
     methods: {
       toggleSidebar () {
-        this.isSidebarShown = !this.isSidebarShown
-        store('sidebar.isShown', this.isSidebarShown)
-      },
-      toggleToolbar () {
-        this.isToolbarShown = !this.isToolbarShown
-        store('toolbar.isShown', this.isToolbarShown)
+        this.showSidebar('isSidebarShown', 'sidebar.isShown')
       },
       toggleSettings () {
-        this.isSettingsShown = !this.isSettingsShown
-        store('settings.isShown', this.isSettingsShown)
+        this.showSidebar('isSettingsShown', 'settings.isShown')
+      },
+      // with the toolbar hidden, a sidebar opens with it (no sidebar without the toolbar)
+      showSidebar (key, storeKey) {
+        this[key] = this.isToolbarShown ? !this[key] : true
+        store(storeKey, this[key])
+        if (!this.isToolbarShown) this.toggleToolbar()
+      },
+      // The toolbar slides in from the top as the sidebars do from the side (toolbar/index.vue),
+      // and the text moves down with it: the body takes its new top inset at once and is drawn
+      // moving from where it was (a transform: the editor is laid out once, as for the sidebars).
+      // The editor keeps its scroll position, so its text moves exactly as far as the inset.
+      toggleToolbar () {
+        const body = this.$refs.body.$el
+        // a toggle during a slide starts from where the body is drawn now
+        const transform = getComputedStyle(body).transform
+        const drawn = transform == 'none' ? 0 : new DOMMatrix(transform).m42
+        this.bodySlide?.cancel()
+        this.isToolbarShown = !this.isToolbarShown
+        store('toolbar.isShown', this.isToolbarShown)
+        const from = drawn + (this.isToolbarShown ? -toolbarHeight : toolbarHeight)
+        this.$nextTick(() => {
+          this.bodySlide = body.animate([{ transform: `translateY(${from}px)` }, { transform: 'translateY(0)' }], { duration: 300, easing: 'ease' })
+        })
       },
       toggleTextSliding () {
         this.isTextSliding = !this.isTextSliding
@@ -342,6 +373,8 @@
       min-height: 0;
       display: flex;
       position: relative;
+      // the body sliding with the toolbar stays above the stats
+      overflow: hidden;
     }
   }
 
