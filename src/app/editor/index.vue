@@ -195,6 +195,19 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         border-top: 0.4rem solid transparent;
         border-bottom: 0.4rem solid transparent;
       }
+
+      // the empty line after Shift+Enter is a further line of the block above: no space between
+      .cm-block-last:has(+ .cm-new-line) {
+        border-bottom-width: 0;
+      }
+
+      .cm-new-line {
+        border-bottom: 0.4rem solid transparent;
+      }
+
+      .cm-block--listItem.cm-before--listItem + .cm-new-line {
+        border-bottom-width: 0.1rem;
+      }
     }
 
     // hidden syntax (syntax/index.js): lines that only hold syntax take no space,
@@ -211,6 +224,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       display: inline-block;
       width: 0.9em;
       color: var(--color--text--secondary);
+    }
+
+    // a list item's further line: indented as wide as the item's bullet or number (syntax/index.js)
+    :deep(.cm-list-indent) {
+      visibility: hidden;
     }
 
     :deep(.cm-task-checkbox) {

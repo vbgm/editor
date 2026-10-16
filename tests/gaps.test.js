@@ -10,7 +10,7 @@ import { cursorCharRight, cursorCharLeft } from '@codemirror/commands'
 import { createState, stateWithCursor, runCommand, getText } from './helpers.js'
 import { gaps, computeAll } from '/src/app/editor/functions/gaps/index.js'
 import { deleteCharBackward } from '@codemirror/commands'
-import { insertNewBlock, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
+import { insertNewBlock, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
 import generateDocument from '/src/app/functions/generate-document.js'
 
 beforeAll(() => {
@@ -26,7 +26,12 @@ function createView (text, options) {
   return new EditorView({ state: createState(text, options), parent })
 }
 
-const visibleLines = view => [...view.contentDOM.querySelectorAll('.cm-line')].map(line => line.textContent)
+// the text each line shows; a list item's further line is drawn indented (an invisible bullet)
+const visibleLines = view => [...view.contentDOM.querySelectorAll('.cm-line')].map(line => {
+  const copy = line.cloneNode(true)
+  copy.querySelectorAll('.cm-list-indent').forEach(indent => indent.replaceWith('>'))
+  return copy.textContent
+})
 
 describe('hidden blank lines', () => {
   it('are not shown between blocks', () => {
@@ -43,7 +48,7 @@ describe('hidden blank lines', () => {
 
   it('stay visible inside code and inside a list item', () => {
     const view = createView('```\na\n\nb\n```\n\n- item\n\n  more\n- next\n')
-    expect(visibleLines(view)).toEqual(['', 'a', '', 'b', '', '• item', '', '  more', '• next'])
+    expect(visibleLines(view)).toEqual(['', 'a', '', 'b', '', '• item', '', '>more', '• next'])
     view.destroy()
   })
 
@@ -138,6 +143,27 @@ describe('Enter, Backspace and Delete between blocks', () => {
     expect(run(insertNewBlock, 'one|\n\ntwo\n')).toBe('one\n\n\n\ntwo\n')
     expect(run(insertNewBlock, '# Title|\n')).toBe('# Title\n\n\n')
     expect(run(insertNewBlock, 'split| here\n')).toBe('split\n\n here\n')
+  })
+
+  it('Shift+Enter starts a new line within the block', () => {
+    expect(run(insertLineBreak, 'one| two\n')).toBe('one\n two\n')
+    expect(run(insertLineBreak, 'one|\n\ntwo\n')).toBe('one\n\n\ntwo\n')
+    // stays in the list item, under its text
+    expect(run(insertLineBreak, '- item|\n')).toBe('- item\n  \n')
+    expect(run(insertLineBreak, '10. item|\n')).toBe('10. item\n    \n')
+    expect(run(insertLineBreak, '- a\n  - nested|\n')).toBe('- a\n  - nested\n    \n')
+    // stays in the quote
+    expect(run(insertLineBreak, '> quote|\n')).toBe('> quote\n> \n')
+  })
+
+  it('Backspace at the start of a list item\'s further line joins it to the line above', () => {
+    expect(run(joinItemLine, '- item\n  |more\n')).toBe('- itemmore\n')
+    expect(run(joinItemLine, '1. one\n   |next\n')).toBe('1. onenext\n')
+    expect(joinItemLine({ state: stateWithCursor('- item\n  mo|re\n'), dispatch: () => {} })).toBe(false)
+  })
+
+  it('Shift+Enter in a heading starts a new block, as Enter', () => {
+    expect(run(insertLineBreak, '# Title|\n')).toBe('# Title\n\n\n')
   })
 
   it('Enter keeps the Markdown behaviour in lists and code', () => {

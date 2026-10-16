@@ -55,6 +55,15 @@ describe('hidden Markdown', () => {
     view.destroy()
   })
 
+  it('lines up further lines of a list item under its text', () => {
+    const view = createView('- item\n  more\nlazy\n\n10. ten\n    more\n')
+    const indents = [...view.contentDOM.querySelectorAll('.cm-list-indent')].map(indent => indent.textContent)
+    expect(indents).toEqual(['• ', '• ', '10. '])
+    view.dispatch({ selection: EditorSelection.cursor(7) })
+    expect(view.state.selection.main.head).toBe(9)
+    view.destroy()
+  })
+
   it('keeps the bullet of an empty item inside a list (after Enter)', () => {
     const view = createView('- one\n- \n')
     expect(shown(view)).toEqual(['• one', '• '])

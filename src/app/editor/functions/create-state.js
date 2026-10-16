@@ -13,7 +13,7 @@ import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
 import gaps, { cursorForDocument } from './gaps/index.js'
 import markdownShown from './markdown-shown.js'
-import { insertNewBlock, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from './gaps/commands.js'
+import { insertNewBlock, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from './gaps/commands.js'
 import literalTyping from './literal-typing.js'
 
 // Classes instead of inline styles, so the look lives in LESS
@@ -57,7 +57,9 @@ export function modeExtensions (isMarkdownShown) {
     Prec.highest(keymap.of([
       { key: 'Enter', run: emptyListItemToParagraph },
       { key: 'Enter', run: insertNewBlock },
+      { key: 'Shift-Enter', run: insertLineBreak },
       { key: 'Backspace', run: listItemToParagraph },
+      { key: 'Backspace', run: joinItemLine },
       { key: 'Backspace', run: joinBackward },
       { key: 'Delete', run: joinForward }
     ]))

@@ -1,6 +1,8 @@
 // npm packages
 import { EditorSelection } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
+// local functions
+import { itemLineIndent } from '../syntax/index.js'
 
 // Editing across blocks while the blank lines between them are hidden:
 // - Enter in a paragraph or heading starts a new block (a blank line, then the cursor on a new
@@ -13,6 +15,11 @@ import { syntaxTree } from '@codemirror/language'
 //   the list: blank lines around it split it off (Markdown would otherwise read it as a further
 //   line of the item above). Enter in an empty item does the same: it ends the list and starts a
 //   paragraph. Nested items keep the Markdown behaviour (outdenting).
+// - Shift+Enter starts a new line within the block (a soft line break in the file): in a list
+//   item the line is indented under the item's text so it stays in the item, in a quote it gets
+//   the quote's '> '. A heading is one line in Markdown, so there it starts a new block as Enter.
+//   Backspace at the start of such a line in a list item joins it to the line above in one press
+//   (its indentation is hidden, syntax/index.js).
 
 // blocks where Enter and joining keep their usual Markdown behaviour
 const containers = ['ListItem', 'Blockquote', 'FencedCode', 'CodeBlock', 'HTMLBlock', 'Table', 'Frontmatter', 'CommentBlock']
@@ -95,6 +102,54 @@ function toParagraph (state, dispatch, isEmptyOnly) {
     // not a deletion: the cursor stays on the new (maybe still empty) block, as after Enter,
     // instead of leaving the blank line (gaps/index.js)
     userEvent: 'input'
+  }))
+  return true
+}
+
+const listItemStart = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$)/
+const quoteStart = /^(?:[ \t]*>[ \t]?)+/
+
+export function insertLineBreak (view) {
+  const { state, dispatch } = view
+  const { main } = state.selection
+  if (state.selection.ranges.length > 1) return false
+  let prefix = ''
+  for (let node = syntaxTree(state).resolveInner(main.head, -1); node; node = node.parent) {
+    if (/Heading/.test(node.name)) return insertNewBlock(view)
+    // code keeps its usual Enter
+    if (['FencedCode', 'CodeBlock', 'HTMLBlock', 'Frontmatter', 'CommentBlock'].includes(node.name)) return false
+    if (node.name == 'ListItem') {
+      const mark = listItemStart.exec(state.doc.lineAt(node.from).text)
+      prefix = ' '.repeat(mark ? Math.max(mark[0].length, mark[0].trimEnd().length + 1) : 0)
+      break
+    }
+    if (node.name == 'Blockquote') {
+      prefix = quoteStart.exec(state.doc.lineAt(main.head).text)?.[0] ?? '> '
+      break
+    }
+  }
+  const insert = state.lineBreak + prefix
+  dispatch(state.update({
+    changes: { from: main.from, to: main.to, insert },
+    // in document positions every line break counts as one character
+    selection: EditorSelection.cursor(main.from + 1 + prefix.length),
+    scrollIntoView: true,
+    userEvent: 'input'
+  }))
+  return true
+}
+
+export function joinItemLine ({ state, dispatch }) {
+  const { main } = state.selection
+  if (state.selection.ranges.length > 1 || !main.empty) return false
+  const line = state.doc.lineAt(main.head)
+  const indent = itemLineIndent(state, line)
+  if (!indent || main.head != line.from + indent) return false
+  const from = state.doc.line(line.number - 1).to
+  dispatch(state.update({
+    changes: { from, to: main.head },
+    selection: EditorSelection.cursor(from),
+    userEvent: 'delete.backward'
   }))
   return true
 }

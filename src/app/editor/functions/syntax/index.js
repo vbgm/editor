@@ -17,6 +17,9 @@ import { isBareHeading, isBareListItem, isRawLine } from '../raw-markup.js'
 // heading, quote or bullet mark, so typing there types into the text, and Backspace at the start
 // of a heading, quote or list item removes its mark in one press.
 // A heading or list mark with no space after it yet stays as typed (raw-markup.js).
+// Further lines of a list item (Shift+Enter, or written so in the file) line up under the item's
+// text: their indentation is drawn as an invisible copy of the bullet or number, and the cursor
+// goes behind it.
 // Only the visible lines are looked at.
 
 class BulletWidget extends WidgetType {
@@ -61,6 +64,39 @@ class CheckboxWidget extends WidgetType {
   ignoreEvent () { return false }
 }
 
+// the indentation of a list item's further line: as wide as the item's bullet or number and
+// the space after it
+class ListIndentWidget extends WidgetType {
+  constructor (number) {
+    super()
+    // the item's number ('1.'), or null for a bullet
+    this.number = number
+  }
+
+  eq (other) { return other.number == this.number }
+
+  toDOM () {
+    const dom = document.createElement('span')
+    dom.className = 'cm-list-indent'
+    if (this.number) {
+      dom.textContent = `${this.number} `
+    } else {
+      const bullet = dom.appendChild(document.createElement('span'))
+      bullet.className = 'cm-bullet'
+      bullet.textContent = '•'
+      dom.append(' ')
+    }
+    return dom
+  }
+}
+
+const listIndentCache = new Map()
+
+function listIndent (number) {
+  if (!listIndentCache.has(number)) listIndentCache.set(number, new ListIndentWidget(number))
+  return listIndentCache.get(number)
+}
+
 const hide = Decoration.replace({})
 const bullet = Decoration.replace({ widget: new BulletWidget() })
 const checked = Decoration.replace({ widget: new CheckboxWidget(true) })
@@ -69,6 +105,8 @@ const collapsedLine = Decoration.line({ class: 'cm-collapsed-line' })
 const quoteLine = Decoration.line({ class: 'cm-quote-line' })
 const ruleLine = Decoration.line({ class: 'cm-rule-line' })
 const rawLine = Decoration.line({ class: 'cm-raw-line' })
+
+const isBlankText = text => /^[ \t]*$/.test(text)
 
 // spaces and tabs after pos, up to the end of the line
 function spacesAfter (doc, pos) {
@@ -89,6 +127,31 @@ function build (view) {
     if (to > from) {
       marks.push([from, to, decoration])
       atomic.push([from, to])
+    }
+  }
+  // further lines of a top-level list item, and an indented line right after it (being typed
+  // after Shift+Enter): their indentation drawn as wide as the item's mark
+  const alignItemLines = item => {
+    const first = doc.lineAt(item.from)
+    const mark = /^[ \t]*([-*+]|\d{1,9}[.)])/.exec(first.text)
+    if (!mark) return
+    const widget = listIndent(/\d/.test(mark[1]) ? mark[1] : null)
+    let last = doc.lineAt(item.to)
+    if (last.from == item.to && item.to > item.from) last = doc.lineAt(item.to - 1)
+    const lastNumber = last.number < doc.lines && /^[ \t]+$/.test(doc.line(last.number + 1).text) ? last.number + 1 : last.number
+    for (let number = first.number + 1; number <= lastNumber; number++) {
+      const line = doc.line(number)
+      if (number <= last.number && isBlankText(line.text)) continue
+      // a nested item's own line
+      if (/^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/.test(line.text)) continue
+      const indent = /^[ \t]*/.exec(line.text)[0].length
+      if (indent) {
+        marks.push([line.from, line.from + indent, Decoration.replace({ widget })])
+        // from the end of the line above: Backspace joins the lines in one press
+        atomic.push([doc.line(number - 1).to, line.from + indent])
+      } else {
+        marks.push([line.from, line.from, Decoration.widget({ widget, side: -1 })])
+      }
     }
   }
   const collapseLine = pos => {
@@ -137,6 +200,9 @@ function build (view) {
               marks.push([node.from, node.to, bullet])
               atomic.push([node.from, node.to + Math.min(spacesAfter(doc, node.to), 1)])
             }
+            break
+          case 'ListItem':
+            if (node.node.parent?.parent?.name == 'Document') alignItemLines(node.node)
             break
           case 'TaskMarker': {
             const isChecked = /x/i.test(doc.sliceString(node.from, node.to))
@@ -226,6 +292,20 @@ export const hiddenSyntax = ViewPlugin.fromClass(class {
 // marks at the start of a line that the cursor goes behind: heading, quote, bullet (with a task box)
 const lineStartMark = /^(?:[ \t]{0,3}#{1,6}[ \t]+|(?:[ \t]*>[ \t]?)+|[ \t]*[-*+][ \t](?:\[[ xX]\][ \t]?)?)/
 
+// the indentation of a further line of a top-level list item (drawn as wide as the item's mark),
+// 0 for any other line
+export function itemLineIndent (state, line) {
+  const indent = /^[ \t]*/.exec(line.text)[0].length
+  if (!indent || line.number == 1) return 0
+  if (/^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/.test(line.text)) return 0
+  // the item: the one this line is in, or (a line being typed after Shift+Enter) the one above
+  const inside = /^[ \t]+$/.test(line.text) ? state.doc.line(line.number - 1).to : line.from + indent
+  for (let node = syntaxTree(state).resolveInner(inside, -1); node; node = node.parent) {
+    if (node.name == 'ListItem') return node.parent?.parent?.name == 'Document' && node.from < line.from ? indent : 0
+  }
+  return 0
+}
+
 // where the text of the line at lineFrom starts, behind its hidden heading, quote or bullet mark
 export function textStart (state, lineFrom) {
   const line = state.doc.lineAt(lineFrom)
@@ -251,9 +331,10 @@ const cursorAfterLineMarks = EditorState.transactionFilter.of(transaction => {
   const ranges = transaction.selection.ranges.map((range, index) => {
     const line = state.doc.lineAt(range.head)
     const mark = lineStartMark.exec(line.text)
-    if (!mark) return range
-    const contentStart = line.from + mark[0].length
-    if (range.head >= contentStart || isInCode(state, line.from) || isRawLine(state, line.from)) return range
+    const markLength = mark ? mark[0].length : itemLineIndent(state, line)
+    if (!markLength) return range
+    const contentStart = line.from + markLength
+    if (range.head >= contentStart || isInCode(state, line.from) || (mark && isRawLine(state, line.from))) return range
     isMoved = true
     // a click is never a move to the left, even with the cursor already behind the mark
     const isClick = transaction.isUserEvent('select.pointer')
