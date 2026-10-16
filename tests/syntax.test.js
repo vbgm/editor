@@ -2,7 +2,7 @@
 
 // npm packages
 import { describe, it, expect, beforeAll } from 'vitest'
-import { EditorView } from '@codemirror/view'
+import { EditorView, runScopeHandlers } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
 import { cursorCharLeft, cursorLineBoundaryBackward, deleteCharBackward } from '@codemirror/commands'
 // local
@@ -198,6 +198,26 @@ describe('cursor with hidden Markdown', () => {
     view.dispatch({ selection: EditorSelection.cursor(7) })
     cursorCharLeft(view)
     expect(view.state.selection.main.head).toBe(5)
+    view.destroy()
+  })
+})
+
+describe('Backspace in Markdown mode', () => {
+  const backspace = view => runScopeHandlers(view, new KeyboardEvent('keydown', { key: 'Backspace' }), 'editor')
+
+  it('deletes one character, also right behind a list number', () => {
+    const view = createView('1. one\n2. two\n', { isMarkdownShown: true })
+    view.dispatch({ selection: EditorSelection.cursor(10) })
+    backspace(view)
+    expect(getText(view.state)).toBe('1. one\n2.two\n')
+    view.destroy()
+  })
+
+  it('still turns a list item into a paragraph in Document mode', () => {
+    const view = createView('1. one\n2. two\n')
+    view.dispatch({ selection: EditorSelection.cursor(10) })
+    backspace(view)
+    expect(getText(view.state)).toBe('1. one\n\ntwo\n')
     view.destroy()
   })
 })

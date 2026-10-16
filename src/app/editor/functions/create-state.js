@@ -1,7 +1,7 @@
 // npm packages
 import { EditorState, EditorSelection, Prec, Compartment, Facet } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { history, defaultKeymap, historyKeymap } from '@codemirror/commands'
+import { history, defaultKeymap, historyKeymap, deleteCharBackward } from '@codemirror/commands'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 // local functions
@@ -44,7 +44,10 @@ export function modeExtensions (isMarkdownShown) {
   if (isMarkdownShown) {
     return [
       markdownShown.of(true),
-      EditorView.editorAttributes.of({ class: 'cm-markdown' })
+      EditorView.editorAttributes.of({ class: 'cm-markdown' }),
+      // a plain Backspace, before the Markdown keymap's, which would turn a list mark it stands
+      // behind ('1. ') into spaces
+      Prec.highest(keymap.of([{ key: 'Backspace', run: deleteCharBackward }]))
     ]
   }
   return [
