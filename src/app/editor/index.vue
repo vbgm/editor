@@ -38,6 +38,7 @@ is scrolled into view below it.
   // the toolbar's formats (format())
   const formatCommands = {
     heading: setHeading,
+    paragraph: () => setHeading(0),
     bold: () => toggleInline('**'),
     italic: () => toggleInline('*'),
     strikethrough: () => toggleInline('~~'),

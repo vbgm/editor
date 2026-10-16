@@ -37,6 +37,18 @@ describe('line formats', () => {
     expect(run(setHeading(1), '- item|\n')).toBe('# item\n')
   })
 
+  it('makes a list item a paragraph of its own, out of the list', () => {
+    // the only item
+    expect(run(setHeading(0), '- item|\n')).toBe('item\n')
+    // between items: blank lines before and after, or it would go on in the item above
+    expect(run(setHeading(0), '- one\n- two|\n- three\n')).toBe('- one\n\ntwo\n\n- three\n')
+    // a task, its further line going on in the paragraph; the list after it goes on counting
+    // (move/renumber.js)
+    expect(run(setHeading(0), '1. one\n2. [ ] two|\n   more\n3. three\n')).toBe('1. one\n\ntwo\nmore\n\n3. three\n')
+    // a heading after a list needs no blank line, a paragraph after one does
+    expect(run(setHeading(0), '- one\n# Title|\n')).toBe('- one\n\nTitle\n')
+  })
+
   it('makes and removes bullet lists over the selected lines', () => {
     expect(runOnSelection(toggleList('bullet'), '[one\ntwo]\n').text).toBe('- one\n- two\n')
     expect(runOnSelection(toggleList('bullet'), '[- one\n- two]\n').text).toBe('one\ntwo\n')

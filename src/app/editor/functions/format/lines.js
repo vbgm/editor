@@ -13,7 +13,7 @@ import renumber from '../move/renumber.js'
 const indentation = /^[ \t]*/
 const headingMarker = /^[ \t]{0,3}#{1,6}(?:[ \t]+|$)/
 const bulletMarker = /^([ \t]*)[-*+][ \t]+(?:\[[ xX]\][ \t]+)?/
-const orderedMarker = /^([ \t]*)\d{1,9}[.)][ \t]+/
+const orderedMarker = /^([ \t]*)\d{1,9}[.)][ \t]+(?:\[[ xX]\][ \t]+)?/
 const itemStart = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]*/
 const itemLine = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/
 const setextUnderline = /^ {0,3}(=+|-+)[ \t]*$/
@@ -199,13 +199,45 @@ function dispatchChanges ({ state, dispatch }, changes, userEvent, isRenumbered 
   return true
 }
 
-// level 1–6: heading of that level; 0: plain paragraph
+// level 1–6: heading of that level; 0: plain paragraph. A list item's further lines and
+// sub-items shift with its mark, and numbered lists around it are counted again.
 export function setHeading (level) {
   return view => {
-    const lines = selectedLines(view.state)
+    const { state } = view
+    const lines = selectedLines(state)
     const prefix = level ? '#'.repeat(level) + ' ' : ''
-    return dispatchChanges(view, replacePrefixes(view.state, lines, () => prefix), 'format.heading')
+    const changes = replacePrefixes(state, lines, () => prefix, true)
+    if (!level) changes.push(...paragraphBreaks(state, lines))
+    return dispatchChanges(view, changes, 'format.heading', true)
   }
+}
+
+// List lines made paragraphs: a line right after a list item would go on in the item (a lazy
+// continuation), and an item right after a paragraph would take it into the list: a blank line
+// before each run of selected lines that follows a list, and after it before the next item (past
+// the further lines of its own items, which go on in the paragraph).
+function paragraphBreaks (state, lines) {
+  const { doc } = state
+  const changes = []
+  const selected = new Set(lines.map(line => line.number))
+  const isInList = line => isInNode(state, line.from + indentation.exec(line.text)[0].length, name => name == 'ListItem')
+  for (const line of lines) {
+    const before = line.number > 1 && doc.line(line.number - 1)
+    if (!selected.has(line.number - 1) && before && !isBlank(before.text) && isInList(before)) {
+      changes.push({ from: line.from, insert: '\n' })
+    }
+    if (selected.has(line.number + 1)) continue
+    for (let number = line.number + 1; number <= doc.lines; number++) {
+      const next = doc.line(number)
+      if (isBlank(next.text) || selected.has(number)) break
+      if (itemAt(state, next)) {
+        changes.push({ from: next.from, insert: '\n' })
+        break
+      }
+      if (!isInList(next)) break
+    }
+  }
+  return changes
 }
 
 // Cmd+Enter: ticks or unticks the tasks among the selected lines (all ticked: untick them, else

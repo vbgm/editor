@@ -1,17 +1,18 @@
 <!--
-The toolbar, over the top of the window: the text scrolls on under it, seen through its
-translucent, blurred background (as Ordner's folder header).
+The toolbar, over the top of the window. It has no background of its own: over the text, the
+sidebar layout draws one (translucent and blurred, the text scrolling on under it, as Ordner's
+folder header); over a sidebar, the sidebar's colour runs up to the top of the window.
 - left: hide or show the toolbar (Cmd+Alt+T), the outline sidebar (Ctrl+Cmd+S)
 - center: formatting for the text with the cursor, lit where the cursor's text has it (formats,
-  from the editor): headings H1–H6 (a menu where the toolbar is too narrow for all six), inline
-  formats, lists
+  from the editor), in two groups: what a line is (headings H1–H6, a menu where the toolbar is
+  too narrow for all six; numbered list, bulleted list, task, paragraph), then the inline formats
 - right: the settings sidebar
 Hiding and showing, it slides out at the top and back in, fading, in 0.3 s, as the sidebars do;
 the app moves the text with it (App's toggleToolbar). Hidden, only the arrow to show it again
 stays, in its place, and is drawn only under the mouse.
 Buttons look like Ordner's (ActionIconStyled): icons only, no background; the icon's colour
-changes when hovered, pressed or on. They do not take the keyboard focus (mousedown.prevent):
-the editor keeps the cursor and its selection.
+changes when hovered, pressed or on. All icons have the same stroke, on or not. They do not take
+the keyboard focus (mousedown.prevent): the editor keeps the cursor and its selection.
 -->
 <template>
 
@@ -44,88 +45,85 @@ the editor keeps the cursor and its selection.
         <span class='glyph'>
           <Icon
             name='sidebar'
-            :strokeWidth='strokeOf(isSidebarShown)'
           />
         </span>
       </button>
     </div>
 
     <div class='center'>
-      <!-- all six levels where there is room; otherwise a menu -->
-      <div class='group headings'>
-        <button
-          v-for='level in 6'
-          :key='level'
-          class='button text'
-          :class='{active: formats.heading == level}'
-          :title='`Heading ${level} (Cmd+${level})`'
-          @mousedown.prevent=''
-          @click='setHeading(level)'
-        >
-          H{{ level }}
-        </button>
-      </div>
-
-      <div
-        ref='headingMenu'
-        class='group heading-menu'
-      >
-        <button
-          class='button'
-          :class='{active: formats.heading > 0, open: isHeadingMenuOpen}'
-          title='Heading'
-          @mousedown.prevent=''
-          @click='isHeadingMenuOpen = !isHeadingMenuOpen'
-        >
-          <span class='glyph'>
-            <Icon
-              name='heading'
-              :strokeWidth='strokeOf(formats.heading > 0)'
-            />
-          </span>
-          <span class='chevron'>
-            <Icon
-              name='angle-down'
-              :strokeWidth='16'
-            />
-          </span>
-        </button>
-
-        <div
-          v-if='isHeadingMenuOpen'
-          class='menu'
-        >
+      <!-- what a line is -->
+      <div class='group'>
+        <!-- all six levels where there is room; otherwise a menu -->
+        <div class='group headings'>
           <button
-            v-for='level in 7'
+            v-for='level in 6'
             :key='level'
-            class='item'
+            class='button text'
+            :class='{active: formats.heading == level}'
+            :style='letterSides[level - 1]'
+            :title='`Heading ${level} (Cmd+${level})`'
             @mousedown.prevent=''
-            @click='chooseHeading(level - 1)'
+            @click='setHeading(level)'
           >
-            <span class='check'>
-              <Icon
-                v-if='formats.heading == level - 1'
-                name='check'
-                :strokeWidth='14'
-              />
-            </span>
-            <span class='label'>
-              {{ level == 1 ? `Text` : `Heading ${level - 1}` }}
-            </span>
-            <span class='shortcut'>
-              Cmd+{{ level - 1 }}
-            </span>
+            H{{ level }}
           </button>
         </div>
-      </div>
 
-      <div
-        v-for='(group, index) in groups'
-        :key='index'
-        class='group'
-      >
+        <div
+          ref='headingMenu'
+          class='group heading-menu'
+        >
+          <button
+            class='button'
+            :class='{active: formats.heading > 0, open: isHeadingMenuOpen}'
+            title='Heading'
+            @mousedown.prevent=''
+            @click='isHeadingMenuOpen = !isHeadingMenuOpen'
+          >
+            <span class='glyph'>
+              <Icon
+                name='heading'
+                isFitted
+              />
+            </span>
+            <span class='chevron'>
+              <Icon
+                name='angle-down'
+                :strokeWidth='15'
+              />
+            </span>
+          </button>
+
+          <div
+            v-if='isHeadingMenuOpen'
+            class='menu'
+          >
+            <button
+              v-for='level in 7'
+              :key='level'
+              class='item'
+              @mousedown.prevent=''
+              @click='chooseHeading(level - 1)'
+            >
+              <span class='check'>
+                <Icon
+                  v-if='formats.heading == level - 1'
+                  name='check'
+                  :strokeWidth='14'
+                />
+              </span>
+              <span class='label'>
+                {{ level == 1 ? `Paragraph` : `Heading ${level - 1}` }}
+              </span>
+              <span class='shortcut'>
+                Cmd+{{ level - 1 }}
+              </span>
+            </button>
+          </div>
+        </div>
+
         <button
-          v-for='button in group'
+          v-for='button in lineButtons'
           :key='button.name'
           class='button'
           :class='{active: formats[button.name]}'
@@ -136,7 +134,31 @@ the editor keeps the cursor and its selection.
           <span class='glyph'>
             <Icon
               :name='button.icon'
-              :strokeWidth='strokeOf(formats[button.name])'
+              isFitted
+              :marginLeft='button.marginLeft'
+              :marginRight='button.marginRight'
+            />
+          </span>
+        </button>
+      </div>
+
+      <!-- inline formats -->
+      <div class='group'>
+        <button
+          v-for='button in inlineButtons'
+          :key='button.name'
+          class='button'
+          :class='{active: formats[button.name]}'
+          :title='button.title'
+          @mousedown.prevent=''
+          @click='$emit(`format`, button.name)'
+        >
+          <span class='glyph'>
+            <Icon
+              :name='button.icon'
+              isFitted
+              :marginLeft='button.marginLeft'
+              :marginRight='button.marginRight'
             />
           </span>
         </button>
@@ -154,7 +176,6 @@ the editor keeps the cursor and its selection.
         <span class='glyph'>
           <Icon
             name='sliders'
-            :strokeWidth='strokeOf(isSettingsShown)'
           />
         </span>
       </button>
@@ -166,20 +187,22 @@ the editor keeps the cursor and its selection.
   // components
   import Icon from '/foundation/icon/index.vue'
 
-  // the formatting buttons after the headings, in groups
-  const groups = [
-    [
-      { name: 'bold', icon: 'bold', title: 'Bold (Cmd+B)' },
-      { name: 'italic', icon: 'italic', title: 'Italic (Cmd+I)' },
-      { name: 'strikethrough', icon: 'strikethrough', title: 'Strikethrough (Cmd+Shift+X)' },
-      { name: 'code', icon: 'code', title: 'Code (Cmd+E)' },
-      { name: 'link', icon: 'link', title: 'Link (Cmd+K)' }
-    ],
-    [
-      { name: 'bullet', icon: 'list-bullet', title: 'Bulleted list (Cmd+8)' },
-      { name: 'ordered', icon: 'list-ordered', title: 'Numbered list (Cmd+7)' },
-      { name: 'task', icon: 'task', title: 'Task (Cmd+Enter)' }
-    ]
+  // what a line is, after the headings. Each button may have marginLeft and marginRight, px
+  // added at its icon's sides (negative: closer), to move it by hand
+  const lineButtons = [
+    { name: 'ordered', icon: 'list-ordered', title: 'Numbered list (Cmd+7)', marginLeft: -3 },
+    { name: 'bullet', icon: 'list-bullet', title: 'Bulleted list (Cmd+8)' },
+    { name: 'task', icon: 'task', title: 'Task (Cmd+Enter)' },
+    { name: 'paragraph', icon: 'paragraph', title: 'Paragraph: plain text (Cmd+0)' }
+  ]
+
+  // the inline formats, a group of their own (marginLeft, marginRight as for lineButtons)
+  const inlineButtons = [
+    { name: 'bold', icon: 'bold', title: 'Bold (Cmd+B)' },
+    { name: 'italic', icon: 'italic', title: 'Italic (Cmd+I)' },
+    { name: 'strikethrough', icon: 'strikethrough', title: 'Strikethrough (Cmd+Shift+X)' },
+    { name: 'code', icon: 'code', title: 'Code (Cmd+E)' },
+    { name: 'link', icon: 'link', title: 'Link (Cmd+K)' }
   ]
 
   export default {
@@ -199,8 +222,11 @@ the editor keeps the cursor and its selection.
     emits: ['toggle', 'toggleSidebar', 'toggleSettings', 'format'],
     data () {
       return {
-        groups,
+        lineButtons,
+        inlineButtons,
         isHeadingMenuOpen: false,
+        // each heading button's margins taking off the space at the sides of its letters
+        letterSides: [],
         // the arrow: 0 down, 1 up (morphAngle)
         angle: this.isShown ? 1 : 0
       }
@@ -218,6 +244,9 @@ the editor keeps the cursor and its selection.
           this.removeListeners()
         }
       }
+    },
+    mounted () {
+      this.measureLetters()
     },
     beforeUnmount () {
       this.removeListeners()
@@ -240,9 +269,21 @@ the editor keeps the cursor and its selection.
         }
         step()
       },
-      // as Ordner's buttons: a little thicker when on
-      strokeOf (isActive) {
-        return isActive ? 12 : 11
+      // The space a font leaves at the sides of the letters, different for each digit (a 1 has
+      // more): the heading buttons are drawn that much closer to their neighbours, so all the
+      // letters and icons are as far apart as drawn.
+      measureLetters () {
+        const button = this.$el.querySelector('.headings .button')
+        if (!button) return
+        const style = getComputedStyle(button)
+        const context = document.createElement('canvas').getContext('2d')
+        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+        this.letterSides = Array.from({ length: 6 }, (_, index) => {
+          const metrics = context.measureText(`H${index + 1}`)
+          const left = -metrics.actualBoundingBoxLeft
+          const right = metrics.width - metrics.actualBoundingBoxRight
+          return { marginLeft: `${-left}px`, marginRight: `${-right}px` }
+        })
       },
       // the level of the line with the cursor again: back to text
       setHeading (level) {
@@ -271,9 +312,11 @@ the editor keeps the cursor and its selection.
   @height: 3rem;
   @icon: 1.3rem;
   @icon-margin: 0.5rem;
+  // in the center's groups: between one icon or letter and the next, as drawn
+  @spacing: 0.75rem;
   @fade: 0.3s ease;
   // all six heading buttons fit, with the center still in the middle; narrower: the menu
-  @compact-width: 41rem;
+  @compact-width: 40rem;
 
   .toolbar {
     position: absolute;
@@ -292,25 +335,6 @@ the editor keeps the cursor and its selection.
     user-select: none;
     -webkit-user-select: none;
 
-    // the background, translucent and blurred, as Ordner's folder header: more opaque at the
-    // right edge, where the scrollbar is; a 1 px line at the bottom
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      --translucent: color-mix(in srgb, var(--color--background) 75%, transparent);
-      background: linear-gradient(
-        to right,
-        var(--translucent),
-        var(--translucent) calc(100% - 2rem),
-        color-mix(in srgb, var(--color--background) 97%, transparent) 100%
-      );
-      -webkit-backdrop-filter: blur(4px);
-      backdrop-filter: blur(4px);
-      box-shadow: inset 0 -1px 0 var(--color--border--solid);
-    }
-
     > .start {
       justify-self: start;
       display: flex;
@@ -319,7 +343,8 @@ the editor keeps the cursor and its selection.
     > .center {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      // between the line formats and the inline ones
+      gap: 1.5rem;
     }
 
     > .end {
@@ -328,7 +353,6 @@ the editor keeps the cursor and its selection.
     }
 
     // everything but the arrow slides and fades
-    &::before,
     > .center,
     > .end,
     .sidebar {
@@ -339,7 +363,6 @@ the editor keeps the cursor and its selection.
     &.hidden {
       pointer-events: none;
 
-      &::before,
       > .center,
       > .end,
       .sidebar {
@@ -418,19 +441,35 @@ the editor keeps the cursor and its selection.
       height: @icon;
     }
 
-    // the headings: close together, as one control
+    // the headings: the capitals a little lower than the icons drawn with their stroke (80 + 9
+    // of 128 in the icon's box), as they look larger, the strokes about as thick as theirs
     &.text {
+      box-sizing: border-box;
       height: @icon + 2 * @icon-margin;
-      padding: 0 0.3rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
+      // the capitals centred as the icons are
+      padding-top: 0;
+      padding-bottom: 2px;
+      font-size: 1.2rem;
+      font-weight: 300;
     }
 
+    // smaller, its stroke as thick as the icons' (15 × 0.8 / 1.3: about 9)
     > .chevron {
       width: 0.8rem;
       height: 0.8rem;
       margin-left: -0.1rem;
+    }
+  }
+
+  // In the center's groups, every icon and letter is as far from the next as drawn (@spacing):
+  // the icons are as wide as their drawings (Icon's isFitted), the letters' own side space is
+  // taken off by margins (measureLetters).
+  .center .button {
+    padding-left: (@spacing / 2);
+    padding-right: (@spacing / 2);
+
+    > .glyph {
+      width: auto;
     }
   }
 

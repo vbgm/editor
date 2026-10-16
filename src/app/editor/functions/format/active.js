@@ -2,7 +2,8 @@
 import { syntaxTree } from '@codemirror/language'
 
 // The formats of the text with the main cursor or selection, for the toolbar's buttons:
-// { heading: 0–6, bold, italic, strikethrough, code, link, bullet, ordered, task }.
+// { heading: 0–6, bold, italic, strikethrough, code, link, bullet, ordered, task, paragraph }
+// (paragraph: neither heading nor list item).
 // An inline format is on when the cursor is inside it (not right before or after its marks), or
 // when the whole selection is in it. A list is the innermost one the cursor's line is in.
 
@@ -18,7 +19,7 @@ const headingName = /^(?:ATX|Setext)Heading(\d)$/
 
 export function activeFormats (state) {
   const { from, to, empty } = state.selection.main
-  const formats = { heading: 0, bold: false, italic: false, strikethrough: false, code: false, link: false, bullet: false, ordered: false, task: false }
+  const formats = { heading: 0, bold: false, italic: false, strikethrough: false, code: false, link: false, bullet: false, ordered: false, task: false, paragraph: false }
   let item = null
   syntaxTree(state).iterate({
     from,
@@ -41,5 +42,6 @@ export function activeFormats (state) {
     formats.ordered = item.parent?.name == 'OrderedList'
     formats.task = !!item.getChild('Task')
   }
+  formats.paragraph = !formats.heading && !item
   return formats
 }
