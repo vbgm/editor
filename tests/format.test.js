@@ -166,3 +166,12 @@ describe('Cmd+Enter: tasks', () => {
     expect(onAll('- [x] a\n- b\n')).toBe('- [x] a\n- [ ] b\n')
   })
 })
+
+describe('formatting a quoted line', () => {
+  it('makes a plain list item, task or heading, without the quote', () => {
+    expect(run(toggleList('bullet'), '> quo|ted\n')).toBe('- quoted\n')
+    expect(run(toggleList('ordered'), '> > quo|ted\n')).toBe('1. quoted\n')
+    expect(run(toggleTask, '> quo|ted\n')).toBe('- [ ] quoted\n')
+    expect(run(setHeading(2), '> quo|ted\n')).toBe('## quoted\n')
+  })
+})

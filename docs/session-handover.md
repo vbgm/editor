@@ -27,7 +27,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421 (what gets tested)
-npm test             # vitest, 163 tests (node + jsdom)
+npm test             # vitest, 164 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.

@@ -17,6 +17,7 @@ const orderedMarker = /^([ \t]*)\d{1,9}[.)][ \t]+/
 const itemStart = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]*/
 const itemLine = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/
 const setextUnderline = /^ {0,3}(=+|-+)[ \t]*$/
+const quoteMarker = /^(?:[ \t]*>[ \t]?)+/
 
 const isBlank = text => /^[ \t]*$/.test(text)
 
@@ -47,9 +48,10 @@ function selectedLines (state) {
   return lines
 }
 
-// the text of a line without heading or list markers and without indentation
+// the text of a line without quote, heading or list markers and without indentation: a quoted
+// line made a list item or heading loses its quote
 function content (text) {
-  return text.replace(headingMarker, '').replace(bulletMarker, '').replace(orderedMarker, '').replace(indentation, '')
+  return text.replace(quoteMarker, '').replace(headingMarker, '').replace(bulletMarker, '').replace(orderedMarker, '').replace(indentation, '')
 }
 
 // the last line of a node (a node may end right after a line break)
