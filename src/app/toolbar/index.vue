@@ -58,14 +58,18 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
           <button
             v-for='level in 6'
             :key='level'
-            class='button text'
+            class='button'
             :class='{active: formats.heading == level}'
-            :style='letterSides[level - 1]'
             :title='`Heading ${level} (Cmd+${level})`'
             @mousedown.prevent=''
             @click='setHeading(level)'
           >
-            H{{ level }}
+            <span class='glyph'>
+              <Icon
+                :name='`heading-${level}`'
+                isFitted
+              />
+            </span>
           </button>
         </div>
 
@@ -90,6 +94,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
               <Icon
                 name='angle-down'
                 :strokeWidth='15'
+                isFitted
               />
             </span>
           </button>
@@ -190,7 +195,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
   // what a line is, after the headings. Each button may have marginLeft and marginRight, px
   // added at its icon's sides (negative: closer), to move it by hand
   const lineButtons = [
-    { name: 'ordered', icon: 'list-ordered', title: 'Numbered list (Cmd+7)', marginLeft: -3 },
+    { name: 'ordered', icon: 'list-ordered', title: 'Numbered list (Cmd+7)', marginLeft: -1 },
     { name: 'bullet', icon: 'list-bullet', title: 'Bulleted list (Cmd+8)' },
     { name: 'task', icon: 'task', title: 'Task (Cmd+Enter)' },
     { name: 'paragraph', icon: 'paragraph', title: 'Paragraph: plain text (Cmd+0)' }
@@ -225,8 +230,6 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
         lineButtons,
         inlineButtons,
         isHeadingMenuOpen: false,
-        // each heading button's margins taking off the space at the sides of its letters
-        letterSides: [],
         // the arrow: 0 down, 1 up (morphAngle)
         angle: this.isShown ? 1 : 0
       }
@@ -244,9 +247,6 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
           this.removeListeners()
         }
       }
-    },
-    mounted () {
-      this.measureLetters()
     },
     beforeUnmount () {
       this.removeListeners()
@@ -268,22 +268,6 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
           if (progress != null) this.frame = requestAnimationFrame(step)
         }
         step()
-      },
-      // The space a font leaves at the sides of the letters, different for each digit (a 1 has
-      // more): the heading buttons are drawn that much closer to their neighbours, so all the
-      // letters and icons are as far apart as drawn.
-      measureLetters () {
-        const button = this.$el.querySelector('.headings .button')
-        if (!button) return
-        const style = getComputedStyle(button)
-        const context = document.createElement('canvas').getContext('2d')
-        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
-        this.letterSides = Array.from({ length: 6 }, (_, index) => {
-          const metrics = context.measureText(`H${index + 1}`)
-          const left = -metrics.actualBoundingBoxLeft
-          const right = metrics.width - metrics.actualBoundingBoxRight
-          return { marginLeft: `${-left}px`, marginRight: `${-right}px` }
-        })
       },
       // the level of the line with the cursor again: back to text
       setHeading (level) {
@@ -312,11 +296,11 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
   @height: 3rem;
   @icon: 1.3rem;
   @icon-margin: 0.5rem;
-  // in the center's groups: between one icon or letter and the next, as drawn
+  // in the center's groups: between one icon and the next, as drawn
   @spacing: 0.75rem;
   @fade: 0.3s ease;
   // all six heading buttons fit, with the center still in the middle; narrower: the menu
-  @compact-width: 40rem;
+  @compact-width: 37.5rem;
 
   .toolbar {
     position: absolute;
@@ -441,29 +425,16 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
       height: @icon;
     }
 
-    // the headings: the capitals a little lower than the icons drawn with their stroke (80 + 9
-    // of 128 in the icon's box), as they look larger, the strokes about as thick as theirs
-    &.text {
-      box-sizing: border-box;
-      height: @icon + 2 * @icon-margin;
-      // the capitals centred as the icons are
-      padding-top: 0;
-      padding-bottom: 2px;
-      font-size: 1.2rem;
-      font-weight: 300;
-    }
-
     // smaller, its stroke as thick as the icons' (15 × 0.8 / 1.3: about 9)
+    // as wide as drawn (fitted), a little apart from the H
     > .chevron {
-      width: 0.8rem;
       height: 0.8rem;
-      margin-left: -0.1rem;
+      margin-left: 0.2rem;
     }
   }
 
-  // In the center's groups, every icon and letter is as far from the next as drawn (@spacing):
-  // the icons are as wide as their drawings (Icon's isFitted), the letters' own side space is
-  // taken off by margins (measureLetters).
+  // In the center's groups, every icon is as far from the next as drawn (@spacing): the icons
+  // are as wide as their drawings (Icon's isFitted).
   .center .button {
     padding-left: (@spacing / 2);
     padding-right: (@spacing / 2);
@@ -473,10 +444,11 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
     }
   }
 
+  // below the toolbar (the button is shorter than it), its edge under the H
   .menu {
     position: absolute;
-    top: 100%;
-    left: 0;
+    top: calc(100% + (@height - @icon - 2 * @icon-margin) / 2 + 0.25rem);
+    left: (@spacing / 2);
     z-index: 1;
     display: flex;
     flex-direction: column;
