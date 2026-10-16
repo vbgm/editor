@@ -48,6 +48,11 @@ describe('blocks', () => {
     ])
   })
 
+  it('a byte order mark does not hide a heading or front matter', () => {
+    expect(blocksOf(createState(readFixture('bom.md').toString('utf8')))[0]).toEqual({ type: 'heading', level: 1, text: '# BOM file' })
+    expect(blocksOf(createState('\uFEFF---\ntitle: x\n---\n\nText\n'))[0].type).toBe('frontmatter')
+  })
+
   it('empty file has no blocks', () => {
     expect(blocksOf(createState(''))).toEqual([])
   })

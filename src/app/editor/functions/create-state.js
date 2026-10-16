@@ -1,5 +1,5 @@
 // npm packages
-import { EditorState, EditorSelection, Prec, Compartment } from '@codemirror/state'
+import { EditorState, EditorSelection, Prec, Compartment, Facet } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
@@ -100,11 +100,19 @@ export function lineBreakOf (text) {
   return crlf == all ? '\r\n' : null
 }
 
+// A byte order mark is not text: kept in the document, it hides a heading or front matter on
+// the first line from the parser, and the cursor would step over an invisible character.
+// It stays outside the document and getText puts it back, so the file is saved as it was.
+const BOM = '\uFEFF'
+const hasBom = Facet.define({ combine: values => values.some(Boolean) })
+
 export function createState (text, options = {}) {
   const lineBreak = lineBreakOf(text)
+  const isBom = text.startsWith(BOM)
   return EditorState.create({
-    doc: text,
+    doc: isBom ? text.slice(1) : text,
     extensions: [
+      isBom ? hasBom.of(true) : [],
       lineBreak ? EditorState.lineSeparator.of(lineBreak) : [],
       markdown(),
       history(),
@@ -128,7 +136,7 @@ export function createState (text, options = {}) {
   })
 }
 
-// The file content, with the file's own line breaks
+// The file content, with the file's own line breaks and byte order mark
 export function getText (state) {
-  return state.sliceDoc()
+  return (state.facet(hasBom) ? BOM : '') + state.sliceDoc()
 }
