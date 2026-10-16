@@ -11,7 +11,8 @@ import { isBareHeading, isBareListItem, isRawLine } from '../raw-markup.js'
 //   link brackets and addresses (only the link text stays), autolink '<' '>', quote '> ',
 //   escaping backslashes
 // - whole lines collapsed: setext underlines ('===', '---') and code fences ('```js')
-// - drawn instead: '•' for bullets, a checkbox for '[ ]' / '[x]', a line for '***' rules;
+// - drawn instead: '•' for bullets, a round checkbox for '[ ]' / '[x]' (a task item shows no
+//   bullet), a line for '***' rules;
 //   numbers of numbered lists stay as they are
 // The cursor skips the hidden symbols, and a cursor at the start of a line goes after its
 // heading, quote or bullet mark, so typing there types into the text, and Backspace at the start
@@ -290,6 +291,8 @@ function build (view) {
             break
           case 'ListMark':
             if (isBareListItem(doc, node.node.parent)) lines.push([doc.lineAt(node.from).from, rawLine])
+            // a task item shows only its checkbox, in the bullet's place
+            else if (node.node.parent?.getChild('Task')) hideRange(node.from, node.to + spacesAfter(doc, node.to))
             else if (node.node.parent?.parent?.name == 'BulletList') {
               marks.push([node.from, node.to, bullet])
               atomic.push([node.from, node.to + Math.min(spacesAfter(doc, node.to), 1)])

@@ -1,7 +1,7 @@
 // npm packages
 import { keymap } from '@codemirror/view'
 // local functions
-import { setHeading, toggleList } from './lines.js'
+import { setHeading, toggleList, toggleTask } from './lines.js'
 import { toggleInline, insertLink } from './inline.js'
 
 // Formatting shortcuts (see docs/decisions.md). Line formats have two sets:
@@ -10,6 +10,8 @@ import { toggleInline, insertLink } from './inline.js'
 //   it is handled here and the browser's action is prevented.
 // - Cmd+Alt+number: the same, for browsers that keep Cmd+number to themselves.
 // (Alt+number alone types characters on many keyboard layouts, such as [ ] | { } on German ones.)
+// Cmd+Enter ticks a task's checkbox, or makes the line a task (as in Notion and Obsidian).
+// (Not Alt+Space: on macOS it types a non-breaking space, and launchers often take it.)
 
 const lineFormats = [
   ['1', setHeading(1)],
@@ -32,5 +34,6 @@ export default keymap.of([
   { key: 'Mod-i', run: toggleInline('*'), preventDefault: true },
   { key: 'Mod-e', run: toggleInline('`'), preventDefault: true },
   { key: 'Mod-Shift-x', run: toggleInline('~~'), preventDefault: true },
-  { key: 'Mod-k', run: insertLink, preventDefault: true }
+  { key: 'Mod-k', run: insertLink, preventDefault: true },
+  { key: 'Mod-Enter', run: toggleTask, preventDefault: true }
 ])

@@ -38,9 +38,9 @@ describe('hidden Markdown', () => {
     view.destroy()
   })
 
-  it('draws bullets and checkboxes, keeps numbers', () => {
+  it('draws bullets and checkboxes (a task without a bullet), keeps numbers', () => {
     const view = createView('- one\n- [ ] todo\n- [x] done\n\n1. first\n')
-    expect(shown(view)).toEqual(['• one', '• [ ] todo', '• [x] done', '1. first'])
+    expect(shown(view)).toEqual(['• one', '[ ] todo', '[x] done', '1. first'])
     view.destroy()
   })
 

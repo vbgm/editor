@@ -216,6 +216,34 @@ export function setHeading (level) {
   }
 }
 
+// Cmd+Enter: ticks or unticks the tasks among the selected lines (all ticked: untick them, else
+// tick them all); any other selected line becomes an open task: a list item gets a box after its
+// bullet or number, a paragraph becomes '- [ ] ' with its text.
+const taskStart = /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\[([ xX])\]/
+const listItemStart = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+/
+
+export function toggleTask (view) {
+  const { state } = view
+  const lines = selectedLines(state).filter(line => !isItemContinuation(state, line))
+  if (!lines.length) return true
+  const changes = []
+  if (lines.every(line => taskStart.test(line.text))) {
+    const isChecked = lines.every(line => /x/i.test(taskStart.exec(line.text)[2]))
+    for (const line of lines) {
+      const box = line.from + taskStart.exec(line.text)[1].length + 1
+      changes.push({ from: box, to: box + 1, insert: isChecked ? ' ' : 'x' })
+    }
+    return dispatchChanges(view, changes, 'input.toggle')
+  }
+  for (const line of lines) {
+    if (taskStart.test(line.text)) continue
+    const item = listItemStart.exec(line.text)
+    if (item) changes.push({ from: line.from + item[0].length, insert: '[ ] ' })
+    else changes.push(...replacePrefixes(state, [line], () => indentation.exec(line.text)[0] + '- [ ] '))
+  }
+  return dispatchChanges(view, changes, 'format.list', true)
+}
+
 // kind: 'bullet' or 'ordered'. Turns the lines into a list, or back into paragraphs when they
 // all are already that kind of list.
 export function toggleList (kind) {

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { EditorSelection } from '@codemirror/state'
 // local
 import { createState, stateWithCursor, runCommand, undoOnce, getText } from './helpers.js'
-import { setHeading, toggleList } from '/src/app/editor/functions/format/lines.js'
+import { setHeading, toggleList, toggleTask } from '/src/app/editor/functions/format/lines.js'
 import { toggleInline, insertLink } from '/src/app/editor/functions/format/inline.js'
 
 const run = (command, text) => getText(runCommand(command, stateWithCursor(text)))
@@ -134,5 +134,31 @@ describe('switching a sub-list between bullets and numbers', () => {
     expect(run(toggleList('bullet'), '1. a\n   1. b|\n')).toBe('1. a\n   - b\n')
     expect(run(toggleList('ordered'), '1. a\n   - b\n   - c|\n')).toBe('1. a\n   - b\n   1. c\n')
     expect(run(toggleList('ordered'), '- a\n  - x\n  - b|\n')).toBe('- a\n  - x\n  1. b\n')
+  })
+})
+
+describe('Cmd+Enter: tasks', () => {
+  it('ticks and unticks a task', () => {
+    expect(run(toggleTask, '- [ ] to|do\n')).toBe('- [x] todo\n')
+    expect(run(toggleTask, '- [X] do|ne\n')).toBe('- [ ] done\n')
+    expect(run(toggleTask, '1. [ ] st|ep\n')).toBe('1. [x] step\n')
+  })
+
+  it('makes a list item or a paragraph an open task', () => {
+    expect(run(toggleTask, '- it|em\n')).toBe('- [ ] item\n')
+    expect(run(toggleTask, '  1. ne|sted\n')).toBe('  1. [ ] nested\n')
+    expect(run(toggleTask, 'a para|graph\n')).toBe('- [ ] a paragraph\n')
+  })
+
+  // the whole text selected (runOnSelection's [ ] would clash with the boxes)
+  const onAll = text => getText(runCommand(toggleTask, createState(text).update({ selection: { anchor: 0, head: text.length - 1 } }).state))
+
+  it('ticks all selected tasks, or unticks them when all are ticked', () => {
+    expect(onAll('- [ ] a\n- [x] b\n')).toBe('- [x] a\n- [x] b\n')
+    expect(onAll('- [x] a\n- [x] b\n')).toBe('- [ ] a\n- [ ] b\n')
+  })
+
+  it('makes the other selected lines tasks and leaves tasks as they are', () => {
+    expect(onAll('- [x] a\n- b\n')).toBe('- [x] a\n- [ ] b\n')
   })
 })

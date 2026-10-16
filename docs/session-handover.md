@@ -27,7 +27,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421 (what gets tested)
-npm test             # vitest, 158 tests (node + jsdom)
+npm test             # vitest, 162 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -40,7 +40,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 
 - **Document** (default): Markdown as plain text. Syntax hidden (`#`, `**`, link addresses, `> `, fences, setext underlines), bullets drawn as `•`, task boxes as checkboxes, blank lines between blocks hidden with spacing instead. Enter starts a new block, Backspace/Delete join paragraphs, Backspace at the start of a heading/quote/list item removes its mark.
 - **Markdown**: the file as it is, monospace (line height 1.55, aligned so the first line does not move), Enter/Backspace as in a text editor.
-- **Both modes**: Alt+↑/↓ (and Alt+Shift+↑/↓) move blocks, one undo step each; Shift+↑/↓ select within the block first, then whole blocks; formatting shortcuts Cmd+1…6 / Cmd+0 / Cmd+7 / Cmd+8 (also with Alt, for browsers that keep Cmd+number), Cmd+B/I/E/K, Cmd+Shift+X.
+- **Both modes**: Alt+↑/↓ (and Alt+Shift+↑/↓) move blocks, one undo step each; Shift+↑/↓ select within the block first, then whole blocks; formatting shortcuts Cmd+1…6 / Cmd+0 / Cmd+7 / Cmd+8 (also with Alt, for browsers that keep Cmd+number), Cmd+B/I/E/K, Cmd+Shift+X, Cmd+Enter (tick a task / make a task).
 - Files round-trip byte for byte (BOM, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
 
 ## Map of the code

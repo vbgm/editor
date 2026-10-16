@@ -246,10 +246,29 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       min-width: 0.9em;
     }
 
+    // a task's checkbox stands in the bullet's place: round, a little larger than the text, and
+    // taking the bullet's width (0.9em, with its margins), so the task's text starts where other
+    // items' text does
     :deep(.cm-task-checkbox) {
-      margin: 0 0.35em 0 0;
-      vertical-align: -0.1em;
+      appearance: none;
+      box-sizing: border-box;
+      // form controls have a smaller font of their own; em must be the text's
+      font-size: inherit;
+      width: 1.1em;
+      height: 1.1em;
+      // set a little into the margin, for some room before the text; still 0.9em in all
+      margin: 0 0.05em 0 -0.25em;
+      vertical-align: -0.2em;
+      border: 1.5px solid var(--color--text--secondary);
+      border-radius: 50%;
+      background: transparent no-repeat center / 70%;
       cursor: pointer;
+
+      &:checked {
+        border-color: var(--color--link);
+        background-color: var(--color--link);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      }
     }
 
     // each quote level ('> > ', syntax/index.js) is indented a step further, with a bar of its own
