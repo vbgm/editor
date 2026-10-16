@@ -300,8 +300,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       color: var(--color--text--secondary);
     }
 
+    // the rule spans the text column (inside the line's padding), as wide as a line of text
     :deep(.cm-rule-line) {
       background: linear-gradient(var(--color--border--solid), var(--color--border--solid)) no-repeat center / 100% 1px;
+      background-origin: content-box;
+      background-clip: content-box;
     }
 
     // a tighter line than text (1.6): the bigger font would otherwise add empty space under the

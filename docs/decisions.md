@@ -24,7 +24,11 @@ Decisions made after the [handover](handover.md). Where they differ, this file w
 One pointer-events engine (no HTML5 drag, because of Tauri's file-drop handling on Windows) handles pointer tracking, the dragged-item preview, auto-scroll and hit-testing. It never moves DOM it does not own; it emits a `move` and the owner applies it.
 
 - **Displace mode** (editor blocks, flat lists): items under the pointer move aside to open a gap, like Ordner's list reordering.
-- **Target mode** (TOC sidebar, trees): items stay put; a target line shows the drop position and depth (between items, or inside an item), like Ordner's sidebar. The horizontal position decides the level.
+- **Target mode** (TOC sidebar, trees): items stay put; the drop position is decided by the **vertical** position over a target node only, never by moving horizontally:
+  - near the node's top or bottom edge (roughly 10–20% of its row each): drop **before** or **after** it, at its level; shown as a thin line on that edge
+  - over the rest of the node: drop **onto** it, nesting the dragged node inside (as its first child); shown as a highlight of the target row
+  - a node cannot be dropped onto itself or into its own subtree
+  - reference: Ordner's sidebar (`ordner/imports/submodules/foundation/client/vue/components/tree/methods/dnd/utils.js`, `getDropPosition`), which works well; it splits the row (the node's own line, not its children) into thirds, top / middle / bottom, so its edge zones are wider than the 10–20% wanted here. Its code is not a style reference (see above), its behaviour is.
 
 ## Block model
 
