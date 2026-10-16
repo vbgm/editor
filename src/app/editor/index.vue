@@ -220,8 +220,8 @@ only when it changed; so is the heading of the section with the cursor.
 
   @bold: 650;
 
-  // moves and drags: --move-duration and --dnd-preview-opacity come from move/animate.js and
-  // dnd/index.js, which time and fade the same motions
+  // moves and drags: --move-duration, --dnd-preview-opacity and the handle's size come from
+  // move/animate.js and dnd/index.js, which time, fade and place the same things
   @move-duration: var(--move-duration, 0.15s);
   @handle-fade: 0.15s;
 
@@ -437,15 +437,15 @@ only when it changed; so is the heading of the section with the cursor.
       background-clip: content-box;
     }
 
-    // dragging blocks (dnd/index.js): a handle of nine dots (3 × 3) fades in left of the block under the
+    // dragging blocks (dnd/index.js): a handle of six dots (2 × 3) fades in left of the block under the
     // mouse; while dragging, the block's lines are an empty gap, the lines it passes slide aside,
     // and a faded copy follows the pointer
     :deep(.cm-dnd-handle) {
       position: absolute;
       top: 0;
       left: 0;
-      width: var(--dnd-handle-size);
-      height: var(--dnd-handle-size);
+      width: var(--dnd-handle-width);
+      height: var(--dnd-handle-height);
       background: radial-gradient(circle, var(--color--text--secondary) 0 1.3px, transparent 1.7px) 0 0 / 6px 6px;
       border-radius: 3px;
       opacity: 0;

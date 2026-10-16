@@ -24,10 +24,12 @@ const redraw = StateEffect.define()
 // the faded copy's opacity, where a dropped block fades in from (--dnd-preview-opacity in the CSS)
 const previewOpacity = 0.6
 
-// the handle's width and height (--dnd-handle-size in the CSS)
-const handleWidth = 18
+// the handle's size: 2 × 3 dots on a 6 px grid (--dnd-handle-width, --dnd-handle-height in
+// the CSS)
+const handleWidth = 12
+const handleHeight = 18
 // room between the handle and the text (or a sub-item's bullet)
-const handleGap = 12
+const handleGap = 16
 // how far left of the handle the mouse may be for it to show
 const handleReach = 36
 
@@ -277,7 +279,7 @@ const gap = Decoration.line({ class: 'cm-dnd-gap' })
 const still = Decoration.line({ class: 'cm-dnd-line' })
 
 // the sizes the CSS shares with this file
-const sizes = `--dnd-handle-size: ${handleWidth}px; --dnd-preview-opacity: ${previewOpacity}`
+const sizes = `--dnd-handle-width: ${handleWidth}px; --dnd-handle-height: ${handleHeight}px; --dnd-preview-opacity: ${previewOpacity}`
 
 export default [
   ViewPlugin.fromClass(DragPlugin, {
