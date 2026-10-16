@@ -281,7 +281,9 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;
-    padding: 0.5rem 0;
+    // the headings scroll on under the toolbar (--top-inset)
+    padding: calc(0.5rem + var(--top-inset, 0px)) 0 0.5rem;
+    scroll-padding-top: var(--top-inset, 0px);
     font-size: 0.95rem;
     user-select: none;
     -webkit-user-select: none;

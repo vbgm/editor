@@ -1,266 +1,463 @@
 <!--
-Temporary development toolbar: pick a sample document, open a file, show the outline, set options, switch between Document
-and Markdown mode, turn literal typing on or off, show the stats, run the benchmark.
-Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
-shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
+The toolbar, over the top of the window: the text scrolls on under it, seen through its
+translucent, blurred background (as Ordner's folder header).
+- left: hide or show the toolbar (Cmd+Alt+T), the outline sidebar (Ctrl+Cmd+S)
+- center: formatting for the text with the cursor, lit where the cursor's text has it (formats,
+  from the editor): headings H1–H6 (a menu where the toolbar is too narrow for all six), inline
+  formats, lists
+- right: the settings sidebar
+Hidden, only the arrow to show it again stays, in its place, and is drawn only under the mouse.
+Buttons look like Ordner's (ActionIconStyled): icons only, no background; the icon's colour
+changes when hovered, pressed or on. They do not take the keyboard focus (mousedown.prevent):
+the editor keeps the cursor and its selection.
 -->
 <template>
 
-  <div class='toolbar'>
-    <!-- the open document, or a sample to open -->
-    <select
-      :value='documentName'
-      @change='openSample'
-    >
-      <option
-        v-if='!sampleNames.includes(documentName)'
-        :value='documentName'
-        disabled
-      >
-        {{ documentName }}
-      </option>
-      <option
-        v-for='name in sampleNames'
-        :key='name'
-        :value='name'
-      >
-        {{ name }}
-      </option>
-    </select>
-
-    <button
-      class='button'
-      title='Open a file (Cmd+O)'
-      @mousedown.prevent=''
-      @click='$emit(`openFile`)'
-    >
-      Open file…
-    </button>
-
-    <button
-      class='button'
-      :class='{selected: isSidebarShown}'
-      title='Outline: the headings in a sidebar (Ctrl+Cmd+S)'
-      @mousedown.prevent=''
-      @click='$emit(`toggleSidebar`)'
-    >
-      Outline
-    </button>
-    <!-- a menu of checkboxes; fixed, so the toolbar's own scrolling does not clip it -->
-    <details
-      ref='options'
-      class='menu'
-      @toggle='toggleOptions'
-    >
-      <summary
-        ref='optionsButton'
-        class='button'
+  <div
+    class='toolbar'
+    :class='{hidden: !isShown}'
+  >
+    <div class='start'>
+      <button
+        class='button angle'
+        :class='{up: isShown}'
+        :title='isShown ? `Hide the toolbar (Cmd+Alt+T)` : `Show the toolbar (Cmd+Alt+T)`'
         @mousedown.prevent=''
+        @click='$emit(`toggle`)'
       >
-        Options
-      </summary>
-      <div
-        class='items'
-        :style='optionsPlace'
+        <span class='glyph'>
+          <Icon name='angle-down' />
+        </span>
+      </button>
+
+      <button
+        class='button sidebar'
+        :class='{active: isSidebarShown}'
+        title='Outline: the headings in a sidebar (Ctrl+Cmd+S)'
+        @mousedown.prevent=''
+        @click='$emit(`toggleSidebar`)'
       >
-        <label
-          class='item'
-          title='Opening or closing the outline moves the text aside; otherwise the outline is drawn over the margin and the text moves only where there is too little room'
+        <span class='glyph'>
+          <Icon
+            name='sidebar'
+            :strokeWidth='strokeOf(isSidebarShown)'
+          />
+        </span>
+      </button>
+    </div>
+
+    <div class='center'>
+      <!-- all six levels where there is room; otherwise a menu -->
+      <div class='group headings'>
+        <button
+          v-for='level in 6'
+          :key='level'
+          class='button text'
+          :class='{active: formats.heading == level}'
+          :title='`Heading ${level} (Cmd+${level})`'
           @mousedown.prevent=''
+          @click='setHeading(level)'
         >
-          <input
-            type='checkbox'
-            :checked='isTextSliding'
-            @change='$emit(`toggleTextSliding`)'
-          >
-          Slide text with sidebar
-        </label>
+          H{{ level }}
+        </button>
       </div>
-    </details>
-    <button
-      class='button'
-      :class='{selected: isMarkdownShown}'
-      title='Markdown mode: the file as it is (Cmd+Shift+M)'
-      @mousedown.prevent=''
-      @click='$emit(`toggleMarkdown`)'
-    >
-      Markdown
-    </button>
-    <button
-      class='button'
-      :class='{selected: isLiteral}'
-      title='Literal: typed text stays as typed in Document mode; Markdown typed in is escaped, not formatted'
-      @mousedown.prevent=''
-      @click='$emit(`toggleLiteral`)'
-    >
-      Literal
-    </button>
 
-    <div class='spacer' />
+      <div
+        ref='headingMenu'
+        class='group heading-menu'
+      >
+        <button
+          class='button'
+          :class='{active: formats.heading > 0, open: isHeadingMenuOpen}'
+          title='Heading'
+          @mousedown.prevent=''
+          @click='isHeadingMenuOpen = !isHeadingMenuOpen'
+        >
+          <span class='glyph'>
+            <Icon
+              name='heading'
+              :strokeWidth='strokeOf(formats.heading > 0)'
+            />
+          </span>
+          <span class='chevron'>
+            <Icon
+              name='angle-down'
+              :strokeWidth='16'
+            />
+          </span>
+        </button>
 
-    <span
-      v-if='progress'
-      class='label'
-    >
-      {{ progress }}
-    </span>
-    <button
-      class='button'
-      :class='{selected: isStatsShown}'
-      title='Typing latency and benchmark results'
-      @mousedown.prevent=''
-      @click='$emit(`toggleStats`)'
-    >
-      Stats
-    </button>
-    <button
-      class='button'
-      :disabled='!!progress'
-      @mousedown.prevent=''
-      @click='$emit(`benchmark`)'
-    >
-      Run benchmark
-    </button>
+        <div
+          v-if='isHeadingMenuOpen'
+          class='menu'
+        >
+          <button
+            v-for='level in 7'
+            :key='level'
+            class='item'
+            @mousedown.prevent=''
+            @click='chooseHeading(level - 1)'
+          >
+            <span class='check'>
+              <Icon
+                v-if='formats.heading == level - 1'
+                name='check'
+                :strokeWidth='14'
+              />
+            </span>
+            <span class='label'>
+              {{ level == 1 ? `Text` : `Heading ${level - 1}` }}
+            </span>
+            <span class='shortcut'>
+              Cmd+{{ level - 1 }}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-for='(group, index) in groups'
+        :key='index'
+        class='group'
+      >
+        <button
+          v-for='button in group'
+          :key='button.name'
+          class='button'
+          :class='{active: formats[button.name]}'
+          :title='button.title'
+          @mousedown.prevent=''
+          @click='$emit(`format`, button.name)'
+        >
+          <span class='glyph'>
+            <Icon
+              :name='button.icon'
+              :strokeWidth='strokeOf(formats[button.name])'
+            />
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div class='end'>
+      <button
+        class='button settings'
+        :class='{active: isSettingsShown}'
+        title='Settings'
+        @mousedown.prevent=''
+        @click='$emit(`toggleSettings`)'
+      >
+        <span class='glyph'>
+          <Icon
+            name='sliders'
+            :strokeWidth='strokeOf(isSettingsShown)'
+          />
+        </span>
+      </button>
+    </div>
   </div>
 
 </template><script>
 
+  // components
+  import Icon from '/foundation/icon/index.vue'
+
+  // the formatting buttons after the headings, in groups
+  const groups = [
+    [
+      { name: 'bold', icon: 'bold', title: 'Bold (Cmd+B)' },
+      { name: 'italic', icon: 'italic', title: 'Italic (Cmd+I)' },
+      { name: 'strikethrough', icon: 'strikethrough', title: 'Strikethrough (Cmd+Shift+X)' },
+      { name: 'code', icon: 'code', title: 'Code (Cmd+E)' },
+      { name: 'link', icon: 'link', title: 'Link (Cmd+K)' }
+    ],
+    [
+      { name: 'bullet', icon: 'list-bullet', title: 'Bulleted list (Cmd+8)' },
+      { name: 'ordered', icon: 'list-ordered', title: 'Numbered list (Cmd+7)' },
+      { name: 'task', icon: 'task', title: 'Task (Cmd+Enter)' }
+    ]
+  ]
+
   export default {
     name: 'Toolbar',
-    props: {
-      sampleNames: Array,
-      documentName: String,
-      isMarkdownShown: Boolean,
-      isLiteral: Boolean,
-      isStatsShown: Boolean,
-      isSidebarShown: Boolean,
-      isTextSliding: Boolean,
-      progress: String
+    components: {
+      Icon
     },
-    emits: ['toggleSidebar', 'toggleTextSliding', 'openSample', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
+    props: {
+      isShown: Boolean,
+      isSidebarShown: Boolean,
+      isSettingsShown: Boolean,
+      // what the text with the cursor has (editor/functions/format/active.js): heading 0–6,
+      // and true for each of the groups' names it has
+      formats: Object
+    },
+    // format: a group's button name, or `heading` and its level (0: text)
+    emits: ['toggle', 'toggleSidebar', 'toggleSettings', 'format'],
     data () {
       return {
-        optionsPlace: null
+        groups,
+        isHeadingMenuOpen: false
+      }
+    },
+    watch: {
+      // closed by a press anywhere outside it, or Escape
+      'isHeadingMenuOpen' (isOpen) {
+        if (isOpen) {
+          document.addEventListener('pointerdown', this.closeHeadingMenu, true)
+          document.addEventListener('keydown', this.closeHeadingMenu, true)
+        } else {
+          this.removeListeners()
+        }
       }
     },
     beforeUnmount () {
-      document.removeEventListener('pointerdown', this.closeOptions, true)
+      this.removeListeners()
     },
     methods: {
-      // open: placed under its button, closed by a press anywhere outside
-      toggleOptions () {
-        if (this.$refs.options.open) {
-          const rect = this.$refs.optionsButton.getBoundingClientRect()
-          this.optionsPlace = { top: `${rect.bottom + 4}px`, left: `${rect.left}px` }
-          document.addEventListener('pointerdown', this.closeOptions, true)
-        } else {
-          document.removeEventListener('pointerdown', this.closeOptions, true)
+      // as Ordner's buttons: a little thicker when on
+      strokeOf (isActive) {
+        return isActive ? 12 : 11
+      },
+      // the level of the line with the cursor again: back to text
+      setHeading (level) {
+        this.$emit('format', 'heading', this.formats.heading == level ? 0 : level)
+      },
+      chooseHeading (level) {
+        this.isHeadingMenuOpen = false
+        this.$emit('format', 'heading', level)
+      },
+      closeHeadingMenu (event) {
+        if (event.type == 'keydown' ? event.key == 'Escape' : !this.$refs.headingMenu.contains(event.target)) {
+          this.isHeadingMenuOpen = false
         }
       },
-      closeOptions (event) {
-        if (!this.$refs.options.contains(event.target)) this.$refs.options.open = false
-      },
-      // the list shows the open document until it is replaced: opening may be cancelled (unsaved
-      // edits), and then nothing else changes it back
-      openSample (event) {
-        this.$emit('openSample', event.target.value)
-        event.target.value = this.documentName
+      removeListeners () {
+        document.removeEventListener('pointerdown', this.closeHeadingMenu, true)
+        document.removeEventListener('keydown', this.closeHeadingMenu, true)
       }
     }
   }
 
 </script><style scoped lang='less'>
 
-  .toolbar {
-    flex: 0 0 auto;
-    // scrolls on its own in a narrow window
-    overflow-x: auto;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8rem;
-    background: var(--color--background--secondary);
-    border-bottom: 1px solid var(--color--border--solid);
+  // as Ordner's header and its buttons (ActionIconStyled): a 3rem bar, 1.3rem icons with 0.5rem
+  // around them, the colour fading in 0.3 s
+  @height: 3rem;
+  @icon: 1.3rem;
+  @icon-margin: 0.5rem;
+  @fade: 0.3s ease;
+  // all six heading buttons fit, with the center still in the middle; narrower: the menu
+  @compact-width: 41rem;
 
-    > .group {
+  .toolbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    // above the sidebars
+    z-index: 2;
+    height: @height;
+    box-sizing: border-box;
+    padding: 0 0.4rem;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    container-type: inline-size;
+    user-select: none;
+    -webkit-user-select: none;
+
+    // the background, translucent and blurred, as Ordner's folder header: more opaque at the
+    // right edge, where the scrollbar is; a 1 px line at the bottom
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      --translucent: color-mix(in srgb, var(--color--background) 75%, transparent);
+      background: linear-gradient(
+        to right,
+        var(--translucent),
+        var(--translucent) calc(100% - 2rem),
+        color-mix(in srgb, var(--color--background) 97%, transparent) 100%
+      );
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      box-shadow: inset 0 -1px 0 var(--color--border--solid);
+      transition: opacity @fade;
+    }
+
+    > .start {
+      justify-self: start;
+      display: flex;
+    }
+
+    > .center {
       display: flex;
       align-items: center;
-      gap: 0.25rem;
-      margin-left: 0.5rem;
+      gap: 0.75rem;
     }
 
-    > .spacer {
-      flex: 1 1 auto;
+    > .end {
+      justify-self: end;
+      display: flex;
     }
 
-    .label {
-      color: var(--color--text--secondary);
-      margin-right: 0.25rem;
+    > .center,
+    > .end,
+    .sidebar {
+      transition: opacity @fade;
     }
 
-    select,
-    .button {
+    // hidden: the bar fades out, the arrow stays, drawn only under the mouse
+    &.hidden {
+      pointer-events: none;
+
+      &::before {
+        opacity: 0;
+      }
+
+      > .center,
+      > .end,
+      .sidebar {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity @fade, visibility 0s 0.3s;
+      }
+
+      .angle {
+        pointer-events: auto;
+        opacity: 0;
+        transition: opacity @fade;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  .group {
+    display: flex;
+    align-items: center;
+  }
+
+  .heading-menu {
+    display: none;
+    position: relative;
+  }
+
+  @container (width < @compact-width) {
+    .headings {
+      display: none;
+    }
+
+    .heading-menu {
+      display: flex;
+    }
+  }
+
+  .button {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: @icon-margin;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--color--text--secondary);
+    cursor: default;
+    transition: color @fade;
+
+    &:hover,
+    &.open {
+      color: var(--color--text--secondary--hover);
+    }
+
+    &.active,
+    &:active {
+      color: var(--color--text--secondary--active);
+    }
+
+    &:active {
+      transition: none;
+    }
+
+    > .glyph {
+      width: @icon;
+      height: @icon;
+    }
+
+    // the headings: close together, as one control
+    &.text {
+      height: @icon + 2 * @icon-margin;
+      padding: 0 0.3rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    > .chevron {
+      width: 0.8rem;
+      height: 0.8rem;
+      margin-left: -0.1rem;
+    }
+  }
+
+  // up while the toolbar shows (it hides it), down while hidden
+  .angle > .glyph {
+    transition: transform @fade;
+  }
+
+  .angle.up > .glyph {
+    transform: rotate(180deg);
+  }
+
+  .menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0.3rem 0;
+    font-size: 0.85rem;
+    background: var(--color--background);
+    border: 1px solid var(--color--border--solid);
+    border-radius: 0.4rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+    > .item {
+      appearance: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0;
+      padding: 0.25rem 0.75rem 0.25rem 0.5rem;
+      border: 0;
+      background: none;
       font: inherit;
       color: var(--color--text--primary);
-      background: var(--color--background);
-      border: 1px solid var(--color--border--solid);
-      border-radius: var(--radius--control);
-      padding: 0.2rem 0.55rem;
-      cursor: pointer;
-    }
+      text-align: left;
+      white-space: nowrap;
+      cursor: default;
 
-    .menu {
-      > summary {
-        list-style: none;
-        user-select: none;
-        -webkit-user-select: none;
-
-        &::-webkit-details-marker {
-          display: none;
-        }
+      &:hover {
+        background: var(--color--outline--active);
       }
 
-      &[open] > summary {
-        border-color: var(--color--selected--border);
-        background: var(--color--selection);
+      > .check {
+        width: 0.9rem;
+        height: 0.9rem;
       }
 
-      > .items {
-        position: fixed;
-        z-index: 20;
-        display: flex;
-        flex-direction: column;
-        padding: 0.3rem 0;
-        background: var(--color--background);
-        border: 1px solid var(--color--border--solid);
-        border-radius: 0.4rem;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      > .label {
+        flex: 1 1 auto;
       }
 
-      .item {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.25rem 0.75rem 0.25rem 0.5rem;
-        white-space: nowrap;
-        cursor: default;
-
-        > input {
-          margin: 0;
-        }
-      }
-    }
-
-    .button {
-      &.selected {
-        border-color: var(--color--selected--border);
-        background: var(--color--selection);
-      }
-
-      &:disabled {
-        opacity: 0.5;
-        cursor: default;
+      > .shortcut {
+        margin-left: 1.5rem;
+        color: var(--color--text--secondary);
       }
     }
   }

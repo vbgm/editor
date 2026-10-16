@@ -5,6 +5,7 @@ import { EditorSelection } from '@codemirror/state'
 import { createState, stateWithCursor, runCommand, undoOnce, getText } from './helpers.js'
 import { setHeading, toggleList, toggleTask } from '/src/app/editor/functions/format/lines.js'
 import { toggleInline, insertLink } from '/src/app/editor/functions/format/inline.js'
+import { activeFormats } from '/src/app/editor/functions/format/active.js'
 
 const run = (command, text) => getText(runCommand(command, stateWithCursor(text)))
 
@@ -80,6 +81,21 @@ describe('inline formats', () => {
     const state = runCommand(toggleInline('`'), stateWithCursor('a | b'))
     expect(getText(state)).toBe('a `` b')
     expect(state.selection.main.head).toBe(3)
+  })
+
+  it('removes the format around the cursor', () => {
+    expect(run(toggleInline('**'), 'a **bo|ld** b')).toBe('a bold b')
+    expect(run(toggleInline('`'), 'a `co|de` b')).toBe('a code b')
+    expect(run(toggleInline('~~'), '~~gone|~~')).toBe('gone')
+    const state = runCommand(toggleInline('*'), stateWithCursor('*wo|rd*'))
+    expect(getText(state)).toBe('word')
+    expect(state.selection.main.head).toBe(2)
+  })
+
+  it('removes a link around the cursor, keeping its text', () => {
+    const state = runCommand(insertLink, stateWithCursor('see [do|cs](https://x.y) now'))
+    expect(getText(state)).toBe('see docs now')
+    expect(state.selection.main.head).toBe(6)
   })
 
   it('makes links', () => {
@@ -173,5 +189,26 @@ describe('formatting a quoted line', () => {
     expect(run(toggleList('ordered'), '> > quo|ted\n')).toBe('1. quoted\n')
     expect(run(toggleTask, '> quo|ted\n')).toBe('- [ ] quoted\n')
     expect(run(setHeading(2), '> quo|ted\n')).toBe('## quoted\n')
+  })
+})
+
+describe('active formats', () => {
+  const formatsAt = text => activeFormats(stateWithCursor(text))
+
+  it('finds the heading level and inline formats around the cursor', () => {
+    expect(formatsAt('## a **b|c** d\n')).toMatchObject({ heading: 2, bold: true, italic: false, link: false })
+    expect(formatsAt('a *b|* `c` [d](e)\n')).toMatchObject({ heading: 0, italic: true, code: false })
+    expect(formatsAt('a [d|](e)\n')).toMatchObject({ link: true })
+  })
+
+  it('is off right before or after the marks', () => {
+    expect(formatsAt('a **bc**| d\n').bold).toBe(false)
+    expect(formatsAt('a |**bc** d\n').bold).toBe(false)
+  })
+
+  it('finds the innermost list and tasks', () => {
+    expect(formatsAt('- a|\n')).toMatchObject({ bullet: true, ordered: false, task: false })
+    expect(formatsAt('- a\n  1. b|\n')).toMatchObject({ bullet: false, ordered: true })
+    expect(formatsAt('- [ ] a|\n')).toMatchObject({ bullet: true, task: true })
   })
 })

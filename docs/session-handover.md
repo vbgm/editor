@@ -41,7 +41,7 @@ cd src-tauri && cargo test   # the Rust side: reading and saving files
 gh workflow run build-windows.yml   # Windows installers on GitHub Actions (also build-macos.yml); the user runs these
 ```
 
-`.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, shows the **Outline**, has an **Options** menu (for now one checkbox, *Slide text with sidebar*), switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
+`.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The **toolbar** (decisions.md, "Toolbar") shows the **Outline**, formats the text and opens the **Settings** sidebar on the right, which picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, sets *Slide text with sidebars*, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
 
 Rust is installed with rustup (`~/.cargo/bin`; a shell started before that needs `source ~/.cargo/env`). This Mac is Intel (x86_64): a local universal build needs `rustup target add aarch64-apple-darwin` and `tauri build --target universal-apple-darwin`; the Build macOS workflow makes one on GitHub. The built app is `src-tauri/target/release/bundle/macos/Editor.app` (about 11 MB). The `.dmg` step fails from a Claude session (its script drives Finder by AppleScript, which needs Automation permission); run `npm run tauri:build` in the user's own terminal for it, or take the `.app`. The desktop app's window cannot be seen from a Claude session (no screen recording, and the user will not grant it): the user checks it; test the Rust side with `cargo test`, the saving logic with vitest, and the web side in the browser pane, which runs the same app through `src/platform/browser.js`.
 
@@ -80,16 +80,16 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
   - **Cmd+Enter**: ticks a task, or makes the line a task.
   - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items; the swapped lines slide into place; a block that cannot move bumps in the pressed direction. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
   - **Dragging** (both modes): a handle of 2 × 3 dots fades in when the mouse is near it, left of a block; an opaque copy follows the pointer, the lines it passes slide aside, and the block goes where Alt+↑/↓ would take it and slides into place (decisions.md, "Dragging blocks").
-  - **Literal** (toolbar): typed Markdown is escaped and stays as typed.
-- **Outline** (toolbar button, Ctrl+Cmd+S; hidden at first): the headings as a tree in a resizable left sidebar; clicking one goes to it, clicking its title's text renames it, the chevron (or a click on the selected heading) folds it, and dragging one moves its section before, after or onto (into) another heading, levels shifted (decisions.md, "Outline sidebar").
+  - **Literal** (Settings): typed Markdown is escaped and stays as typed.
+- **Outline** (toolbar's sidebar button, Ctrl+Cmd+S; hidden at first): the headings as a tree in a resizable left sidebar; clicking one goes to it, clicking its title's text renames it, the chevron (or a click on the selected heading) folds it, and dragging one moves its section before, after or onto (into) another heading, levels shifted (decisions.md, "Outline sidebar").
 - Files round-trip byte for byte (BOM kept outside the editor text, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
-- **Desktop app** (macOS; Windows builds on CI, untested): opens, saves by itself and on Cmd+S, Save As, New, closes and quits without losing edits (decisions.md, "Files"). The dev toolbar is still there: its document list holds the samples and the open file's name, and "Open file…" is File ▸ Open.
+- **Desktop app** (macOS; Windows builds on CI, untested): opens, saves by itself and on Cmd+S, Save As, New, closes and quits without losing edits (decisions.md, "Files"). The Settings sidebar's document list holds the samples and the open file's name, and "Open file…" is File ▸ Open.
 
 ## Map of the code
 
 | Path | What it does |
 |---|---|
-| `src/app/index.vue` | app: toolbar, sidebar layout with the outline and the editor, stats footer; menu commands (`runMenu`), opening documents (`show`, after `saving.release()`); sample documents; benchmark (saving paused); the sidebar's settings in `localStorage` |
+| `src/app/index.vue` | app: toolbar over the sidebar layout (outline left, settings right, editor between), stats footer; menu commands (`runMenu`), opening documents (`show`, after `saving.release()`); sample documents; benchmark (saving paused); the toolbar's and sidebars' settings in `localStorage` |
 | `src/app/sidebar/` | a layout: the sidebar (default slot) beside the center (the editor): shown / hidden by transforms (the center follows its text, `anchor`), drawn over the margin unless *Slide text with sidebar*, resized by its 1 px right edge |
 | `src/app/outline/` | the outline (TOC) tree, a pure component: headings in, `select` / `move` / `renameStart` / `renameInput` / `rename` out; clicks, renaming, dragging in target mode with a label (`index.vue`); a row, folding as a drawer, the rename field, drop markers (`components/node.vue`) |
 | `editor/functions/outline/` | headings as the outline (titles without Markdown, ids by title), which drops are allowed, a drop as a move with the levels shifted, renaming a heading's text (`renameSpec`) |
@@ -97,7 +97,8 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `src/platform/` | the only door to Tauri: `tauri.js` in the app, `browser.js` in a browser; the functions are listed in `index.js` |
 | `src/app/functions/saving.js` | the open document's file: path, unsaved edits, autosave, Save, Save As, release before closing or replacing |
 | `.github/workflows/` | Build Windows, Build macOS: tests, then `tauri-action`, installers as artifacts; started by hand |
-| `src/app/toolbar/` | dev toolbar (buttons use `mousedown.prevent` so the editor keeps focus); the Options menu |
+| `src/app/toolbar/` | toolbar: hide, outline, formats (lit from `editor/functions/format/active.js`), settings; buttons use `mousedown.prevent` so the editor keeps focus |
+| `src/app/settings/` | settings sidebar: the former dev toolbar's controls |
 | `src/app/metrics/` | stats footer: Event Timing + own key-press→paint timing, per mode and key kind |
 | `src/app/benchmark/` | scripted load/typing/move benchmark, editor vs bare CodeMirror |
 | `src/app/editor/index.vue` | Vue wrapper around the `EditorView`; mode switch; all editor CSS (spacing rules, hanging lists, checkbox, quote bars) |
@@ -133,7 +134,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 - **CSS**: `text-indent` is inherited into inline-blocks (the bullet's dot moved with the hanging indent; reset inside). Form controls have their own smaller font, so `em` sizes need `font-size: inherit`. A heading's tall line box adds empty space under its text: compare spacing from text to text (baseline to capitals, measured with a `1cap` inline-block), not between line boxes.
 - **Widths are measured, not guessed**: hanging indents use a canvas with the editor's font; Markdown mode's top padding uses a hidden copy of the first line.
 - **Markdown structure decides what the user sees**: a line right under an item is a lazy continuation of the item above, not a new paragraph, unless a blank line separates them; a sub-level needs a parent item (an indented first item is a top-level item, or code at 4+ spaces). Check with the parser before assuming.
-- **Anything wider than the window** makes CodeMirror's scroll-into-view scroll the whole app sideways; the app's children have `min-width: 0` and the toolbar/stats scroll on their own.
+- **Anything wider than the window** makes CodeMirror's scroll-into-view scroll the whole app sideways; the app's children have `min-width: 0` and the stats scroll on their own.
 - **jsdom tests** need `Range.getClientRects` stubs, have no canvas, and cannot test layout (clicks, vertical moves, caret, widths); verify those in the pane. In the pane, Vite sometimes reloads the page: get the view again (`document.querySelector('.editor').__vueParentComponent.proxy.view`) or keys go to a stale one.
 - CodeMirror's `drawSelection` is off: the browser's own caret feels faster than a drawn one.
 - **Animating CodeMirror lines**: move them with CSS transforms on line decorations, never by touching its DOM. Changing a line decoration's attributes keeps the same element, so a CSS transition runs; `style` attributes from several decorations are merged (`--hang` survives). To restart a CSS animation on each key press, alternate two identical keyframes (`-a` / `-b`).

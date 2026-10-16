@@ -3,7 +3,10 @@ CodeMirror owns everything inside the root element; Vue never touches it.
 The document is not mirrored into Vue on every keystroke: read it with getText(); `change` only
 says that it changed.
 The outline (headings, for the TOC sidebar) is sent when the browser is idle after an edit, and
-only when it changed; so is the heading of the section with the cursor.
+only when it changed; so is the heading of the section with the cursor, and the formats of the
+text with the cursor (for the toolbar's buttons).
+The top of the editor is under the toolbar (topInset): the text starts below it, and the cursor
+is scrolled into view below it.
 -->
 <template>
 
@@ -28,6 +31,22 @@ only when it changed; so is the heading of the section with the cursor.
   import { idleScheduler } from './functions/blocks/decorations.js'
   import { getOutline, activeIndex, dropLevel, outlineMove, headingTextStart, renameSpec } from './functions/outline/index.js'
   import { dispatchMove } from './functions/move/animate.js'
+  import { activeFormats } from './functions/format/active.js'
+  import { setHeading, toggleList, toggleTask } from './functions/format/lines.js'
+  import { toggleInline, insertLink } from './functions/format/inline.js'
+
+  // the toolbar's formats (format())
+  const formatCommands = {
+    heading: setHeading,
+    bold: () => toggleInline('**'),
+    italic: () => toggleInline('*'),
+    strikethrough: () => toggleInline('~~'),
+    code: () => toggleInline('`'),
+    link: () => insertLink,
+    bullet: () => toggleList('bullet'),
+    ordered: () => toggleList('ordered'),
+    task: () => toggleTask
+  }
 
   export default {
     name: 'Editor',
@@ -37,11 +56,17 @@ only when it changed; so is the heading of the section with the cursor.
       // Markdown mode: symbols and blank lines visible; otherwise Document mode
       isMarkdownShown: Boolean,
       // typed text stays as typed in Document mode; otherwise typing Markdown formats
-      isLiteral: Boolean
+      isLiteral: Boolean,
+      // px at the top covered by the toolbar
+      topInset: {
+        type: Number,
+        default: 0
+      }
     },
     // outline: [{ id, title, level }]; activeSection: index in it of the section with the cursor
+    // formats: of the text with the cursor (format/active.js)
     // change: the document's text changed
-    emits: ['toggleMarkdown', 'outline', 'activeSection', 'change'],
+    emits: ['toggleMarkdown', 'outline', 'activeSection', 'formats', 'change'],
     data () {
       return {
         view: null,
@@ -77,6 +102,7 @@ only when it changed; so is the heading of the section with the cursor.
       this.outline = []
       this.outlineKey = null
       this.activeSection = null
+      this.formatsKey = null
       this.scheduleOutline = idleScheduler(() => this.sendOutline())
     },
     beforeUnmount () {
@@ -94,12 +120,16 @@ only when it changed; so is the heading of the section with the cursor.
           isMarkdownShown: this.isMarkdownShown,
           isLiteral: this.isLiteral,
           onToggleMarkdown: () => this.$emit('toggleMarkdown'),
-          extensions: EditorView.updateListener.of(update => {
-            // the tree also changes while the parser goes on in the background
-            const isChanged = update.docChanged || syntaxTree(update.state) != syntaxTree(update.startState)
-            if (isChanged || update.selectionSet) this.scheduleOutline()
-            if (update.docChanged) this.$emit('change')
-          })
+          extensions: [
+            EditorView.updateListener.of(update => {
+              // the tree also changes while the parser goes on in the background
+              const isChanged = update.docChanged || syntaxTree(update.state) != syntaxTree(update.startState)
+              if (isChanged || update.selectionSet) this.scheduleOutline()
+              if (update.docChanged) this.$emit('change')
+            }),
+            // the cursor is scrolled into view below the toolbar
+            EditorView.scrollMargins.of(() => ({ top: this.topInset }))
+          ]
         })
       },
       // the outline as far as the parser has got, sent when it changed
@@ -117,6 +147,18 @@ only when it changed; so is the heading of the section with the cursor.
           this.activeSection = active
           this.$emit('activeSection', active)
         }
+        const formats = activeFormats(state)
+        const formatsKey = JSON.stringify(formats)
+        if (formatsKey != this.formatsKey) {
+          this.formatsKey = formatsKey
+          this.$emit('formats', formats)
+        }
+      },
+      // a format from the toolbar for the selection: name in formatCommands, heading with its
+      // level (0: text)
+      format (name, level) {
+        formatCommands[name]?.(level)(this.view)
+        this.view.focus()
       },
       // the cursor to the start of a heading's text, the heading near the top of the editor
       selectSection (index) {
@@ -258,7 +300,7 @@ only when it changed; so is the heading of the section with the cursor.
     :deep(.cm-content) {
       max-width: @content-width;
       margin: 0 auto;
-      padding: @content-top 1rem 50vh;
+      padding: calc(@content-top + var(--top-inset, 0px)) 1rem 50vh;
       caret-color: var(--color--text--primary);
     }
 
@@ -286,7 +328,7 @@ only when it changed; so is the heading of the section with the cursor.
     // the first line's capital letters start at the same height as in Document mode, whatever
     // the fonts and the first block (--markdown-top, measured in markdown-top.js)
     :deep(.cm-markdown .cm-content) {
-      padding-top: calc(@content-top + var(--markdown-top, 0px));
+      padding-top: calc(@content-top + var(--top-inset, 0px) + var(--markdown-top, 0px));
     }
 
     // Document mode (.cm-document) reads as plain text. Space between blocks: transparent borders

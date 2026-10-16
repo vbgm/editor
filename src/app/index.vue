@@ -1,64 +1,88 @@
 <template>
 
-  <div class='app'>
-    <Toolbar
-      v-bind='{
-        sampleNames,
-        documentName,
-        isMarkdownShown,
-        isLiteral,
-        isStatsShown,
-        isSidebarShown,
-        isTextSliding,
-        progress
-      }'
-      @toggleSidebar='toggleSidebar'
-      @toggleTextSliding='toggleTextSliding'
-      @openSample='openSample'
-      @openFile='openFile'
-      @toggleMarkdown='toggleMarkdown'
-      @toggleLiteral='isLiteral = !isLiteral'
-      @toggleStats='isStatsShown = !isStatsShown'
-      @benchmark='benchmark'
-    />
-
-    <Sidebar
-      v-bind='{
-        isShown: isSidebarShown,
-        width: sidebarWidth,
-        isTextSliding,
-        anchor: `.cm-content`
-      }'
-      @resize='resizeSidebar'
-    >
-      <Outline
+  <div
+    class='app'
+    :style='{"--top-inset": `${toolbarHeight}px`}'
+  >
+    <div class='main'>
+      <Toolbar
         v-bind='{
-          sections,
-          activeIndex: activeSection,
-          canDrop: (from, slot) => $refs.editor.canDropSection(from, slot)
+          isShown: isToolbarShown,
+          isSidebarShown,
+          isSettingsShown,
+          formats
         }'
-        @select='$refs.editor.selectSection($event)'
-        @move='$refs.editor.moveSection($event.from, $event.slot)'
-        @renameStart='$refs.editor.startRename($event)'
-        @renameInput='$refs.editor.previewRename($event.text)'
-        @rename='$refs.editor.finishRename($event.text)'
+        @toggle='toggleToolbar'
+        @toggleSidebar='toggleSidebar'
+        @toggleSettings='toggleSettings'
+        @format='(name, level) => $refs.editor.format(name, level)'
       />
 
-      <template #center>
-        <Editor
-          ref='editor'
-          v-bind='{
-            text,
-            isMarkdownShown,
-            isLiteral
-          }'
-          @toggleMarkdown='toggleMarkdown'
-          @change='saving.edited()'
-          @outline='sections = $event'
-          @activeSection='activeSection = $event'
-        />
-      </template>
-    </Sidebar>
+      <Sidebar
+        v-bind='{
+          isLeftShown: isSidebarShown,
+          leftWidth: sidebarWidth,
+          isRightShown: isSettingsShown,
+          rightWidth: settingsWidth,
+          isTextSliding,
+          anchor: `.cm-content`
+        }'
+        @resize='resizeSidebar'
+      >
+        <template #left>
+          <Outline
+            v-bind='{
+              sections,
+              activeIndex: activeSection,
+              canDrop: (from, slot) => $refs.editor.canDropSection(from, slot)
+            }'
+            @select='$refs.editor.selectSection($event)'
+            @move='$refs.editor.moveSection($event.from, $event.slot)'
+            @renameStart='$refs.editor.startRename($event)'
+            @renameInput='$refs.editor.previewRename($event.text)'
+            @rename='$refs.editor.finishRename($event.text)'
+          />
+        </template>
+
+        <template #right>
+          <Settings
+            v-bind='{
+              sampleNames,
+              documentName,
+              isMarkdownShown,
+              isLiteral,
+              isStatsShown,
+              isTextSliding,
+              progress
+            }'
+            @openSample='openSample'
+            @openFile='openFile'
+            @toggleMarkdown='toggleMarkdown'
+            @toggleLiteral='isLiteral = !isLiteral'
+            @toggleTextSliding='toggleTextSliding'
+            @toggleStats='isStatsShown = !isStatsShown'
+            @benchmark='benchmark'
+          />
+        </template>
+
+        <template #center>
+          <Editor
+            ref='editor'
+            v-bind='{
+              text,
+              isMarkdownShown,
+              isLiteral,
+              topInset: toolbarHeight
+            }'
+            @toggleMarkdown='toggleMarkdown'
+            @change='saving.edited()'
+            @outline='sections = $event'
+            @activeSection='activeSection = $event'
+            @formats='formats = $event'
+          />
+        </template>
+      </Sidebar>
+    </div>
 
     <!-- v-show: keeps counting key presses while hidden -->
     <Metrics
@@ -79,6 +103,7 @@
   import Editor from './editor/index.vue'
   import Sidebar from './sidebar/index.vue'
   import Outline from './outline/index.vue'
+  import Settings from './settings/index.vue'
   import Metrics from './metrics/index.vue'
   // functions
   import generateDocument from './functions/generate-document.js'
@@ -88,8 +113,10 @@
   // the test fixtures double as sample documents: opened without a path, so saving asks where
   const fixtures = import.meta.glob('/tests/fixtures/*.md', { query: '?raw', import: 'default', eager: true })
   const generatedName = 'generated (10k lines)'
+  // the toolbar's height (3rem): the editor and the sidebars start below it, and scroll on under it
+  const toolbarHeight = 48
 
-  // the sidebar's width and whether it shows, kept in the browser until the app has its own
+  // the sidebars' widths and whether they and the toolbar show, kept in the browser until the app has its own
   // settings store; storage may be unavailable (private windows)
   function stored (key, fallback) {
     try {
@@ -125,6 +152,7 @@
       Editor,
       Sidebar,
       Outline,
+      Settings,
       Metrics
     },
     data () {
@@ -147,6 +175,14 @@
         // the text moves aside when the sidebar opens; otherwise the sidebar is drawn over the
         // margin and the text stays (moving only as far as needed in a narrow window)
         isTextSliding: stored('sidebar.isTextSliding', false),
+        // the toolbar (Cmd+Alt+T, as "Show Toolbar" in macOS apps)
+        isToolbarShown: stored('toolbar.isShown', true),
+        toolbarHeight,
+        // the settings sidebar, on the right
+        isSettingsShown: stored('settings.isShown', false),
+        settingsWidth: stored('settings.width', 240),
+        // of the text with the cursor, for the toolbar (editor/functions/format/active.js)
+        formats: {},
         // the document's headings, and the index of the one with the cursor
         sections: [],
         activeSection: -1,
@@ -173,10 +209,15 @@
       platform.onCloseRequested(() => this.saving.release())
       // the document is in the page: the window can show without flashing
       platform.ready()
+      // the menu's shortcuts, for the browser (in the app the menu takes them first)
       this.onKeyDown = event => {
         if (event.metaKey && event.ctrlKey && !event.altKey && !event.shiftKey && event.code == 'KeyS') {
           event.preventDefault()
           this.toggleSidebar()
+        }
+        if (event.metaKey && event.altKey && !event.ctrlKey && !event.shiftKey && event.code == 'KeyT') {
+          event.preventDefault()
+          this.toggleToolbar()
         }
       }
       window.addEventListener('keydown', this.onKeyDown)
@@ -189,13 +230,26 @@
         this.isSidebarShown = !this.isSidebarShown
         store('sidebar.isShown', this.isSidebarShown)
       },
+      toggleToolbar () {
+        this.isToolbarShown = !this.isToolbarShown
+        store('toolbar.isShown', this.isToolbarShown)
+      },
+      toggleSettings () {
+        this.isSettingsShown = !this.isSettingsShown
+        store('settings.isShown', this.isSettingsShown)
+      },
       toggleTextSliding () {
         this.isTextSliding = !this.isTextSliding
         store('sidebar.isTextSliding', this.isTextSliding)
       },
-      resizeSidebar (width) {
-        this.sidebarWidth = width
-        store('sidebar.width', width)
+      resizeSidebar ({ side, width }) {
+        if (side == 'left') {
+          this.sidebarWidth = width
+          store('sidebar.width', width)
+        } else {
+          this.settingsWidth = width
+          store('settings.width', width)
+        }
       },
       // native menu commands (src-tauri/src/menu.rs)
       runMenu (command) {
@@ -210,7 +264,8 @@
           undo: () => isInField() ? document.execCommand('undo') : this.$refs.editor.undo(),
           redo: () => isInField() ? document.execCommand('redo') : this.$refs.editor.redo(),
           markdown: () => this.toggleMarkdown(),
-          sidebar: () => this.toggleSidebar()
+          sidebar: () => this.toggleSidebar(),
+          toolbar: () => this.toggleToolbar()
         }
         commands[command]?.()
       },
@@ -279,6 +334,14 @@
     // otherwise scroll the whole app sideways
     > * {
       min-width: 0;
+    }
+
+    // the toolbar over the sidebars and the editor
+    > .main {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      position: relative;
     }
   }
 

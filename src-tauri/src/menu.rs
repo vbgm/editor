@@ -61,6 +61,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     "View",
     true,
     &[
+      &item("toolbar", "Show Toolbar", Some("Alt+CmdOrCtrl+T"))?,
       &item("sidebar", "Show Sidebar", sidebar_shortcut)?,
       &item("markdown", "Show Markdown", Some("CmdOrCtrl+Shift+M"))?,
       &separator()?,

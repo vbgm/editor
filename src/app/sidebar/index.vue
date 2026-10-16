@@ -1,14 +1,14 @@
 <!--
-A layout with a sidebar on the left (default slot) and the main part beside it (center slot), as
-Ordner's (layouts/asides.vue):
+A layout with a sidebar on either side (left and right slots) and the main part between them
+(center slot), as Ordner's (layouts/asides.vue):
 - showing and hiding: the center slides from where its text was to where it lands, and the
   sidebar slides in as far as the text moves, fading in, so its edge and the text move as one
   (and back out when hiding), in 0.3 s
-- isTextSliding off (the default): the sidebar is drawn over the center's left margin and the
-  text stays where it is; where the margin is too narrow, the center is moved right only as far
-  as needed for the sidebar not to cover the anchor (inset). On: the sidebar takes its own
-  column and the center moves aside for it
-- the sidebar's right edge is a 1 px line; a 7 px wide handle over it changes the width by
+- isTextSliding off (the default): the sidebars are drawn over the center's margins and the
+  text stays where it is; where the margins are too narrow, the text is moved aside only as far
+  as needed for no sidebar to cover the anchor (insets). On: the sidebars take their own columns
+  and the center moves aside for them
+- a sidebar's inner edge is a 1 px line; a 7 px wide handle over it changes the width by
   dragging, live, between minWidth and maxWidth
 
 Only transforms and opacity are animated (Web Animations, run by the compositor): the column
@@ -22,30 +22,35 @@ sidebar's width in a wide window), not by the sidebar's width.
 
   <div class='sidebar-layout'>
     <div
+      v-for='sidebar in sidebars'
+      :key='sidebar.side'
       class='sidebar'
-      :class='{overlay: !isTextSliding}'
-      :style='{width: `${isShown ? width : 0}px`}'
+      :class='[sidebar.side, {overlay: !isTextSliding}]'
+      :style='{width: `${sidebar.isShown ? sidebar.width : 0}px`}'
     >
       <div
-        ref='content'
+        :ref='element => setContent(sidebar.side, element)'
         class='content'
-        :class='{hidden: !isShown}'
-        :style='{width: `${width}px`}'
+        :class='{hidden: !sidebar.isShown}'
+        :style='{width: `${sidebar.width}px`}'
       >
-        <slot />
+        <slot :name='sidebar.side' />
       </div>
 
       <div
-        v-if='isShown'
+        v-if='sidebar.isShown'
         class='handle'
-        @pointerdown='resizeStart'
+        @pointerdown='resizeStart(sidebar.side, $event)'
       />
     </div>
 
     <div
       ref='center'
       class='center'
-      :style='{paddingLeft: inset ? `${inset}px` : null}'
+      :style='{
+        paddingLeft: insets.left ? `${insets.left}px` : null,
+        paddingRight: insets.right ? `${insets.right}px` : null
+      }'
     >
       <slot name='center' />
     </div>
@@ -61,44 +66,52 @@ sidebar's width in a wide window), not by the sidebar's width.
   export default {
     name: 'Sidebar',
     props: {
-      isShown: Boolean,
-      width: Number,
-      // the center moves aside for the sidebar; otherwise the sidebar is drawn over it
+      isLeftShown: Boolean,
+      leftWidth: Number,
+      isRightShown: Boolean,
+      rightWidth: Number,
+      // the center moves aside for the sidebars; otherwise they are drawn over it
       isTextSliding: Boolean,
-      // a selector inside the center whose movement the center follows, and which the sidebar
+      // a selector inside the center whose movement the center follows, and which the sidebars
       // must not cover; none: the center itself
       anchor: String
     },
-    // resize: the new width, while dragging the handle
+    // resize: { side, width }, while dragging a handle
     emits: ['resize'],
     data () {
       return {
-        // how far the center is moved right for the sidebar drawn over it
-        inset: 0
+        // how far the center's text is moved in from each side, for sidebars drawn over it
+        insets: { left: 0, right: 0 }
+      }
+    },
+    computed: {
+      sidebars () {
+        return [
+          { side: 'left', isShown: this.isLeftShown, width: this.leftWidth },
+          { side: 'right', isShown: this.isRightShown, width: this.rightWidth }
+        ]
       }
     },
     watch: {
       // before the new layout is rendered: where the center's text is now
-      'isShown': {
+      'isLeftShown': {
         flush: 'pre',
         handler (isShown) {
-          const from = this.anchorLeft()
-          this.updateInset()
-          // a toggle during a toggle starts from where things are drawn now
-          const content = this.$refs.content
-          const style = getComputedStyle(content)
-          const isMoving = this.animations?.some(animation => animation.playState == 'running')
-          const contentFrom = isMoving ? { transform: style.transform == 'none' ? 'translateX(0)' : style.transform, opacity: style.opacity } : null
-          this.animations?.forEach(animation => animation.cancel())
-          this.$nextTick(() => this.slide(isShown, from, contentFrom))
+          this.toggle('left', isShown)
         }
       },
-      // switching it with the sidebar shown moves the text: it slides there
+      'isRightShown': {
+        flush: 'pre',
+        handler (isShown) {
+          this.toggle('right', isShown)
+        }
+      },
+      // switching it with a sidebar shown moves the text: it slides there
       'isTextSliding': {
         flush: 'pre',
         handler () {
           const from = this.anchorLeft()
-          this.updateInset()
+          this.updateInsets()
           this.$nextTick(() => {
             const center = this.$refs.center
             const shift = from - this.anchorLeft()
@@ -106,71 +119,102 @@ sidebar's width in a wide window), not by the sidebar's width.
           })
         }
       },
-      'width' () {
-        this.updateInset()
+      'leftWidth' () {
+        this.updateInsets()
+      },
+      'rightWidth' () {
+        this.updateInsets()
       }
     },
+    created () {
+      // not reactive: each side's content element, and its running slide
+      this.contents = {}
+      this.animations = {}
+    },
     mounted () {
-      this.updateInset()
+      this.updateInsets()
       // a narrower window leaves less margin
-      this.resizeObserver = new ResizeObserver(() => this.updateInset())
+      this.resizeObserver = new ResizeObserver(() => this.updateInsets())
       this.resizeObserver.observe(this.$el)
     },
     beforeUnmount () {
       this.resizeObserver.disconnect()
     },
     methods: {
-      // With the sidebar drawn over the center, the anchor (centered, up to its max-width) must
-      // start right of the sidebar: padding on the center moves it right, half as far as the
-      // padding while it is still centered, all of it once it fills the center.
-      updateInset () {
-        if (!this.isShown || this.isTextSliding) {
-          this.inset = 0
+      setContent (side, element) {
+        this.contents[side] = element
+      },
+      toggle (side, isShown) {
+        const from = this.anchorLeft()
+        this.updateInsets()
+        // a toggle during a toggle starts from where things are drawn now
+        const content = this.contents[side]
+        const style = getComputedStyle(content)
+        const isMoving = this.animations[side]?.playState == 'running'
+        const contentFrom = isMoving ? { transform: style.transform == 'none' ? 'translateX(0)' : style.transform, opacity: style.opacity } : null
+        this.animations[side]?.cancel()
+        // from already holds where the center is drawn now, also by the other side's slide
+        this.animations.center?.cancel()
+        this.$nextTick(() => this.slide(side, isShown, from, contentFrom))
+      },
+      // With sidebars drawn over the center, the anchor (centered, up to its max-width) must be
+      // between them: it stays centered where it fits, moves aside as far as needed where it
+      // does not (padding on the center moves it half as far as the padding), and fills the
+      // room between the sidebars where that is narrower than the anchor.
+      updateInsets () {
+        const left = this.isLeftShown && !this.isTextSliding ? this.leftWidth : 0
+        const right = this.isRightShown && !this.isTextSliding ? this.rightWidth : 0
+        if (!left && !right) {
+          this.insets = { left: 0, right: 0 }
           return
         }
         const space = this.$el.getBoundingClientRect().width
         const element = this.anchor && this.$refs.center.querySelector(this.anchor)
         const maxWidth = element ? parseFloat(getComputedStyle(element).maxWidth) || space : space
-        const margin = (space - Math.min(maxWidth, space)) / 2
-        const width = this.width
-        this.inset = Math.round(margin >= width ? 0 : margin >= width / 2 ? 2 * (width - margin) : width)
+        const width = Math.min(maxWidth, space)
+        if (space - left - right < width) {
+          this.insets = { left, right }
+          return
+        }
+        const middle = Math.min(Math.max(space / 2, left + width / 2), space - right - width / 2)
+        const shift = middle - space / 2
+        this.insets = { left: Math.round(Math.max(0, 2 * shift)), right: Math.round(Math.max(0, -2 * shift)) }
       },
       anchorLeft () {
         const center = this.$refs.center
         const element = (this.anchor && center.querySelector(this.anchor)) || center
         return element.getBoundingClientRect().left
       },
-      slide (isShown, from, contentFrom) {
+      slide (side, isShown, from, contentFrom) {
         const center = this.$refs.center
         // the center is laid out for the new width; draw it where it was and let it slide
         const shift = from - this.anchorLeft() + this.currentShift(center)
         // the sidebar slides as far as the text does, fading, so its edge and the text move as
         // one, at the same speed; where the text stays, a third of its width (as in Ordner)
-        const distance = Math.abs(shift) > 0.5 ? Math.abs(shift) : this.width / 3
-        const hidden = { transform: `translateX(${-distance}px)`, opacity: 0 }
+        const width = side == 'left' ? this.leftWidth : this.rightWidth
+        const distance = Math.abs(shift) > 0.5 ? Math.abs(shift) : width / 3
+        const hidden = { transform: `translateX(${side == 'left' ? -distance : distance}px)`, opacity: 0 }
         const shown = { transform: 'translateX(0)', opacity: 1 }
         const options = { duration, easing }
-        this.animations = [
-          center.animate([{ transform: `translateX(${shift}px)` }, { transform: 'translateX(0)' }], options),
-          this.$refs.content.animate([contentFrom || (isShown ? hidden : shown), isShown ? shown : hidden], options)
-        ]
+        this.animations.center = center.animate([{ transform: `translateX(${shift}px)` }, { transform: 'translateX(0)' }], options)
+        this.animations[side] = this.contents[side].animate([contentFrom || (isShown ? hidden : shown), isShown ? shown : hidden], options)
       },
       // a slide still going on (cancelled above, so normally 0)
       currentShift (element) {
         const transform = getComputedStyle(element).transform
         return transform == 'none' ? 0 : new DOMMatrix(transform).m41
       },
-      resizeStart (event) {
+      resizeStart (side, event) {
         if (event.button != 0) return
         event.preventDefault()
         const handle = event.target
         handle.setPointerCapture(event.pointerId)
         const root = document.documentElement
         root.classList.add('is-resizing')
-        const left = this.$el.getBoundingClientRect().left
+        const { left, right } = this.$el.getBoundingClientRect()
         const move = moveEvent => {
-          const width = Math.round(moveEvent.clientX - left + 2)
-          this.$emit('resize', Math.min(Math.max(width, minWidth), maxWidth))
+          const width = Math.round(side == 'left' ? moveEvent.clientX - left + 2 : right - moveEvent.clientX + 1)
+          this.$emit('resize', { side, width: Math.min(Math.max(width, minWidth), maxWidth) })
         }
         const end = () => {
           root.classList.remove('is-resizing')
@@ -195,7 +239,7 @@ sidebar's width in a wide window), not by the sidebar's width.
     min-height: 0;
     display: flex;
     position: relative;
-    // the hidden sidebar and the sliding center stay out of sight
+    // the hidden sidebars and the sliding center stay out of sight
     overflow: hidden;
   }
 
@@ -203,11 +247,10 @@ sidebar's width in a wide window), not by the sidebar's width.
     flex: 0 0 auto;
     position: relative;
 
-    // drawn over the center's left margin
+    // drawn over the center's margin
     &.overlay {
       position: absolute;
       top: 0;
-      left: 0;
       bottom: 0;
     }
 
@@ -217,33 +260,72 @@ sidebar's width in a wide window), not by the sidebar's width.
     .content {
       position: absolute;
       top: 0;
-      left: 0;
       bottom: 0;
       box-sizing: border-box;
       background: var(--color--background--secondary);
-      // the 1 px right edge
-      box-shadow: inset -1px 0 0 var(--color--border--solid);
-
-      &.hidden {
-        // off screen; no visibility: hidden, which would end the slide out at once
-        transform: translateX(-100%);
-        opacity: 0;
-        pointer-events: none;
-      }
     }
 
     > .handle {
       position: absolute;
       top: 0;
-      right: -@handle-reach;
       width: @handle-reach * 2 + 1px;
       height: 100%;
       cursor: ew-resize;
       z-index: 100;
     }
+
+    &.left {
+      order: 0;
+
+      &.overlay {
+        left: 0;
+      }
+
+      .content {
+        left: 0;
+        // the 1 px edge
+        box-shadow: inset -1px 0 0 var(--color--border--solid);
+
+        &.hidden {
+          // off screen; no visibility: hidden, which would end the slide out at once
+          transform: translateX(-100%);
+        }
+      }
+
+      > .handle {
+        right: -@handle-reach;
+      }
+    }
+
+    &.right {
+      order: 2;
+
+      &.overlay {
+        right: 0;
+      }
+
+      .content {
+        right: 0;
+        box-shadow: inset 1px 0 0 var(--color--border--solid);
+
+        &.hidden {
+          transform: translateX(100%);
+        }
+      }
+
+      > .handle {
+        left: -@handle-reach;
+      }
+    }
+
+    .content.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
   }
 
   .center {
+    order: 1;
     flex: 1 1 auto;
     min-width: 0;
     display: flex;
