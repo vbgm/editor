@@ -350,12 +350,15 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
       box-shadow: inset 0 -1px 0 var(--color--border--panel);
     }
 
-    // everything but the arrow slides and fades
+    // everything but the arrow slides and fades, each on a layer of its own: WebKit moves it as
+    // drawn, smoothly, instead of drawing the thin strokes anew on whole pixels every frame,
+    // which made the icons jitter
     &::before,
     > .center,
     > .end,
     .sidebar {
       transition: transform @slide, opacity @slide;
+      will-change: transform, opacity;
     }
 
     &::before {
