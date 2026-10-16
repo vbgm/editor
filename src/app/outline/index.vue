@@ -2,8 +2,10 @@
 The outline (TOC): the document's headings as a tree, nested by level. A pure component: the
 headings come in as props, clicks and drops go out as events; it knows nothing of the editor.
 
-- An arrow left of a heading with subheadings opens or closes it, as in Ordner's tree (clicking
-  the title only selects). Everything starts open; closed headings are remembered by id.
+- An arrow left of a heading with subheadings opens or closes it, as in Ordner's tree; so does
+  clicking the title of the heading already selected (the section with the cursor), while
+  clicking another title selects it. Everything starts open; closed headings are remembered by
+  id.
 - Dragging a heading (once the pointer has moved 4 px) uses the target mode of the drag engine:
   rows stay put, and the pointer's height over a row decides before / onto / after it
   (foundation/dnd/target.js). canDrop says which drops are allowed; a drop onto a closed heading
@@ -120,7 +122,11 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
         }
         const up = () => {
           stop()
-          this.$emit('select', index)
+          // the heading already selected (the section with the cursor): opens or closes it
+          const section = this.sections[index]
+          const hasChildren = this.sections[index + 1]?.level > section.level
+          if (index == this.activeIndex && hasChildren) this.toggle(section.id)
+          else this.$emit('select', index)
         }
         const stop = () => {
           window.removeEventListener('pointermove', move)
