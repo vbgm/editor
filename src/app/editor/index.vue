@@ -17,6 +17,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   import { EditorView } from '@codemirror/view'
   // local functions
   import { createState, getText, switchMode } from './functions/create-state.js'
+  import { markdownTopShift } from './functions/markdown-top.js'
 
   export default {
     name: 'Editor',
@@ -37,6 +38,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     watch: {
       'text' () {
         this.view.setState(this.createState())
+        if (this.isMarkdownShown) this.alignMarkdownTop()
       },
       'isMarkdownShown' (value) {
         // Safari keeps drawing its caret where it was in the old layout, even though the cursor
@@ -44,6 +46,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         // hide the caret, switch, and once the new lines are painted move the cursor away and
         // back, so the browser's selection is written and the caret drawn anew
         this.isSwitching = true
+        if (value) this.alignMarkdownTop()
         switchMode(this.view, value)
         requestAnimationFrame(() => requestAnimationFrame(() => {
           const { view } = this
@@ -65,6 +68,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         state: this.createState(),
         parent: this.$refs.root
       }))
+      if (this.isMarkdownShown) this.alignMarkdownTop()
       this.view.focus()
     },
     beforeUnmount () {
@@ -76,6 +80,13 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
           isMarkdownShown: this.isMarkdownShown,
           onToggleMarkdown: () => this.$emit('toggleMarkdown')
         })
+      },
+      // the first line's text starts at the same height as in Document mode (markdown-top.js)
+      alignMarkdownTop () {
+        const shift = markdownTopShift(this.$refs.root, this.view.state)
+        this.$refs.root.style.setProperty('--markdown-top', `${shift}px`)
+        // CodeMirror measures the content's padding: let it see the new one
+        this.view.requestMeasure()
       },
       getText () {
         return getText(this.view.state)
@@ -134,10 +145,10 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       line-height: 1.55;
     }
 
-    // the tighter line has less space above its text: add it back at the top, so the first line
-    // stays exactly where it is in Document mode
+    // the first line's capital letters start at the same height as in Document mode, whatever
+    // the fonts and the first block (--markdown-top, measured in markdown-top.js)
     :deep(.cm-markdown .cm-content) {
-      padding-top: calc(2rem + (1.6 - 1.55) * 0.9rem / 2);
+      padding-top: calc(2rem + var(--markdown-top, 0px));
     }
 
     // Document mode (.cm-document) reads as plain text. Space between blocks: transparent borders
