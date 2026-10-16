@@ -2,15 +2,25 @@
 
   <div
     class='app'
-    :style='{"--top-inset": `${topInset}px`}'
+    :style='{"--top-inset": `${topInset}px`, "--title-bar-height": `${titleBarHeight}px`}'
   >
     <div class='main'>
+      <TitleBar
+        v-if='hasOverlayTitleBar'
+        v-bind='{
+          title: windowTitle,
+          isToolbarShown
+        }'
+        @toggleToolbar='toggleToolbar'
+      />
+
       <Toolbar
         v-bind='{
           isShown: isToolbarShown,
           isSidebarShown: isLeftShown,
           isSettingsShown: isRightShown,
           isTextUnder: isTextUnderToolbar,
+          hasTitleBar: hasOverlayTitleBar,
           formats
         }'
         @toggle='toggleToolbar'
@@ -103,6 +113,7 @@
   import platform from '/src/platform/index.js'
   // components
   import Toolbar from './toolbar/index.vue'
+  import TitleBar from './title-bar/index.vue'
   import Editor from './editor/index.vue'
   import Sidebar from './sidebar/index.vue'
   import Outline from './outline/index.vue'
@@ -119,6 +130,9 @@
   // the toolbar's height (3rem): while it shows, the editor and the sidebars start below it, and
   // scroll on under it
   const toolbarHeight = 48
+  // where the app draws the window's title bar (macOS: title-bar/), its height: the toolbar is
+  // below it
+  const titleBarHeight = platform.hasOverlayTitleBar ? 28 : 0
 
   // the sidebars' widths and whether they and the toolbar show, kept in the browser until the app has its own
   // settings store; storage may be unavailable (private windows)
@@ -153,6 +167,7 @@
     name: 'App',
     components: {
       Toolbar,
+      TitleBar,
       Editor,
       Sidebar,
       Outline,
@@ -186,6 +201,10 @@
         settingsWidth: stored('settings.width', 240),
         // the text scrolled up under the toolbar: a line below it
         isTextUnderToolbar: false,
+        // the app draws the window's title bar (macOS: title-bar/), showing windowTitle
+        hasOverlayTitleBar: platform.hasOverlayTitleBar,
+        titleBarHeight,
+        windowTitle: '',
         // of the text with the cursor, for the toolbar (editor/functions/format/active.js)
         formats: {},
         // the document's headings, and the index of the one with the cursor
@@ -196,9 +215,9 @@
       }
     },
     computed: {
-      // px at the top covered by the toolbar
+      // px at the top covered by the title bar (where the app draws it) and the toolbar
       topInset () {
-        return this.isToolbarShown ? toolbarHeight : 0
+        return titleBarHeight + (this.isToolbarShown ? toolbarHeight : 0)
       },
       // the sidebars hide with the toolbar, and come back with it as they were
       isLeftShown () {
@@ -215,13 +234,13 @@
         getText: () => this.$refs.editor.getText(),
         onChange: ({ name, isEdited }) => {
           this.documentName = name
-          platform.setTitle(isEdited ? `${name} — Edited` : name)
+          this.setTitle(isEdited ? `${name} — Edited` : name)
         }
       })
       this.saving.load({ path: null, ...first })
     },
     mounted () {
-      platform.setTitle(first.name)
+      this.setTitle(first.name)
       platform.onMenu(command => this.runMenu(command))
       platform.onFileDrop(paths => this.openPath(paths[0]))
       platform.onCloseRequested(() => this.saving.release())
@@ -256,6 +275,11 @@
         store(storeKey, this[key])
         if (!this.isToolbarShown) this.toggleToolbar()
       },
+      // the window's title, also drawn in the app's title bar (macOS)
+      setTitle (title) {
+        this.windowTitle = title
+        platform.setTitle(title)
+      },
       // The toolbar slides in from the top as the sidebars do from the side (toolbar/index.vue),
       // and the text moves down with it: the body takes its new top inset at once and is drawn
       // moving from where it was (a transform: the editor is laid out once, as for the sidebars).
@@ -266,9 +290,10 @@
         const transform = getComputedStyle(body).transform
         const drawn = transform == 'none' ? 0 : new DOMMatrix(transform).m42
         this.bodySlide?.cancel()
+        const inset = this.topInset
         this.isToolbarShown = !this.isToolbarShown
         store('toolbar.isShown', this.isToolbarShown)
-        const from = drawn + (this.isToolbarShown ? -toolbarHeight : toolbarHeight)
+        const from = drawn + inset - this.topInset
         this.$nextTick(() => {
           this.bodySlide = body.animate([{ transform: `translateY(${from}px)` }, { transform: 'translateY(0)' }], { duration: 300, easing: 'ease' })
         })
@@ -308,7 +333,7 @@
       show (document) {
         this.saving.load(document)
         this.documentName = document.name
-        platform.setTitle(document.name)
+        this.setTitle(document.name)
         this.$refs.editor.load(document.text)
         this.$refs.editor.focus()
       },

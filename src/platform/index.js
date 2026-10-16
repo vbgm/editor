@@ -3,6 +3,9 @@
 // functions:
 //
 //   isApp                                 running in the desktop app
+//   hasOverlayTitleBar                    the window's title bar is laid over the page, its
+//                                         buttons at the top left, its title hidden (macOS): the
+//                                         app draws the title bar (title-bar/)
 //   ready ()                              the first document is drawn: show the window
 //   setTitle (title)
 //   pickFile ()                           Open…: { path, name, text, modified } or null

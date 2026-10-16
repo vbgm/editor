@@ -12,6 +12,9 @@ const markdownFilter = { name: 'Markdown', extensions: ['md', 'markdown', 'txt']
 
 export const isApp = true
 
+// macOS: tauri.macos.conf.json lays the title bar over the page
+export const hasOverlayTitleBar = /Mac/.test(navigator.userAgent)
+
 function nameOf (path) {
   return path.split(/[\\/]/).pop()
 }

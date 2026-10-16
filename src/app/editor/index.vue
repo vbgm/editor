@@ -276,7 +276,7 @@ is scrolled into view below it. `underToolbar` says whether the text is scrolled
   @font-size--markdown: 0.9rem;
   @content-width: 46rem;
   // above the first line, in both modes
-  @content-top: 2rem;
+  @content-top: 1.5rem;
   // inside a line, before its text: the text column starts here (also for hanging lists, quote
   // bars, a selected empty paragraph; dnd/index.js counts on it being 1rem)
   @text-inset: 1rem;

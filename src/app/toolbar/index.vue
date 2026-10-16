@@ -2,7 +2,8 @@
 The toolbar, over the top of the window, the sidebars and the text: they run on under it, seen
 through its translucent, blurred background (as Ordner's folder header); a line below it only
 while a sidebar is shown or the text is scrolled up under it.
-- left: hide or show the toolbar (Cmd+Alt+T), the outline sidebar (Ctrl+Cmd+S)
+- left: hide or show the toolbar (Cmd+Alt+T; in the title bar instead where the app draws it,
+  macOS), the outline sidebar (Ctrl+Cmd+S)
 - center: formatting for the text with the cursor, lit where the cursor's text has it (formats,
   from the editor), in two groups: what a line is (headings H1–H6, a menu where the toolbar is
   too narrow for all six; numbered list, bulleted list, task), then the inline formats
@@ -21,19 +22,12 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
     :class='{hidden: !isShown, lined: isSidebarShown || isSettingsShown || isTextUnder}'
   >
     <div class='start'>
-      <button
+      <Toggle
+        v-if='!hasTitleBar'
         class='button angle'
-        :title='isShown ? `Hide the toolbar (Cmd+Alt+T)` : `Show the toolbar (Cmd+Alt+T)`'
-        @mousedown.prevent=''
-        @click='$emit(`toggle`)'
-      >
-        <span class='glyph'>
-          <Icon
-            name='angle'
-            :value='angle'
-          />
-        </span>
-      </button>
+        :isShown='isShown'
+        @toggle='$emit(`toggle`)'
+      />
 
       <button
         class='button sidebar'
@@ -191,6 +185,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
 
   // components
   import Icon from '/foundation/icon/index.vue'
+  import Toggle from './components/toggle.vue'
 
   // what a line is, after the headings. Each button may have marginLeft and marginRight, px
   // added at its icon's sides (negative: closer), to move it by hand
@@ -212,12 +207,15 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
   export default {
     name: 'Toolbar',
     components: {
-      Icon
+      Icon,
+      Toggle
     },
     props: {
       isShown: Boolean,
       isSidebarShown: Boolean,
       isSettingsShown: Boolean,
+      // the app draws the window's title bar (macOS), which has the arrow
+      hasTitleBar: Boolean,
       // the text scrolled up under the toolbar
       isTextUnder: Boolean,
       // what the text with the cursor has (editor/functions/format/active.js): heading 0–6,
@@ -230,15 +228,10 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
       return {
         lineButtons,
         inlineButtons,
-        isHeadingMenuOpen: false,
-        // the arrow: 0 down, 1 up (morphAngle)
-        angle: this.isShown ? 1 : 0
+        isHeadingMenuOpen: false
       }
     },
     watch: {
-      'isShown' (isShown) {
-        this.morphAngle(isShown ? 1 : 0)
-      },
       // closed by a press anywhere outside it, or Escape
       'isHeadingMenuOpen' (isOpen) {
         if (isOpen) {
@@ -251,25 +244,8 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
     },
     beforeUnmount () {
       this.removeListeners()
-      cancelAnimationFrame(this.frame)
     },
     methods: {
-      // The arrow morphs up while the toolbar shows (it hides it), down while hidden, as long as
-      // the toolbar slides and with the same easing. Safari cannot animate a path's shape in
-      // CSS: the path is drawn anew each frame, its progress eased by a target-less animation.
-      morphAngle (to) {
-        cancelAnimationFrame(this.frame)
-        const from = this.angle
-        const timing = new Animation(new KeyframeEffect(null, null, { duration: 300, easing: 'ease' }))
-        timing.play()
-        const step = () => {
-          const { progress } = timing.effect.getComputedTiming()
-          // done: no progress any more
-          this.angle = progress == null ? to : from + (to - from) * progress
-          if (progress != null) this.frame = requestAnimationFrame(step)
-        }
-        step()
-      },
       // the level of the line with the cursor again: back to text
       setHeading (level) {
         this.$emit('format', 'heading', this.formats.heading == level ? 0 : level)
@@ -303,9 +279,10 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
   // all six heading buttons fit, with the center still in the middle; narrower: the menu
   @compact-width: 37.5rem;
 
+  // below the title bar where the app draws it (macOS: --title-bar-height)
   .toolbar {
     position: absolute;
-    top: 0;
+    top: var(--title-bar-height, 0px);
     left: 0;
     right: 0;
     // above the sidebars

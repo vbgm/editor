@@ -4,6 +4,9 @@
 
 export const isApp = false
 
+// as the macOS app's, to try the layout: ?overlay-title-bar in the address
+export const hasOverlayTitleBar = new URLSearchParams(location.search).has('overlay-title-bar')
+
 export function ready () {}
 
 export function setTitle (title) {
