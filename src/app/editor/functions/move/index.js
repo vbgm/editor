@@ -4,6 +4,7 @@ import { isolateHistory } from '@codemirror/commands'
 // local functions
 import { getBlocks, blockIndexAt } from '../blocks/index.js'
 import shiftHeading from './shift-heading.js'
+import renumber from './renumber.js'
 
 // Every move is a swap of two adjacent spans of blocks, done as one transaction
 // (one undo step). The text of each span moves as it is, including the blank lines inside it;
@@ -15,6 +16,7 @@ import shiftHeading from './shift-heading.js'
 //   moving it past a heading moves it into the neighbouring section
 // - a heading moves together with everything it owns, and only swaps with a sibling heading
 //   of the same level (changing its parent is done by dragging in the outline)
+// Numbered lists the move touched are renumbered in the same transaction (renumber.js).
 
 // last index of the unit starting at index: a heading owns everything up to the next
 // heading of the same or a higher level
@@ -37,9 +39,17 @@ export function moveBlockDown (view) {
 function run ({ state, dispatch }, direction) {
   const blocks = getBlocks(state, { complete: true })
   const spec = direction == 'up' ? specUp(state, blocks) : specDown(state, blocks)
-  if (spec) dispatch(state.update(spec))
+  if (spec) dispatch(withRenumbering(state, spec))
   // handled even when nothing moved, so the default Alt-Shift-Arrow (copy line) does not run
   return true
+}
+
+// the move, and the numbered lists it touched counted up in order again, as one transaction
+export function withRenumbering (state, spec) {
+  const moved = state.update(spec)
+  const { from, insert } = spec.changes
+  const changes = renumber(moved.state, from, from + insert.length)
+  return changes.length ? state.update(spec, { changes, sequential: true }) : moved
 }
 
 // the span under the selection: the block at the cursor, or all blocks the selection touches

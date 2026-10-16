@@ -9,6 +9,32 @@ import shiftHeading from '/src/app/editor/functions/move/shift-heading.js'
 const up = text => getText(runCommand(moveBlockUp, stateWithCursor(text)))
 const down = text => getText(runCommand(moveBlockDown, stateWithCursor(text)))
 
+describe('numbered lists after a move', () => {
+  it('count up in order again', () => {
+    expect(up('1. a\n2. b\n3. c|\n')).toBe('1. a\n2. c\n3. b\n')
+    expect(down('1. a|\n2. b\n3. c\n')).toBe('1. b\n2. a\n3. c\n')
+  })
+
+  it('keep their start and their delimiter', () => {
+    expect(up('5) a\n6) b|\n')).toBe('5) b\n6) a\n')
+  })
+
+  it('stay as they are when every item has the same number', () => {
+    expect(up('1. a\n1. b|\n')).toBe('1. b\n1. a\n')
+  })
+
+  it('number the list an item joins', () => {
+    const once = runCommand(moveBlockDown, stateWithCursor('1. x\n2. y|\n\npara\n\n1. p\n2. q\n'))
+    expect(getText(once)).toBe('1. x\n\npara\n\n1. y\n2. p\n3. q\n')
+    expect(getText(runCommand(moveBlockDown, once))).toBe('1. x\n\npara\n\n1. p\n2. y\n3. q\n')
+  })
+
+  it('renumber in the same undo step as the move', () => {
+    const state = stateWithCursor('1. a\n2. b|\n')
+    expect(getText(undoOnce(runCommand(moveBlockUp, state)))).toBe('1. a\n2. b\n')
+  })
+})
+
 describe('keyboard moves', () => {
   it('swaps paragraphs', () => {
     expect(down('one|\n\ntwo\n\nthree\n')).toBe('two\n\none\n\nthree\n')

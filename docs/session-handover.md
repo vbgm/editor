@@ -27,7 +27,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421 (what gets tested)
-npm test             # vitest, 109 tests (node + jsdom)
+npm test             # vitest, 114 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -57,7 +57,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/blocks/index.js` | blocks from the syntax tree: every top-level element, every top-level list item |
 | `editor/functions/blocks/decorations.js` | line classes for spacing (`cm-block-first/last`, type); mapped while typing, re-checked when idle |
 | `editor/functions/blocks/select.js` | block-aware Shift+↑/↓ |
-| `editor/functions/move/` | block moves as swaps of adjacent spans, heading level shift (for the outline later) |
+| `editor/functions/move/` | block moves as swaps of adjacent spans, heading level shift (for the outline later), renumbering numbered lists after a move |
 | `editor/functions/gaps/` | hiding blank lines between blocks (state field, updated only around edits), Enter/Backspace/Delete on blocks, click/cursor fixes |
 | `editor/functions/syntax/` | hiding Markdown syntax, widgets, cursor placement behind hidden line marks, `textStart` |
 | `editor/functions/format/` | formatting commands and their keymap |
@@ -86,4 +86,4 @@ Card boxes around blocks (as line styling, then as a layer); a Look switch with 
 - **Tauri shell** (Milestone 2 in handover.md): install Rust, Tauri 2, platform adapter, no-flash window, native menu with the shortcuts and Document/Markdown in the View menu; measure in WKWebView, WebView2, WebKitGTK.
 - **Files** (Milestone 4): open/save, autosave, atomic writes, external-change reload (keep undo: apply as a minimal diff), recent files, session.
 - **Outline and drag-and-drop** (Milestone 5): one pointer-events drag engine in `/foundation` with two modes (displace for blocks, target lines for the outline tree, as decided); the drag handle appears only in the left margin next to a block, never over the text; outline moves use `moveSpec` with `levelDelta`.
-- Smaller open items: renumber ordered lists after moves; Cmd-click to open links; tables, HTML and front matter are still shown raw in Document mode; a fence or setext heading loses a little spacing where its line collapses; images via TextBundle later; check Cmd+1…6 in Safari.
+- Smaller open items: Cmd-click to open links; tables, HTML and front matter are still shown raw in Document mode; a fence or setext heading loses a little spacing where its line collapses; images via TextBundle later; check Cmd+1…6 in Safari.

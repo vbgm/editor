@@ -68,6 +68,7 @@ Measured key press → paint per look (cards, styled, plain CodeMirror, raw cont
 - **Minimal look**: the page looks like plain text: no card boxes, no highlight of the block with the cursor, only spacing between blocks.
 - **Spacing**: one gap between blocks (paragraphs, a heading and its text, a list and the paragraph after it); headings get more room above. List items sit close together; a list as a whole is spaced like a paragraph. (Cards were tried and dropped: they were only useful for measuring.)
 - **Drag handle** (to come with drag-and-drop): appears only while the mouse is in the left margin next to a block, never when hovering over the text.
+- **Numbered lists after a move** count up in order again, in the same undo step: a list keeps its lowest number as its start and each item its `.` or `)`; a list whose items all have the same number (`1.` `1.` `1.`) is left as it is.
 - **Shortcuts**: Cmd+1…6 heading level, Cmd+0 paragraph, Cmd+7 numbered list, Cmd+8 bullet list, Cmd+B bold, Cmd+I italic, Cmd+E inline code, Cmd+K link, Cmd+Shift+X strikethrough (Cmd+X is cut), Cmd+Shift+M show Markdown (Cmd+M minimizes).
   - The line formats also work with **Cmd+Alt+number**: browsers reserve Cmd+number for switching tabs (Chrome never lets a page have it), so this second set works everywhere. In the app, Cmd+number are native menu items.
   - Not Cmd+Shift+number (macOS takes Cmd+Shift+3/4/5 for screenshots), not Alt+number alone (types characters such as `[ ] | { }` on many keyboard layouts).
