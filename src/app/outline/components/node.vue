@@ -171,9 +171,9 @@ with the height transition's own duration and easing.
   @fade-in-duration: @fold-duration;
   @fade-in-delay: @fold-duration * 0.4;
   @fade-in-easing: @fold-easing;
-  @fade-out-duration: @fold-duration * 0.5;
+  @fade-out-duration: @fold-duration * 0.15;
   @fade-out-delay: 0s;
-  @fade-out-easing: @fold-easing;
+  @fade-out-easing: cubic-bezier(0.4, 0, 1, 1);
   // the arrow turning
   @arrow-turn: 0.2s;
   // a row's height (rowHeight in index.vue, which also sets the nodes' heights)
