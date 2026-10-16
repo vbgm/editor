@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 // local
 import { createState, getText, stateWithCursor, undoOnce } from './helpers.js'
-import { getOutline, activeIndex, dropLevel, outlineMove } from '/src/app/editor/functions/outline/index.js'
+import { getOutline, activeIndex, dropLevel, outlineMove, renameSpec } from '/src/app/editor/functions/outline/index.js'
 import { target, positionIn } from '/foundation/dnd/target.js'
 
 const outlineOf = text => getOutline(createState(text), { complete: true })
@@ -111,5 +111,36 @@ describe('target mode', () => {
     expect(mode.slotAt(0, 0, 45)).toBe(null)
     expect(mode.slotAt(0, 0, 90)).toBe(null)
     expect(mode.isSame({ index: 0, position: 'onto' }, { index: 0, position: 'onto' })).toBe(true)
+  })
+})
+
+describe('renaming in the outline', () => {
+  const rename = (text, index, title) => {
+    const state = createState(text)
+    const spec = renameSpec(state, getOutline(state, { complete: true })[index], title)
+    return spec ? getText(state.update(spec).state) : null
+  }
+
+  it('replaces the text between the marks', () => {
+    expect(rename('# A\n\n## Old ##\n\nbody\n', 1, 'New')).toBe('# A\n\n## New ##\n\nbody\n')
+    expect(rename('#   Spaced\n', 0, 'Other')).toBe('#   Other\n')
+  })
+
+  it('replaces the Markdown inside the heading with the text', () => {
+    expect(rename('## A **bold** word\n', 0, 'A plain word')).toBe('## A plain word\n')
+  })
+
+  it('keeps a setext heading\'s underline', () => {
+    expect(rename('Title\non two lines\n===\n\ntext\n', 0, 'One line')).toBe('One line\n===\n\ntext\n')
+  })
+
+  it('changes nothing for the same title', () => {
+    expect(rename('## A **bold** word\n', 0, 'A bold word')).toBe(null)
+  })
+
+  it('is one undo step', () => {
+    const state = createState('# Old\n')
+    const spec = renameSpec(state, getOutline(state, { complete: true })[0], 'New')
+    expect(getText(undoOnce(state.update(spec).state))).toBe('# Old\n')
   })
 })

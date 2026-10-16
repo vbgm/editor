@@ -161,3 +161,41 @@ export function headingTextStart (state, entry) {
   const marks = /^ {0,3}#{1,6}[ \t]+/.exec(line.text)
   return line.from + (marks ? marks[0].length : 0)
 }
+
+// Renaming a heading from the outline: its text (between the '#' marks and any closing '#'s, or
+// above a setext heading's underline) becomes text, as one undo step; the marks stay. The text
+// is the title as the outline shows it, so a heading's Markdown inside it (bold, links) is
+// replaced along with it. Nothing changes when the text is the same as the title.
+export function renameSpec (state, entry, text) {
+  if (text == entry.title) return null
+  const tree = ensureSyntaxTree(state, state.doc.length, 5000) || syntaxTree(state)
+  let node = tree.topNode.firstChild
+  while (node && node.from < entry.from) node = node.nextSibling
+  if (!node || !/^(ATX|Setext)Heading/.test(node.name)) return null
+
+  const marks = []
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name == 'HeaderMark') marks.push(child)
+  }
+  const doc = state.doc
+  let from = node.from
+  let to = node.to
+  if (/^ATX/.test(node.name)) {
+    const opening = marks[0]
+    const closing = marks.length > 1 ? marks[marks.length - 1] : null
+    from = opening ? opening.to : node.from
+    to = closing ? closing.from : doc.lineAt(node.from).to
+  } else if (marks.length) {
+    // the underline's line stays
+    to = doc.lineAt(marks[marks.length - 1].from).from - 1
+  }
+  // the spaces around the text stay as they are
+  const content = doc.sliceString(from, to)
+  from += content.length - content.trimStart().length
+  to -= content.length - content.trimEnd().length
+  return {
+    changes: { from, to: Math.max(from, to), insert: text },
+    userEvent: 'input.rename',
+    annotations: isolateHistory.of('full')
+  }
+}

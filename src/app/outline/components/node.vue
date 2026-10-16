@@ -47,9 +47,32 @@ with the height transition's own duration and easing.
 
       <div
         class='anchor'
-        :class='{active: node.index == activeIndex, untitled: !node.section.title}'
+        :class='{active: node.index == activeIndex, untitled: !node.section.title && !isEditing}'
       >
-        {{ node.section.title || `Untitled` }}
+        <!-- renaming: the title as a text field that looks like the title itself, as wide as its
+        text (a hidden copy of the text in the same place sets the width) -->
+        <span
+          v-if='isEditing'
+          class='rename-box'
+          :data-value='editingValue'
+        >
+          <input
+            ref='input'
+            class='rename'
+            size='1'
+            :value='editingValue'
+            spellcheck='false'
+            @input='input($event.target.value)'
+            @keydown.enter.prevent.stop='finish(true, true)'
+            @keydown.esc.prevent.stop='finish(false, true)'
+            @blur='finish(true, false)'
+          >
+        </span>
+        <!-- the text alone: hovering it shows the text cursor, a click on it edits there -->
+        <span
+          v-else
+          class='title'
+        >{{ node.section.title || `Untitled` }}</span>
       </div>
     </div>
 
@@ -71,9 +94,13 @@ with the height transition's own duration and easing.
             rowHeight,
             activeIndex,
             draggedIndex,
-            dropSlot
+            dropSlot,
+            editingId,
+            editingCaret
           }'
           @toggle='$emit(`toggle`, $event)'
+          @renameInput='$emit(`renameInput`, $event)'
+          @rename='$emit(`rename`, $event)'
         />
       </ul>
     </transition>
@@ -96,10 +123,36 @@ with the height transition's own duration and easing.
       draggedIndex: Number,
       // where a drag would drop: { index, position }
       dropSlot: Object,
+      // id of the heading being renamed, and where its cursor starts (offset in the title)
+      editingId: String,
+      editingCaret: Number,
       isTop: Boolean
     },
-    emits: ['toggle'],
+    // renameInput: { index, text } on every change; rename: { index, text, byKey } at the end,
+    // text null when cancelled, byKey for Enter / Escape
+    emits: ['toggle', 'renameInput', 'rename'],
+    watch: {
+      // the field takes the focus, its cursor where the title was clicked
+      'isEditing' (isEditing) {
+        if (isEditing) this.editingValue = this.node.section.title
+        if (isEditing) this.$nextTick(() => {
+          const { input } = this.$refs
+          const caret = Math.min(this.editingCaret ?? input.value.length, input.value.length)
+          input.focus()
+          input.setSelectionRange(caret, caret)
+        })
+      }
+    },
+    data () {
+      return {
+        // the text in the rename field
+        editingValue: ''
+      }
+    },
     computed: {
+      isEditing () {
+        return this.editingId != null && this.editingId == this.node.section.id
+      },
       isExpanded () {
         return !this.collapsed[this.node.section.id]
       },
@@ -113,6 +166,18 @@ with the height transition's own duration and easing.
       }
     },
     methods: {
+      input (text) {
+        this.editingValue = text
+        this.$emit('renameInput', { index: this.node.index, text })
+      },
+      // Enter or leaving the field saves, Escape cancels; only once (saving moves the focus,
+      // which blurs the field)
+      finish (isSaved, byKey) {
+        if (!this.isEditing || this.isFinished) return
+        this.isFinished = true
+        this.$emit('rename', { index: this.node.index, text: isSaved ? this.$refs.input.value : null, byKey })
+        this.$nextTick(() => { this.isFinished = false })
+      },
       enter (element, done) {
         this.fold(element, true, done)
       },
@@ -176,6 +241,8 @@ with the height transition's own duration and easing.
   @fade-out-easing: cubic-bezier(0.4, 0, 1, 1);
   // the arrow turning
   @arrow-turn: 0.2s;
+  // how far past a title's text a click still edits it (the cursor at the end)
+  @title-reach: 0.5rem;
   // a row's height (rowHeight in index.vue, which also sets the nodes' heights)
   @row-height: var(--row-height);
 
@@ -326,6 +393,53 @@ with the height transition's own duration and easing.
 
     &.untitled {
       color: var(--color--text--secondary);
+    }
+
+    // the title's text, and a little past its end: a text field to the mouse (the rest of the
+    // row selects)
+    > .title {
+      cursor: text;
+      padding-right: @title-reach;
+    }
+
+    // no look of its own: the title, editable
+    // the field and a hidden copy of its text share one grid cell: the field is as wide as the
+    // text (and a space more, for the cursor at its end), so a click beside the text is outside
+    // it and ends editing
+    > .rename-box {
+      display: inline-grid;
+      max-width: 100%;
+      vertical-align: top;
+
+      // the field reaches as far past its text as the title does, so a click there puts the
+      // cursor at the end
+      &::after {
+        content: attr(data-value) ' ';
+        grid-area: 1 / 1;
+        visibility: hidden;
+        white-space: pre;
+        overflow: hidden;
+        padding-right: @title-reach;
+      }
+    }
+
+    // (size 1: a text field is about 20 characters wide by itself, which would set the cell's
+    // width)
+    .rename {
+      grid-area: 1 / 1;
+      min-width: 1px;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0 @title-reach 0 0;
+      border: 0;
+      outline: none;
+      background: transparent;
+      font: inherit;
+      color: inherit;
+      line-height: inherit;
+      user-select: text;
+      -webkit-user-select: text;
     }
   }
 

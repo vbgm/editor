@@ -16,6 +16,7 @@ only when it changed; so is the heading of the section with the cursor.
 
   // npm packages
   import { markRaw } from 'vue'
+  import { Transaction } from '@codemirror/state'
   import { EditorView } from '@codemirror/view'
   import { syntaxTree } from '@codemirror/language'
   // local functions
@@ -23,7 +24,7 @@ only when it changed; so is the heading of the section with the cursor.
   import { markdownTopShift } from './functions/markdown-top.js'
   import { redrawCaret } from './functions/redraw-caret.js'
   import { idleScheduler } from './functions/blocks/decorations.js'
-  import { getOutline, activeIndex, dropLevel, outlineMove, headingTextStart } from './functions/outline/index.js'
+  import { getOutline, activeIndex, dropLevel, outlineMove, headingTextStart, renameSpec } from './functions/outline/index.js'
   import { dispatchMove } from './functions/move/animate.js'
 
   export default {
@@ -126,6 +127,43 @@ only when it changed; so is the heading of the section with the cursor.
       // whether the heading at outline index from can be dropped at slot (outline/index.js)
       canDropSection (from, slot) {
         return dropLevel(this.outline, from, slot) != null
+      },
+      // Renaming a heading from the outline shows each keystroke in the text at once
+      // (previewRename), outside the undo history; when it ends (finishRename), the original
+      // is put back unseen and the final title applied, so a rename is one undo step. The editor
+      // keeps its scroll position and its cursor.
+      startRename (index) {
+        const entry = getOutline(this.view.state, { complete: true })[index]
+        this.rename = entry ? { from: entry.from, doc: this.view.state.doc, changes: null } : null
+      },
+      previewRename (text) {
+        const { rename } = this
+        const { state } = this.view
+        // an empty title would make the heading a bare '#', a paragraph: the last one stays
+        const entry = rename && text.trim() && getOutline(state, { complete: true }).find(other => other.from == rename.from)
+        const spec = entry && renameSpec(state, entry, text)
+        if (!spec) return
+        const transaction = state.update({ ...spec, annotations: Transaction.addToHistory.of(false) })
+        rename.changes = rename.changes ? rename.changes.compose(transaction.changes) : transaction.changes
+        this.view.dispatch(transaction)
+      },
+      // text: the title to keep, null to put the original back
+      finishRename (text) {
+        const { rename } = this
+        this.rename = null
+        if (!rename) return
+        if (rename.changes) {
+          this.view.dispatch({ changes: rename.changes.invert(rename.doc), annotations: Transaction.addToHistory.of(false) })
+        }
+        if (text) {
+          const { state } = this.view
+          const entry = getOutline(state, { complete: true }).find(other => other.from == rename.from)
+          const spec = entry && renameSpec(state, entry, text)
+          if (spec) this.view.dispatch(spec)
+        }
+        // the outline at once: editing another heading right after starts from the titles as
+        // they are now
+        this.sendOutline()
       },
       // drops the heading at outline index from at slot { index, position }: one undo step, the
       // moved lines slide where they are drawn; the editor keeps its scroll position

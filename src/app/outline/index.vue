@@ -3,9 +3,15 @@ The outline (TOC): the document's headings as a tree, nested by level. A pure co
 headings come in as props, clicks and drops go out as events; it knows nothing of the editor.
 
 - An arrow left of a heading with subheadings opens or closes it, as in Ordner's tree; so does
-  clicking the title of the heading already selected (the section with the cursor), while
-  clicking another title selects it. Everything starts open; closed headings are remembered by
+  a click on the row of the heading already selected (the section with the cursor), while a
+  click on another row selects it. Everything starts open; closed headings are remembered by
   id.
+- The title's text works as a text field: hovering it shows the text cursor, and a click on it
+  edits the title in place, the cursor where it was clicked (the title becomes a text field that
+  looks like it, as wide as its text). Enter or a click outside the text saves (emits rename);
+  a click on another heading's text then edits that one, a click anywhere else does nothing
+  more. Escape cancels, empty is cancelled. After Enter or Escape the focus stays in the outline (for keyboard navigation);
+  after a click elsewhere it goes where that click puts it.
 - Dragging a heading (once the pointer has moved 4 px) uses the target mode of the drag engine:
   rows stay put, and the pointer's height over a row decides before / onto / after it
   (foundation/dnd/target.js). canDrop says which drops are allowed; a drop onto a closed heading
@@ -16,6 +22,7 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
   <div
     ref='scroller'
     class='outline'
+    tabindex='0'
     :style='{"--row-height": `${rowHeight}px`}'
     @pointerdown='pointerDown'
   >
@@ -33,9 +40,13 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
           activeIndex,
           draggedIndex,
           dropSlot,
+          editingId,
+          editingCaret,
           isTop: true
         }'
         @toggle='toggle'
+        @renameInput='$emit(`renameInput`, $event)'
+        @rename='finishRename'
       />
     </ul>
 
@@ -60,6 +71,13 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
   // how far the pointer moves before a press becomes a drag (less is a click)
   const dragDistance = 4
 
+  // where in its text node a click at x, y is (Safari has caretRangeFromPoint); null when the
+  // browser cannot tell
+  function caretAt (x, y) {
+    if (document.caretPositionFromPoint) return document.caretPositionFromPoint(x, y)?.offset ?? null
+    return document.caretRangeFromPoint?.(x, y)?.startOffset ?? null
+  }
+
   export default {
     name: 'Outline',
     components: {
@@ -76,24 +94,36 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
         default: () => true
       }
     },
-    // select: index; move: { from, slot: { index, position } }
-    emits: ['select', 'move'],
+    // select: index; move: { from, slot: { index, position } }; renaming: renameStart: index,
+    // renameInput: { index, text } on every change, rename: { index, text } at the end, text
+    // null when cancelled or unchanged
+    emits: ['select', 'move', 'renameStart', 'renameInput', 'rename'],
     data () {
       return {
         rowHeight,
         // id: true for closed headings
         collapsed: {},
         draggedIndex: -1,
-        dropSlot: null
+        dropSlot: null,
+        // id of the heading being renamed, and where its cursor starts
+        editingId: null,
+        editingCaret: null,
+        // while renaming, the headings as they were when it started: the title changing in the
+        // editor would change the row's id and rebuild it, field and all
+        frozen: null
       }
     },
     computed: {
+      // the headings shown
+      items () {
+        return this.frozen || this.sections
+      },
       // [{ section, index, children }]: a heading's children are the deeper headings after it, up
       // to the next one of its level or higher
       tree () {
         const roots = []
         const stack = []
-        this.sections.forEach((section, index) => {
+        this.items.forEach((section, index) => {
           const node = { section, index, children: [] }
           while (stack.length && stack[stack.length - 1].section.level >= section.level) stack.pop()
           if (stack.length) stack[stack.length - 1].children.push(node)
@@ -108,13 +138,27 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
         if (this.collapsed[id]) delete this.collapsed[id]
         else this.collapsed[id] = true
       },
-      // a press on a row: a click selects the heading, a move starts a drag; the editor keeps
-      // the focus either way
+      // a press on a row: a click on the title's text edits it, elsewhere selects the heading
+      // (or opens or closes the selected one); a move starts a drag. The editor keeps the
+      // focus unless editing starts.
       pointerDown (event) {
+        // the rename field works as a text field
+        if (event.target.closest('.rename')) return
         const item = event.button == 0 && event.target.closest('.item')
         if (!item) return
         event.preventDefault()
         const index = Number(item.dataset.index)
+        // While a title is being edited, a press saves it and ends editing (the press does not
+        // move the focus, so the field is left by hand); on another heading's text it edits that
+        // one at once, anywhere else it does nothing more.
+        const onText = event.target.closest('.title')
+        const field = document.activeElement?.classList.contains('rename') && document.activeElement
+        if (field) {
+          field.blur()
+          if (!onText) return
+        }
+        // on the title's text: where its cursor goes when editing (the end, when unknown)
+        const caret = onText ? caretAt(event.clientX, event.clientY) ?? Infinity : null
         const move = moveEvent => {
           if (Math.hypot(moveEvent.clientX - event.clientX, moveEvent.clientY - event.clientY) < dragDistance) return
           stop()
@@ -122,11 +166,8 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
         }
         const up = () => {
           stop()
-          // the heading already selected (the section with the cursor): opens or closes it
-          const section = this.sections[index]
-          const hasChildren = this.sections[index + 1]?.level > section.level
-          if (index == this.activeIndex && hasChildren) this.toggle(section.id)
-          else this.$emit('select', index)
+          if (caret != null) this.startRename(index, caret)
+          else this.click(index)
         }
         const stop = () => {
           window.removeEventListener('pointermove', move)
@@ -134,6 +175,42 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
         }
         window.addEventListener('pointermove', move)
         window.addEventListener('pointerup', up)
+      },
+      // a click on the heading already selected (the section with the cursor) opens or closes
+      // it, on another heading selects it
+      click (index) {
+        const section = this.items[index]
+        const hasChildren = this.items[index + 1]?.level > section.level
+        if (index == this.activeIndex && hasChildren) this.toggle(section.id)
+        else this.$emit('select', index)
+      },
+      startRename (index, caret) {
+        this.frozen = this.items
+        this.editingCaret = caret
+        this.editingId = this.items[index].id
+        this.$emit('renameStart', index)
+      },
+      // text: the new title, null when cancelled; after Enter or Escape the focus stays in the
+      // outline (for the keyboard), after a click elsewhere it is where that click put it. A
+      // closed heading stays closed under its new title.
+      finishRename ({ index, text, byKey }) {
+        const section = this.items[index]
+        this.editingId = null
+        this.frozen = null
+        if (byKey) this.$refs.scroller.focus({ preventScroll: true })
+        const title = text?.trim()
+        if (!title || title == section.title) return this.$emit('rename', { index, text: null })
+        if (this.collapsed[section.id]) {
+          delete this.collapsed[section.id]
+          this.collapsed[this.idFor(index, title)] = true
+        }
+        this.$emit('rename', { index, text: title })
+      },
+      // the id the heading at index gets with title (as the editor gives ids: the title, and
+      // which heading of that title it is)
+      idFor (index, title) {
+        const count = this.items.filter((section, other) => other < index && section.title == title).length + 1
+        return count > 1 ? `${title} ${count}` : title
       },
       drag (event, item, index) {
         const scroller = this.$refs.scroller
@@ -182,7 +259,7 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
             const slot = this.dropSlot
             finish()
             if (!slot) return
-            if (slot.position == 'onto') delete this.collapsed[this.sections[slot.index].id]
+            if (slot.position == 'onto') delete this.collapsed[this.items[slot.index].id]
             this.$emit('move', { from: index, slot })
           },
           onCancel: finish
@@ -195,6 +272,7 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
 
   .outline {
     height: 100%;
+    outline: none;
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;

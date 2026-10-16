@@ -39,6 +39,9 @@
         }'
         @select='$refs.editor.selectSection($event)'
         @move='$refs.editor.moveSection($event.from, $event.slot)'
+        @renameStart='$refs.editor.startRename($event)'
+        @renameInput='$refs.editor.previewRename($event.text)'
+        @rename='$refs.editor.finishRename($event.text)'
       />
 
       <template #center>
