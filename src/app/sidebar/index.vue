@@ -3,7 +3,7 @@ A layout with a sidebar on either side (left and right slots) and the main part 
 (center slot), as Ordner's (layouts/asides.vue):
 - showing and hiding: the center slides from where its text was to where it lands, and the
   sidebar slides in as far as the text moves, fading in, so its edge and the text move as one
-  (and back out when hiding), in 0.3 s
+  (and back out when hiding), as the toolbar does (functions/slides.js)
 - isTextSliding off (the default): the sidebars are drawn over the center's margins and the
   text stays where it is; where the margins are too narrow, the text is moved aside only as far
   as needed for no sidebar to cover the anchor (insets). On: the sidebars take their own columns
@@ -60,8 +60,9 @@ sidebar's width in a wide window), not by the sidebar's width.
 
 </template><script>
 
-  const duration = 300
-  const easing = 'ease'
+  // local functions
+  import { slideIn, slideOut, slideDistance } from '../functions/slides.js'
+
   const minWidth = 160
   const maxWidth = 400
 
@@ -117,7 +118,7 @@ sidebar's width in a wide window), not by the sidebar's width.
           this.$nextTick(() => {
             const center = this.$refs.center
             const shift = from - this.anchorLeft()
-            if (shift) center.animate([{ transform: `translateX(${shift}px)` }, { transform: 'translateX(0)' }], { duration, easing })
+            if (shift) center.animate([{ transform: `translateX(${shift}px)` }, { transform: 'translateX(0)' }], slideIn)
           })
         }
       },
@@ -195,12 +196,12 @@ sidebar's width in a wide window), not by the sidebar's width.
         // the center is laid out for the new width; draw it where it was and let it slide
         const shift = from - this.anchorLeft() + this.currentShift(center)
         // the sidebar slides as far as the text does, fading, so its edge and the text move as
-        // one, at the same speed; where the text stays, a third of its width (as in Ordner)
-        const width = side == 'left' ? this.leftWidth : this.rightWidth
-        const distance = Math.abs(shift) > 0.5 ? Math.abs(shift) : width / 3
+        // one, at the same speed; where the text stays, as far as the toolbar does, so both move
+        // as fast
+        const distance = Math.abs(shift) > 0.5 ? Math.abs(shift) : slideDistance
         const hidden = { transform: `translateX(${side == 'left' ? -distance : distance}px)`, opacity: 0 }
         const shown = { transform: 'translateX(0)', opacity: 1 }
-        const options = { duration, easing }
+        const options = isShown ? slideIn : slideOut
         this.animations.center = center.animate([{ transform: `translateX(${shift}px)` }, { transform: 'translateX(0)' }], options)
         this.animations[side] = this.contents[side].animate([contentFrom || (isShown ? hidden : shown), isShown ? shown : hidden], options)
       },

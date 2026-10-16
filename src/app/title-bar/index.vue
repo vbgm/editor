@@ -3,7 +3,8 @@ The window's title bar where the app draws it (macOS: the native one is laid ove
 own title hidden, tauri.macos.conf.json): a row as high as a plain title bar (28 px), above
 the toolbar. The window's buttons are at its left, where macOS puts them; the title (the file
 name, and "— Edited") in the middle of the window, not after the buttons as macOS would have it;
-the arrow that hides and shows the toolbar at the right, on the buttons' middle line. Its empty
+the button that hides and shows the toolbar at the right, a grey circle a little larger than the
+window's buttons, on their middle line. Its empty
 parts move the window, and a double click zooms it (data-tauri-drag-region).
 -->
 <template>
@@ -22,6 +23,7 @@ parts move the window, and a double click zooms it (data-tauri-drag-region).
     <Toggle
       class='toggle'
       :isShown='isToolbarShown'
+      isCircle
       @toggle='$emit(`toggleToolbar`)'
     />
   </div>
@@ -49,7 +51,6 @@ parts move the window, and a double click zooms it (data-tauri-drag-region).
   @height: 28px;
   // the window's buttons at the left, and as much room at the right: the title stays centred
   @buttons-width: 5rem;
-  @fade: 0.3s ease;
 
   .title-bar {
     position: absolute;
@@ -79,30 +80,23 @@ parts move the window, and a double click zooms it (data-tauri-drag-region).
     color: var(--color--text--secondary);
   }
 
-  // as the toolbar's buttons, on the window buttons' middle line (a little below the row's)
+  // the window's buttons' mirror image: on their middle line (a little below the row's), its
+  // edge about as far from the window's right edge as theirs from the left
   .toggle {
     position: absolute;
     top: calc(50% + 2px);
-    right: 0.25rem;
+    right: 4px;
     transform: translateY(-50%);
     appearance: none;
     display: flex;
     margin: 0;
-    padding: 0.2rem 0.5rem;
+    padding: 4px;
     border: 0;
     background: none;
-    color: var(--color--text--secondary);
+    // the circle's: the toolbar icons' colour, fainter (mixed into the page's, not see-through,
+    // so its edge and its filling are the same colour); the same under the mouse
+    color: color-mix(in srgb, var(--color--text--secondary) 40%, var(--color--background));
     cursor: pointer;
-    transition: color @fade;
-
-    &:hover {
-      color: var(--color--text--secondary--hover);
-    }
-
-    &:active {
-      color: var(--color--text--secondary--active);
-      transition: none;
-    }
   }
 
 </style>

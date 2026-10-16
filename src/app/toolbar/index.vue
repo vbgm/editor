@@ -8,7 +8,7 @@ while a sidebar is shown or the text is scrolled up under it.
   from the editor), in two groups: what a line is (headings H1–H6, a menu where the toolbar is
   too narrow for all six; numbered list, bulleted list, task), then the inline formats
 - right: the settings sidebar
-Hiding and showing, it slides out at the top and back in, fading, in 0.3 s, as the sidebars do;
+Hiding and showing, it slides out at the top and back in, fading, quickly (App's toolbarSlide);
 the app moves the text with it (App's toggleToolbar). Hidden, only the arrow to show it again
 stays, in its place, and is drawn only under the mouse.
 Buttons look like Ordner's (ActionIconStyled): icons only, no background; the icon's colour
@@ -276,6 +276,9 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
   // in the center's groups: between one icon and the next, as drawn
   @spacing: 1rem;
   @fade: 0.3s ease;
+  // sliding in and out: as fast as the text moves with it (App's toolbarSlide)
+  @slide: var(--toolbar-slide-duration, 0.3s) var(--toolbar-slide-easing, ease);
+  @slide-duration: var(--toolbar-slide-duration, 0.3s);
   // all six heading buttons fit, with the center still in the middle; narrower: the menu
   @compact-width: 37.5rem;
 
@@ -352,11 +355,11 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
     > .center,
     > .end,
     .sidebar {
-      transition: transform @fade, opacity @fade;
+      transition: transform @slide, opacity @slide;
     }
 
     &::before {
-      transition: transform @fade, opacity @fade, box-shadow @fade;
+      transition: transform @slide, opacity @slide, box-shadow @fade;
     }
 
     // hidden: the bar is slid up out of sight; the arrow stays, drawn only under the mouse
@@ -375,7 +378,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
       > .end,
       .sidebar {
         visibility: hidden;
-        transition: transform @fade, opacity @fade, visibility 0s 0.3s;
+        transition: transform @slide, opacity @slide, visibility 0s @slide-duration;
       }
 
       .angle {
