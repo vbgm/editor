@@ -11,7 +11,7 @@ import { moveBlockUp, moveBlockDown } from './move/index.js'
 import { selectBlockUp, selectBlockDown } from './blocks/select.js'
 import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
-import gaps, { cursorForDocument } from './gaps/index.js'
+import gaps, { cursorForDocument, selectedEmptyParagraphs } from './gaps/index.js'
 import markdownShown from './markdown-shown.js'
 import { insertNewBlock, newParagraphAfterQuote, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from './gaps/commands.js'
 import literalTyping from './literal-typing.js'
@@ -111,6 +111,7 @@ function documentExtensions (bare, isMarkdownShown, isLiteral) {
   return [
     blockLines,
     caretRedrawAfterIndent,
+    selectedEmptyParagraphs,
     modeCompartment.of(modeExtensions(isMarkdownShown)),
     literalCompartment.of(isLiteral ? literalTyping : []),
     Prec.high(keymap.of([

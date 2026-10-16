@@ -1,6 +1,6 @@
 // npm packages
 import { StateField, RangeSet, EditorState, EditorSelection } from '@codemirror/state'
-import { Decoration, EditorView } from '@codemirror/view'
+import { Decoration, EditorView, ViewPlugin } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 // local functions
 import { getBlocksInRange } from '../blocks/index.js'
@@ -19,6 +19,11 @@ import { getBlocksInRange } from '../blocks/index.js'
 // The blank line with the cursor (a new, still empty block after Enter) stays visible. A deletion
 // that leaves the cursor on a blank line between blocks (deleting a whole block) moves it to the
 // end of the block above instead, so no empty line appears.
+// More than two blank lines between blocks show room: every two blank lines beyond the first
+// show as one empty paragraph ('cm-empty-paragraph', the line in the middle of each pair). One
+// Enter adds two line breaks, so an Enter left empty stays as an empty paragraph, while files
+// with two blank lines between paragraphs look as usual. Markdown itself treats any number of
+// blank lines as one; other viewers show a normal gap there.
 // Blank lines between the paragraphs of one list item (a sub-item turned into text, written so
 // in the file) are hidden as well, and the paragraph after them is spaced like a list item
 // ('cm-item-paragraph'). Blank lines in code are content and stay visible.
@@ -32,6 +37,17 @@ const hidden = Decoration.replace({})
 const skip = Decoration.mark({})
 // the cursor's blank line: spaced like a paragraph, it is a new block still to be typed
 const newBlock = Decoration.line({ class: 'cm-new-block' })
+const emptyParagraph = Decoration.line({ class: 'cm-empty-paragraph' })
+
+// the lines of a run of blank lines (runStart..runEnd, line numbers) that show as empty
+// paragraphs. At the end of the file the empty line after its last line break counts like the
+// blank line after an Enter: a file ending with one or two line breaks shows none, an Enter left
+// empty at the end shows one.
+function emptyParagraphLines (doc, runStart, runEnd) {
+  const lines = []
+  for (let number = runStart + 1; number + 1 <= runEnd; number += 2) lines.push(number)
+  return lines
+}
 // a paragraph of a list item after hidden blank lines: spaced like the item's lines
 const itemParagraph = Decoration.line({ class: 'cm-item-paragraph' })
 const code = ['FencedCode', 'CodeBlock', 'HTMLBlock', 'CommentBlock']
@@ -99,22 +115,31 @@ function computeLines (state, first, last, headLine) {
       if (runStart == null) runStart = number
       continue
     }
-    if (runStart != null && isInItem && number <= last) hide.push(itemParagraph.range(doc.line(number).from))
-    isInItem = false
     if (runStart != null) {
       const runEnd = number - 1
-      if (headLine >= runStart && headLine <= runEnd) {
-        // keep the cursor's blank line, hide the others around it
+      if (isInItem && number <= last) hide.push(itemParagraph.range(doc.line(number).from))
+      // the lines that stay visible: empty paragraphs, and the cursor's blank line
+      const visible = new Map()
+      if (!isInItem) for (const line of emptyParagraphLines(doc, runStart, runEnd)) visible.set(line, emptyParagraph)
+      if (headLine >= runStart && headLine <= runEnd && !visible.has(headLine)) {
         kept = doc.line(headLine).from
         const isNewLine = headLine == runStart && headLine > 1
-        hide.push((isNewLine ? newLine : newBlock).range(kept))
-        if (headLine > runStart) addSegment(runStart, headLine - 1)
-        if (headLine < runEnd) addSegment(headLine + 1, runEnd)
-      } else {
-        addSegment(runStart, runEnd)
+        visible.set(headLine, isNewLine ? newLine : newBlock)
       }
+      // hide the rest, each stretch merged into the line above it
+      let stretch = null
+      for (let line = runStart; line <= runEnd + 1; line++) {
+        if (line <= runEnd && !visible.has(line)) {
+          stretch ??= line
+          continue
+        }
+        if (stretch != null) addSegment(stretch, line - 1)
+        stretch = null
+      }
+      for (const [line, decoration] of visible) hide.push(decoration.range(doc.line(line).from))
       runStart = null
     }
+    isInItem = false
   }
   return { from, to, hide, atomic, kept }
 }
@@ -217,13 +242,25 @@ function isGapLine (state, line) {
     .some(block => block.from <= line.from && line.to <= block.to)
 }
 
+// whether line is a blank line between blocks that shows as an empty paragraph
+export function isEmptyParagraphLine (state, line) {
+  if (!isGapLine(state, line)) return false
+  const { doc } = state
+  let runStart = line.number
+  while (runStart > 1 && isBlank(doc.line(runStart - 1).text)) runStart--
+  let runEnd = line.number
+  while (runEnd < doc.lines && isBlank(doc.line(runEnd + 1).text)) runEnd++
+  return emptyParagraphLines(doc, runStart, runEnd).includes(line.number)
+}
+
 const cursorOffGapsAfterDelete = EditorState.transactionFilter.of(transaction => {
   if (!transaction.docChanged || !(transaction.isUserEvent('delete') || transaction.isUserEvent('cut'))) return transaction
   const { state } = transaction
   const { main } = state.selection
   if (!main.empty) return transaction
   const line = state.doc.lineAt(main.head)
-  if (!isGapLine(state, line)) return transaction
+  // an empty paragraph is a place for the cursor (deleting a block's text leaves one)
+  if (!isGapLine(state, line) || isEmptyParagraphLine(state, line)) return transaction
 
   // the end of the block above, or the start of the block below at the top of the file
   let number = line.number
@@ -242,7 +279,7 @@ const cursorOffGapsAfterDelete = EditorState.transactionFilter.of(transaction =>
 export function cursorForDocument (state) {
   const head = state.selection.main.head
   const line = state.doc.lineAt(head)
-  if (!isGapLine(state, line)) return head
+  if (!isGapLine(state, line) || isEmptyParagraphLine(state, line)) return head
   let number = line.number
   while (number > 1 && isBlank(state.doc.line(number).text)) number--
   if (!isBlank(state.doc.line(number).text)) return state.doc.line(number).to
@@ -279,4 +316,67 @@ const clicksBesideLines = EditorView.mouseSelectionStyle.of((view, event) => {
   }
 })
 
-export default [gaps, cursorOffGapsAfterDelete, clicksBesideLines]
+// The hidden blank lines at the end of the file (it usually ends with a line break) are not a place
+// for the cursor: a click below the text, Cmd+↓ or ↓ on the last line go to the last empty
+// paragraph there, or else to the end of the text. Enter at the end still opens a new block.
+const cursorOffFileEnd = EditorState.transactionFilter.of(transaction => {
+  if (!transaction.selection || transaction.docChanged) return transaction
+  const { state } = transaction
+  const { main } = transaction.selection
+  if (!main.empty) return transaction
+  const { doc } = state
+  const line = doc.lineAt(main.head)
+  if (!isBlank(line.text) || isEmptyParagraphLine(state, line)) return transaction
+  for (let number = line.number + 1; number <= doc.lines; number++) {
+    if (!isBlank(doc.line(number).text)) return transaction
+  }
+  let number = line.number
+  while (number > 1 && isBlank(doc.line(number).text)) {
+    if (isEmptyParagraphLine(state, doc.line(number))) return [transaction, { selection: EditorSelection.cursor(doc.line(number).from), sequential: true }]
+    number--
+  }
+  if (isBlank(doc.line(number).text)) return transaction
+  return [transaction, { selection: EditorSelection.cursor(doc.line(number).to), sequential: true }]
+})
+
+// An empty paragraph inside a selection shows selected (it has no text the browser could
+// highlight): 'cm-selected-empty', a selection-coloured block where its text would start. In both
+// modes: in Markdown mode on the blank line that stands for it (every second one), not on each.
+const selectedEmpty = Decoration.line({ class: 'cm-selected-empty' })
+
+// The browser's own selection would draw a sliver on every blank line; on selected blank lines it
+// is hidden ('cm-selected-blank', index.vue), so in Markdown mode only the lines standing for empty
+// paragraphs show selected, one per empty paragraph.
+const selectedBlank = Decoration.line({ class: 'cm-selected-blank' })
+
+export const selectedEmptyParagraphs = ViewPlugin.fromClass(class {
+  constructor (view) {
+    this.decorations = this.build(view)
+  }
+
+  update (update) {
+    if (update.selectionSet || update.docChanged || update.viewportChanged) this.decorations = this.build(update.view)
+  }
+
+  build (view) {
+    const { state } = view
+    const { from, to } = state.selection.main
+    if (from == to) return Decoration.none
+    const ranges = []
+    for (const visible of view.visibleRanges) {
+      const start = Math.max(from, visible.from)
+      const end = Math.min(to, visible.to)
+      if (start > end) continue
+      for (let number = state.doc.lineAt(start).number; number <= state.doc.lineAt(end).number; number++) {
+        const line = state.doc.line(number)
+        if (line.from < from || line.from > to || !isBlank(line.text)) continue
+        ranges.push((isEmptyParagraphLine(state, line) ? selectedEmpty : selectedBlank).range(line.from))
+      }
+    }
+    return Decoration.set(ranges, true)
+  }
+}, {
+  decorations: plugin => plugin.decorations
+})
+
+export default [gaps, cursorOffGapsAfterDelete, cursorOffFileEnd, clicksBesideLines]

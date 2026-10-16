@@ -186,8 +186,10 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         border-top-width: 0;
       }
 
-      // the empty line after Enter (gaps/index.js) is spaced like a paragraph
-      .cm-new-block {
+      // the empty line after Enter, and an empty paragraph (gaps/index.js), are spaced like a
+      // paragraph
+      .cm-new-block,
+      .cm-empty-paragraph {
         border-top: 0.4rem solid transparent;
         border-bottom: 0.4rem solid transparent;
       }
@@ -203,6 +205,23 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
 
       .cm-block--listItem.cm-before--listItem + .cm-new-line {
         border-bottom-width: 0.1rem;
+      }
+    }
+
+    // a selected empty paragraph, in both modes (gaps/index.js): a selection-coloured block where
+    // its text would start
+    :deep(.cm-selected-empty) {
+      background: linear-gradient(var(--color--text-selection), var(--color--text-selection)) no-repeat 1rem center / 0.5em 1.2em;
+      background-clip: padding-box;
+      background-origin: padding-box;
+    }
+
+    // and no sliver of the browser's own selection on selected blank lines: only the block above
+    :deep(.cm-selected-empty),
+    :deep(.cm-selected-blank) {
+      &::selection,
+      ::selection {
+        background: transparent;
       }
     }
 

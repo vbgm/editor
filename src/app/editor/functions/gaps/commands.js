@@ -9,7 +9,8 @@ import { itemsToLines } from '../format/lines.js'
 // - Enter in a paragraph or heading starts a new block (a blank line, then the cursor on a new
 //   line); in lists, quotes and code the Markdown keymap handles Enter as before
 // - Backspace at the start of a paragraph joins it to the end of the block above, Delete at the
-//   end of a block joins the paragraph below to it; both remove the whole hidden gap at once
+//   end of a block joins the paragraph below to it; both remove the whole hidden gap at once.
+//   With empty paragraphs in between (gaps/index.js) they remove the nearest one instead.
 // Headings, list items and quotes are not joined: Backspace at their start removes their hidden
 // mark first (syntax/index.js), which turns them into a paragraph.
 // - Backspace at the start of a list item's text takes its mark off: the line is a further line of
@@ -230,7 +231,16 @@ export function joinBackward ({ state, dispatch }) {
   let number = line.number - 1
   while (number >= 1 && isBlank(doc.line(number).text)) number--
   if (number == line.number - 1) return false
-  if (!isInParagraph(state, main.head) || isInContainer(state, main.head, 1)) return false
+  if (isInContainer(state, main.head, 1)) return false
+  // empty paragraphs above (gaps/index.js): the nearest one goes, its two blank lines
+  if (line.number - 1 - number >= 3) {
+    dispatch(state.update({
+      changes: { from: doc.line(line.number - 3).to, to: doc.line(line.number - 1).to },
+      userEvent: 'delete.backward'
+    }))
+    return true
+  }
+  if (!isInParagraph(state, main.head)) return false
 
   const from = number >= 1 ? doc.line(number).to : 0
   dispatch(state.update({
@@ -251,6 +261,14 @@ export function joinForward ({ state, dispatch }) {
   let number = line.number + 1
   while (number <= doc.lines && isBlank(doc.line(number).text)) number++
   if (number == line.number + 1 || number > doc.lines) return false
+  // empty paragraphs below (gaps/index.js): the nearest one goes, its two blank lines
+  if (number - line.number - 1 >= 3) {
+    dispatch(state.update({
+      changes: { from: line.to, to: doc.line(line.number + 2).to },
+      userEvent: 'delete.forward'
+    }))
+    return true
+  }
   const next = doc.line(number)
   if (!isInParagraph(state, next.from) || isInContainer(state, next.from, 1)) return false
 

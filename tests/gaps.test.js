@@ -9,7 +9,7 @@ import { cursorCharRight, cursorCharLeft } from '@codemirror/commands'
 // local
 import { createState, stateWithCursor, runCommand, getText } from './helpers.js'
 import { gaps, computeAll } from '/src/app/editor/functions/gaps/index.js'
-import { deleteCharBackward } from '@codemirror/commands'
+import { deleteCharBackward, deleteCharForward } from '@codemirror/commands'
 import { insertNewBlock, newParagraphAfterQuote, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
 import generateDocument from '/src/app/functions/generate-document.js'
 
@@ -34,9 +34,91 @@ const visibleLines = view => [...view.contentDOM.querySelectorAll('.cm-line')].m
 })
 
 describe('hidden blank lines', () => {
-  it('are not shown between blocks', () => {
-    const view = createView('one\n\ntwo\n\n\n\nthree\n')
+  it('are not shown between blocks (one or two)', () => {
+    const view = createView('one\n\ntwo\n\n\nthree\n')
     expect(visibleLines(view)).toEqual(['one', 'two', 'three'])
+    view.destroy()
+  })
+
+  it('show every two more as an empty paragraph', () => {
+    const view = createView('one\n\n\n\ntwo\n\n\n\n\n\nthree\n')
+    expect(visibleLines(view)).toEqual(['one', '', 'two', '', '', 'three'])
+    expect(view.contentDOM.querySelectorAll('.cm-empty-paragraph').length).toBe(3)
+    view.destroy()
+  })
+
+  it('show empty paragraphs at the end of the file too, not for its last line break', () => {
+    const plain = createView('one\n\ntwo\n\n')
+    plain.dispatch({ selection: EditorSelection.cursor(1) })
+    expect(visibleLines(plain)).toEqual(['one', 'two'])
+    plain.destroy()
+    // an Enter left empty at the end
+    const view = createView('one\n\ntwo\n\n\n')
+    view.dispatch({ selection: EditorSelection.cursor(1) })
+    expect(visibleLines(view)).toEqual(['one', 'two', ''])
+    view.destroy()
+  })
+
+  it('do not take the cursor at the end of the file: it goes to the end of the text', () => {
+    const view = createView('one\n\ntwo\n')
+    view.dispatch({ selection: EditorSelection.cursor('one\n\ntwo\n'.length) })
+    expect(view.state.selection.main.head).toBe('one\n\ntwo'.length)
+    expect(visibleLines(view)).toEqual(['one', 'two'])
+    view.destroy()
+  })
+
+  it('take the cursor at the end of the file to a trailing empty paragraph', () => {
+    const view = createView('one\n\n\n')
+    view.dispatch({ selection: EditorSelection.cursor('one\n\n\n'.length) })
+    expect(view.state.selection.main.head).toBe('one\n\n'.length)
+    view.destroy()
+  })
+
+  it('keep the new block after Enter at the end of the file', () => {
+    const view = createView('one\n')
+    view.dispatch({ changes: { from: 3, insert: '\n\n' }, selection: EditorSelection.cursor(5) })
+    expect(view.state.selection.main.head).toBe(5)
+    view.destroy()
+  })
+
+  it('show an empty paragraph inside a selection as selected', () => {
+    const view = createView('one\n\n\n\ntwo\n')
+    view.dispatch({ selection: { anchor: 0, head: 10 } })
+    expect(view.contentDOM.querySelectorAll('.cm-selected-empty').length).toBe(1)
+    view.dispatch({ selection: { anchor: 0 } })
+    expect(view.contentDOM.querySelectorAll('.cm-selected-empty').length).toBe(0)
+    view.destroy()
+  })
+
+  it('are a step of their own for Shift+↑/↓', async () => {
+    const { selectBlockDown, selectBlockUp } = await import('/src/app/editor/functions/blocks/select.js')
+    const view = createView('one\n\n\n\ntwo\n')
+    view.dispatch({ selection: EditorSelection.cursor(3) })
+    selectBlockDown(view)
+    expect(view.state.selection.main.head).toBe('one\n\n'.length)
+    selectBlockDown(view)
+    expect(view.state.selection.main.head).toBe('one\n\n\n\ntwo'.length)
+    // up: first to where 'two' starts, then onto the empty paragraph
+    selectBlockUp(view)
+    expect(view.state.selection.main.head).toBe('one\n\n\n\n'.length)
+    selectBlockUp(view)
+    expect(view.state.selection.main.head).toBe('one\n\n'.length)
+    view.destroy()
+  })
+
+  it('show selected in Markdown mode on the blank line standing for each empty paragraph', () => {
+    const view = createView('one\n\n\n\n\n\ntwo\n', { isMarkdownShown: true })
+    view.dispatch({ selection: { anchor: 0, head: 12 } })
+    const selected = [...view.contentDOM.querySelectorAll('.cm-line')].map(line => line.classList.contains('cm-selected-empty'))
+    expect(selected).toEqual([false, false, true, false, true, false, false, false])
+    view.destroy()
+  })
+
+  it('keep an empty paragraph when the cursor leaves it', () => {
+    const view = createView('one\n\n\n\ntwo\n')
+    view.dispatch({ selection: EditorSelection.cursor('one\n\n'.length) })
+    view.dispatch({ selection: EditorSelection.cursor(0) })
+    expect(visibleLines(view)).toEqual(['one', '', 'two'])
     view.destroy()
   })
 
@@ -64,7 +146,7 @@ describe('hidden blank lines', () => {
   })
 
   it('keep the blank line with the cursor visible', () => {
-    const view = createView('one\n\n\n\ntwo\n')
+    const view = createView('one\n\n\ntwo\n')
     view.dispatch({ selection: EditorSelection.cursor('one\n\n'.length) })
     expect(visibleLines(view)).toEqual(['one', '', 'two'])
     view.dispatch({ selection: EditorSelection.cursor(0) })
@@ -84,7 +166,7 @@ describe('hidden blank lines', () => {
   })
 
   it('space the blank line with the cursor like a paragraph', () => {
-    const view = createView('one\n\n\n\ntwo\n')
+    const view = createView('one\n\n\ntwo\n')
     view.dispatch({ selection: EditorSelection.cursor('one\n\n'.length) })
     const lines = [...view.contentDOM.querySelectorAll('.cm-line')]
     expect(lines[1].classList.contains('cm-new-block')).toBe(true)
@@ -225,6 +307,25 @@ describe('Enter, Backspace and Delete between blocks', () => {
 
   it('leaves the middle of an item alone', () => {
     expect(listItemToParagraph({ state: stateWithCursor('- a|b\n'), dispatch: () => {} })).toBe(false)
+  })
+
+  it('Backspace and Delete next to empty paragraphs remove the nearest one', () => {
+    expect(run(joinBackward, 'one\n\n\n\n|two\n')).toBe('one\n\ntwo\n')
+    expect(run(joinBackward, 'one\n\n\n\n\n\n|two\n')).toBe('one\n\n\n\ntwo\n')
+    expect(run(joinForward, 'one|\n\n\n\ntwo\n')).toBe('one\n\ntwo\n')
+  })
+
+  it('Backspace and Delete on an empty paragraph remove it', () => {
+    const backspace = createView('one\n\n\n\ntwo\n')
+    backspace.dispatch({ selection: EditorSelection.cursor('one\n\n'.length) })
+    deleteCharBackward(backspace)
+    expect(getText(backspace.state)).toBe('one\n\ntwo\n')
+    backspace.destroy()
+    const del = createView('one\n\n\n\ntwo\n')
+    del.dispatch({ selection: EditorSelection.cursor('one\n\n'.length) })
+    deleteCharForward(del)
+    expect(getText(del.state)).toBe('one\n\ntwo\n')
+    del.destroy()
   })
 
   it('Delete at the end of a block joins the paragraph below', () => {
