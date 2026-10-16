@@ -14,6 +14,7 @@ import hiddenSyntax from './syntax/index.js'
 import gaps, { cursorForDocument } from './gaps/index.js'
 import markdownShown from './markdown-shown.js'
 import { insertNewBlock, joinBackward, joinForward } from './gaps/commands.js'
+import literalTyping from './literal-typing.js'
 
 // Classes instead of inline styles, so the look lives in LESS
 const highlightStyle = HighlightStyle.define([
@@ -76,12 +77,21 @@ export function switchMode (view, isMarkdownShown) {
   }
 }
 
+// Literal (off by default): typed text stays as typed in Document mode (literal-typing.js).
+// Otherwise typing Markdown formats ('# ' makes a heading).
+export const literalCompartment = new Compartment()
+
+export function switchLiteral (view, isLiteral) {
+  view.dispatch({ effects: literalCompartment.reconfigure(isLiteral ? literalTyping : []) })
+}
+
 // bare: plain CodeMirror with the same document, as a speed baseline for the benchmark
-function documentExtensions (bare, isMarkdownShown) {
+function documentExtensions (bare, isMarkdownShown, isLiteral) {
   if (bare) return []
   return [
     blockLines,
     modeCompartment.of(modeExtensions(isMarkdownShown)),
+    literalCompartment.of(isLiteral ? literalTyping : []),
     Prec.high(keymap.of([
       // Alt+↑/↓ move blocks, not lines (CodeMirror's default would move lines past hidden
       // blank lines in Document mode, which looks like nothing happens)
@@ -119,7 +129,7 @@ export function createState (text, options = {}) {
       // no drawSelection(): the browser's own caret and selection move in the same frame as the
       // text; CodeMirror's drawn cursor is positioned one frame later and feels slower
       EditorView.lineWrapping,
-      documentExtensions(options.bare, options.isMarkdownShown),
+      documentExtensions(options.bare, options.isMarkdownShown, options.isLiteral),
       Prec.high(keymap.of([
         { key: 'Alt-Shift-ArrowUp', run: moveBlockUp },
         { key: 'Alt-Shift-ArrowDown', run: moveBlockDown },

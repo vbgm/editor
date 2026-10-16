@@ -43,6 +43,24 @@ describe('hidden Markdown', () => {
     view.destroy()
   })
 
+  it('shows heading and list marks as typed until text follows them', () => {
+    for (const text of ['#', '## ', '# #', '-', '- ', '1. ']) {
+      const view = createView(`${text}\n`)
+      expect(shown(view), text).toEqual([text])
+      expect(view.contentDOM.querySelectorAll('.cm-raw-line').length, text).toBe(1)
+      view.destroy()
+    }
+    const view = createView('# Title\n\n- item\n')
+    expect(shown(view)).toEqual(['Title', '• item'])
+    view.destroy()
+  })
+
+  it('keeps the bullet of an empty item inside a list (after Enter)', () => {
+    const view = createView('- one\n- \n')
+    expect(shown(view)).toEqual(['• one', '• '])
+    view.destroy()
+  })
+
   it('collapses setext underlines and code fences, keeps the code', () => {
     const view = createView('Title\n===\n\n```js\n# code\n```\n')
     expect(shown(view)).toEqual(['Title', 'collapsed', 'collapsed', '# code', 'collapsed'])
@@ -88,11 +106,63 @@ describe('cursor with hidden Markdown', () => {
     view.destroy()
   })
 
+  it('stays before a heading or list mark that has no text yet', () => {
+    const view = createView('text\n\n## \n\n- \n')
+    view.dispatch({ selection: EditorSelection.cursor(6) })
+    expect(view.state.selection.main.head).toBe(6)
+    view.dispatch({ selection: EditorSelection.cursor(11) })
+    expect(view.state.selection.main.head).toBe(11)
+    view.destroy()
+  })
+
+  it('goes behind a bullet when placed inside its mark (a click on the bullet)', () => {
+    const view = createView('text\n\n- item\n')
+    view.dispatch({ selection: EditorSelection.cursor(7) })
+    expect(view.state.selection.main.head).toBe(8)
+    view.destroy()
+  })
+
+  it('goes behind a task box when placed inside its mark', () => {
+    const view = createView('text\n\n- [ ] item\n')
+    for (const pos of [7, 8, 10, 11]) {
+      view.dispatch({ selection: EditorSelection.cursor(pos), userEvent: 'select.pointer' })
+      expect(view.state.selection.main.head, String(pos)).toBe(12)
+    }
+    view.destroy()
+  })
+
+  it('moves left from a task item text to the line above', () => {
+    const view = createView('text\n\n- [ ] item\n')
+    view.dispatch({ selection: EditorSelection.cursor(12) })
+    cursorCharLeft(view)
+    expect(view.state.selection.main.head).toBe(4)
+    view.destroy()
+  })
+
   it('Backspace at the start of a heading removes its mark', () => {
     const view = createView('text\n\n## Title\n')
     view.dispatch({ selection: EditorSelection.cursor(9) })
     deleteCharBackward(view)
     expect(getText(view.state)).toBe('text\n\nTitle\n')
+    view.destroy()
+  })
+
+  it('deleting an escaped character deletes its hidden backslash too', () => {
+    const view = createView('a\n\n\\# tag \\*\n')
+    view.dispatch({ selection: EditorSelection.cursor(5) })
+    deleteCharBackward(view)
+    expect(getText(view.state)).toBe('a\n\n tag \\*\n')
+    view.dispatch({ selection: EditorSelection.cursor(view.state.doc.length - 1) })
+    deleteCharBackward(view)
+    expect(getText(view.state)).toBe('a\n\n tag \n')
+    view.destroy()
+  })
+
+  it('keeps an escape in Markdown mode, where the backslash shows', () => {
+    const view = createView('a \\*\n', { isMarkdownShown: true })
+    view.dispatch({ selection: EditorSelection.cursor(4) })
+    deleteCharBackward(view)
+    expect(getText(view.state)).toBe('a \\\n')
     view.destroy()
   })
 

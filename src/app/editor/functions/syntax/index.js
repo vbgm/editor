@@ -2,6 +2,8 @@
 import { RangeSetBuilder, EditorState, EditorSelection } from '@codemirror/state'
 import { ViewPlugin, Decoration, WidgetType, EditorView } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
+// local functions
+import { isEmptyHeading, isLoneEmptyItem, isRawLine } from '../raw-markup.js'
 
 // Hides the Markdown syntax while Markdown is not shown: the file stays exactly as it is, only
 // the symbols are not drawn.
@@ -14,6 +16,7 @@ import { syntaxTree } from '@codemirror/language'
 // The cursor skips the hidden symbols, and a cursor at the start of a line goes after its
 // heading, quote or bullet mark, so typing there types into the text, and Backspace at the start
 // of a heading, quote or list item removes its mark in one press.
+// A heading or list mark with no text after it yet stays as typed (raw-markup.js).
 // Only the visible lines are looked at.
 
 class BulletWidget extends WidgetType {
@@ -25,6 +28,10 @@ class BulletWidget extends WidgetType {
     dom.textContent = '•'
     return dom
   }
+
+  // CodeMirror handles clicks on the bullet like clicks on text: otherwise the browser puts its
+  // own caret between the bullet and the text, and the editor's cursor stays where it was
+  ignoreEvent () { return false }
 }
 
 class CheckboxWidget extends WidgetType {
@@ -61,6 +68,7 @@ const unchecked = Decoration.replace({ widget: new CheckboxWidget(false) })
 const collapsedLine = Decoration.line({ class: 'cm-collapsed-line' })
 const quoteLine = Decoration.line({ class: 'cm-quote-line' })
 const ruleLine = Decoration.line({ class: 'cm-rule-line' })
+const rawLine = Decoration.line({ class: 'cm-raw-line' })
 
 // spaces and tabs after pos, up to the end of the line
 function spacesAfter (doc, pos) {
@@ -101,7 +109,8 @@ function build (view) {
         switch (node.name) {
           case 'HeaderMark': {
             const parent = node.node.parent
-            if (/^SetextHeading/.test(parent?.name)) collapseLine(node.from)
+            if (/^ATXHeading/.test(parent?.name) && isEmptyHeading(doc, parent)) lines.push([doc.lineAt(node.from).from, rawLine])
+            else if (/^SetextHeading/.test(parent?.name)) collapseLine(node.from)
             // an opening mark takes the spaces after it, a closing mark the spaces before it
             else if (node.from == parent?.from) hideRange(node.from, node.to + spacesAfter(doc, node.to))
             else hideRange(node.from - /[ \t]*$/.exec(doc.sliceString(parent.from, node.from))[0].length, node.to)
@@ -123,7 +132,8 @@ function build (view) {
             hideRange(node.from, node.to + Math.min(spacesAfter(doc, node.to), 1))
             break
           case 'ListMark':
-            if (node.node.parent?.parent?.name == 'BulletList') {
+            if (isLoneEmptyItem(node.node.parent)) lines.push([doc.lineAt(node.from).from, rawLine])
+            else if (node.node.parent?.parent?.name == 'BulletList') {
               marks.push([node.from, node.to, bullet])
               atomic.push([node.from, node.to + Math.min(spacesAfter(doc, node.to), 1)])
             }
@@ -220,7 +230,7 @@ const lineStartMark = /^(?:[ \t]{0,3}#{1,6}[ \t]+|(?:[ \t]*>[ \t]?)+|[ \t]*[-*+]
 export function textStart (state, lineFrom) {
   const line = state.doc.lineAt(lineFrom)
   const mark = lineStartMark.exec(line.text)
-  return mark && !isInCode(state, line.from) ? line.from + mark[0].length : line.from
+  return mark && !isInCode(state, line.from) && !isRawLine(state, line.from) ? line.from + mark[0].length : line.from
 }
 
 function isInCode (state, pos) {
@@ -230,20 +240,24 @@ function isInCode (state, pos) {
   return false
 }
 
-// A cursor placed at the start of a line with such a mark goes behind it (clicks, Home, ↑ ↓).
-// Moving left from just behind the mark goes on to the end of the block above instead.
+// A cursor placed at the start of a line with such a mark, or inside the mark, goes behind it
+// (clicks, also on a bullet, Home, ↑ ↓): the caret is never drawn between a bullet and its text.
+// Moving left from just behind the mark goes on to the end of the block above instead (also
+// where the mark ends in a visible space, as after a task box, so the cursor cannot get stuck).
 const cursorAfterLineMarks = EditorState.transactionFilter.of(transaction => {
   if (!transaction.selection || transaction.selection.ranges.some(range => !range.empty)) return transaction
   const { state, startState } = transaction
   let isMoved = false
   const ranges = transaction.selection.ranges.map((range, index) => {
     const line = state.doc.lineAt(range.head)
-    if (range.head != line.from) return range
     const mark = lineStartMark.exec(line.text)
-    if (!mark || isInCode(state, line.from)) return range
-    isMoved = true
+    if (!mark) return range
     const contentStart = line.from + mark[0].length
-    const oldHead = !transaction.docChanged && startState.selection.ranges[index]?.head
+    if (range.head >= contentStart || isInCode(state, line.from) || isRawLine(state, line.from)) return range
+    isMoved = true
+    // a click is never a move to the left, even with the cursor already behind the mark
+    const isClick = transaction.isUserEvent('select.pointer')
+    const oldHead = !transaction.docChanged && !isClick && startState.selection.ranges[index]?.head
     if (oldHead == contentStart && line.number > 1) {
       // the end of the block above, past the (hidden) blank lines between them
       let number = line.number - 1
@@ -256,8 +270,33 @@ const cursorAfterLineMarks = EditorState.transactionFilter.of(transaction => {
   return [transaction, { selection: EditorSelection.create(ranges, transaction.selection.mainIndex), sequential: true }]
 })
 
+// Deleting an escaped character ('#' of '\#', typed in Literal mode or from the file) deletes its
+// hidden backslash too: left alone it would no longer escape anything and would show up.
+const deleteEscapeWithCharacter = EditorState.transactionFilter.of(transaction => {
+  if (!transaction.docChanged || !transaction.isUserEvent('delete')) return transaction
+  const { startState, changes } = transaction
+  const tree = syntaxTree(startState)
+  const backslashes = []
+  changes.iterChanges((fromA, toA) => {
+    if (toA == fromA) return
+    tree.iterate({
+      from: Math.max(fromA - 1, 0),
+      to: toA,
+      enter: node => {
+        // the backslash stays, the character after it goes
+        if (node.name == 'Escape' && node.from < fromA && node.from + 1 >= fromA && node.from + 1 < toA) {
+          backslashes.push(changes.mapPos(node.from))
+        }
+      }
+    })
+  })
+  if (!backslashes.length) return transaction
+  return [transaction, { changes: backslashes.map(pos => ({ from: pos, to: pos + 1 })), sequential: true }]
+})
+
 export default [
   hiddenSyntax,
+  deleteEscapeWithCharacter,
   EditorView.atomicRanges.of(view => view.plugin(hiddenSyntax)?.atomicRanges ?? Decoration.none),
   cursorAfterLineMarks
 ]

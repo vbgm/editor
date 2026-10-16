@@ -1,6 +1,6 @@
 <!--
 Temporary development toolbar: pick a test document, open a local file, switch between Document
-and Markdown mode, show the stats, run the benchmark.
+and Markdown mode, turn literal typing on or off, show the stats, run the benchmark.
 Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
 shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
 -->
@@ -38,6 +38,15 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
     >
       Markdown
     </button>
+    <button
+      class='button'
+      :class='{selected: isLiteral}'
+      title='Literal: typed text stays as typed in Document mode; Markdown typed in is escaped, not formatted'
+      @mousedown.prevent=''
+      @click='$emit(`toggleLiteral`)'
+    >
+      Literal
+    </button>
 
     <div class='spacer' />
 
@@ -74,10 +83,11 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       documentNames: Array,
       documentName: String,
       isMarkdownShown: Boolean,
+      isLiteral: Boolean,
       isStatsShown: Boolean,
       progress: String
     },
-    emits: ['open', 'openFile', 'toggleMarkdown', 'toggleStats', 'benchmark'],
+    emits: ['open', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
     methods: {
       async openFile (event) {
         const file = event.target.files[0]

@@ -6,12 +6,14 @@
         documentNames,
         documentName,
         isMarkdownShown,
+        isLiteral,
         isStatsShown,
         progress
       }'
       @open='open'
       @openFile='openFile'
       @toggleMarkdown='toggleMarkdown'
+      @toggleLiteral='isLiteral = !isLiteral'
       @toggleStats='isStatsShown = !isStatsShown'
       @benchmark='benchmark'
     />
@@ -20,7 +22,8 @@
       ref='editor'
       v-bind='{
         text,
-        isMarkdownShown
+        isMarkdownShown,
+        isLiteral
       }'
       @toggleMarkdown='toggleMarkdown'
     />
@@ -68,6 +71,9 @@
         // Markdown mode (button or Cmd+Shift+M): the file as it is, symbols and blank lines
         // visible; otherwise Document mode
         isMarkdownShown: false,
+        // Literal: typed text stays as typed in Document mode (escaped in the file); otherwise
+        // typing Markdown formats ('# ' makes a heading)
+        isLiteral: false,
         // the stats footer (typing latency, benchmark results)
         isStatsShown: false,
         results: [],

@@ -16,7 +16,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   import { markRaw } from 'vue'
   import { EditorView } from '@codemirror/view'
   // local functions
-  import { createState, getText, switchMode } from './functions/create-state.js'
+  import { createState, getText, switchMode, switchLiteral } from './functions/create-state.js'
   import { markdownTopShift } from './functions/markdown-top.js'
 
   export default {
@@ -25,7 +25,9 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       // replaces the whole document (opening a file)
       text: String,
       // Markdown mode: symbols and blank lines visible; otherwise Document mode
-      isMarkdownShown: Boolean
+      isMarkdownShown: Boolean,
+      // typed text stays as typed in Document mode; otherwise typing Markdown formats
+      isLiteral: Boolean
     },
     emits: ['toggleMarkdown'],
     data () {
@@ -39,6 +41,9 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       'text' () {
         this.view.setState(this.createState())
         if (this.isMarkdownShown) this.alignMarkdownTop()
+      },
+      'isLiteral' (value) {
+        switchLiteral(this.view, value)
       },
       'isMarkdownShown' (value) {
         // Safari keeps drawing its caret where it was in the old layout, even though the cursor
@@ -78,6 +83,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       createState () {
         return createState(this.text, {
           isMarkdownShown: this.isMarkdownShown,
+          isLiteral: this.isLiteral,
           onToggleMarkdown: () => this.$emit('toggleMarkdown')
         })
       },
@@ -263,6 +269,18 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     :deep(.cm-mark),
     :deep(.cm-quote) {
       color: var(--color--text--secondary);
+    }
+
+    // a heading or list mark with nothing after it yet looks like the text it is (raw-markup.js)
+    :deep(.cm-raw-line) {
+      .cm-heading {
+        font-size: inherit;
+        font-weight: inherit;
+      }
+
+      .cm-mark {
+        color: inherit;
+      }
     }
   }
 
