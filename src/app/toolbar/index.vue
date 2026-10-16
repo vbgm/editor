@@ -1,5 +1,5 @@
 <!--
-Temporary development toolbar: pick a test document, open a local file, show the outline, switch between Document
+Temporary development toolbar: pick a test document, open a local file, show the outline, set options, switch between Document
 and Markdown mode, turn literal typing on or off, show the stats, run the benchmark.
 Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
 shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
@@ -38,6 +38,37 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
     >
       Outline
     </button>
+    <!-- a menu of checkboxes; fixed, so the toolbar's own scrolling does not clip it -->
+    <details
+      ref='options'
+      class='menu'
+      @toggle='toggleOptions'
+    >
+      <summary
+        ref='optionsButton'
+        class='button'
+        @mousedown.prevent=''
+      >
+        Options
+      </summary>
+      <div
+        class='items'
+        :style='optionsPlace'
+      >
+        <label
+          class='item'
+          title='Opening or closing the outline moves the text aside; otherwise the outline is drawn over the margin and the text moves only where there is too little room'
+          @mousedown.prevent=''
+        >
+          <input
+            type='checkbox'
+            :checked='isTextSliding'
+            @change='$emit(`toggleTextSliding`)'
+          >
+          Slide text with sidebar
+        </label>
+      </div>
+    </details>
     <button
       class='button'
       :class='{selected: isMarkdownShown}'
@@ -95,10 +126,32 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       isLiteral: Boolean,
       isStatsShown: Boolean,
       isSidebarShown: Boolean,
+      isTextSliding: Boolean,
       progress: String
     },
-    emits: ['toggleSidebar', 'open', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
+    emits: ['toggleSidebar', 'toggleTextSliding', 'open', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
+    data () {
+      return {
+        optionsPlace: null
+      }
+    },
+    beforeUnmount () {
+      document.removeEventListener('pointerdown', this.closeOptions, true)
+    },
     methods: {
+      // open: placed under its button, closed by a press anywhere outside
+      toggleOptions () {
+        if (this.$refs.options.open) {
+          const rect = this.$refs.optionsButton.getBoundingClientRect()
+          this.optionsPlace = { top: `${rect.bottom + 4}px`, left: `${rect.left}px` }
+          document.addEventListener('pointerdown', this.closeOptions, true)
+        } else {
+          document.removeEventListener('pointerdown', this.closeOptions, true)
+        }
+      },
+      closeOptions (event) {
+        if (!this.$refs.options.contains(event.target)) this.$refs.options.open = false
+      },
       async openFile (event) {
         const file = event.target.files[0]
         if (!file) return
@@ -149,6 +202,48 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       border-radius: 0.35rem;
       padding: 0.2rem 0.55rem;
       cursor: pointer;
+    }
+
+    .menu {
+      > summary {
+        list-style: none;
+        user-select: none;
+        -webkit-user-select: none;
+
+        &::-webkit-details-marker {
+          display: none;
+        }
+      }
+
+      &[open] > summary {
+        border-color: var(--color--selected--border);
+        background: var(--color--selection);
+      }
+
+      > .items {
+        position: fixed;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        padding: 0.3rem 0;
+        background: var(--color--background);
+        border: 1px solid var(--color--border--solid);
+        border-radius: 0.4rem;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      }
+
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.75rem 0.25rem 0.5rem;
+        white-space: nowrap;
+        cursor: default;
+
+        > input {
+          margin: 0;
+        }
+      }
     }
 
     .button {

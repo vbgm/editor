@@ -4,6 +4,10 @@ Ordner's (layouts/asides.vue):
 - showing and hiding: the center slides from where its text was to where it lands, and the
   sidebar slides in as far as the text moves, fading in, so its edge and the text move as one
   (and back out when hiding), in 0.3 s
+- isTextSliding off (the default): the sidebar is drawn over the center's left margin and the
+  text stays where it is; where the margin is too narrow, the center is moved right only as far
+  as needed for the sidebar not to cover the anchor (inset). On: the sidebar takes its own
+  column and the center moves aside for it
 - the sidebar's right edge is a 1 px line; a 7 px wide handle over it changes the width by
   dragging, live, between minWidth and maxWidth
 
@@ -19,6 +23,7 @@ sidebar's width in a wide window), not by the sidebar's width.
   <div class='sidebar-layout'>
     <div
       class='sidebar'
+      :class='{overlay: !isTextSliding}'
       :style='{width: `${isShown ? width : 0}px`}'
     >
       <div
@@ -40,6 +45,7 @@ sidebar's width in a wide window), not by the sidebar's width.
     <div
       ref='center'
       class='center'
+      :style='{paddingLeft: inset ? `${inset}px` : null}'
     >
       <slot name='center' />
     </div>
@@ -57,17 +63,27 @@ sidebar's width in a wide window), not by the sidebar's width.
     props: {
       isShown: Boolean,
       width: Number,
-      // a selector inside the center whose movement the center follows; none: the center itself
+      // the center moves aside for the sidebar; otherwise the sidebar is drawn over it
+      isTextSliding: Boolean,
+      // a selector inside the center whose movement the center follows, and which the sidebar
+      // must not cover; none: the center itself
       anchor: String
     },
     // resize: the new width, while dragging the handle
     emits: ['resize'],
+    data () {
+      return {
+        // how far the center is moved right for the sidebar drawn over it
+        inset: 0
+      }
+    },
     watch: {
-      // before the new width is rendered: where the center's text is now
+      // before the new layout is rendered: where the center's text is now
       'isShown': {
         flush: 'pre',
         handler (isShown) {
           const from = this.anchorLeft()
+          this.updateInset()
           // a toggle during a toggle starts from where things are drawn now
           const content = this.$refs.content
           const style = getComputedStyle(content)
@@ -76,9 +92,49 @@ sidebar's width in a wide window), not by the sidebar's width.
           this.animations?.forEach(animation => animation.cancel())
           this.$nextTick(() => this.slide(isShown, from, contentFrom))
         }
+      },
+      // switching it with the sidebar shown moves the text: it slides there
+      'isTextSliding': {
+        flush: 'pre',
+        handler () {
+          const from = this.anchorLeft()
+          this.updateInset()
+          this.$nextTick(() => {
+            const center = this.$refs.center
+            const shift = from - this.anchorLeft()
+            if (shift) center.animate([{ transform: `translateX(${shift}px)` }, { transform: 'translateX(0)' }], { duration, easing })
+          })
+        }
+      },
+      'width' () {
+        this.updateInset()
       }
     },
+    mounted () {
+      this.updateInset()
+      // a narrower window leaves less margin
+      this.resizeObserver = new ResizeObserver(() => this.updateInset())
+      this.resizeObserver.observe(this.$el)
+    },
+    beforeUnmount () {
+      this.resizeObserver.disconnect()
+    },
     methods: {
+      // With the sidebar drawn over the center, the anchor (centered, up to its max-width) must
+      // start right of the sidebar: padding on the center moves it right, half as far as the
+      // padding while it is still centered, all of it once it fills the center.
+      updateInset () {
+        if (!this.isShown || this.isTextSliding) {
+          this.inset = 0
+          return
+        }
+        const space = this.$el.getBoundingClientRect().width
+        const element = this.anchor && this.$refs.center.querySelector(this.anchor)
+        const maxWidth = element ? parseFloat(getComputedStyle(element).maxWidth) || space : space
+        const margin = (space - Math.min(maxWidth, space)) / 2
+        const width = this.width
+        this.inset = Math.round(margin >= width ? 0 : margin >= width / 2 ? 2 * (width - margin) : width)
+      },
       anchorLeft () {
         const center = this.$refs.center
         const element = (this.anchor && center.querySelector(this.anchor)) || center
@@ -89,8 +145,9 @@ sidebar's width in a wide window), not by the sidebar's width.
         // the center is laid out for the new width; draw it where it was and let it slide
         const shift = from - this.anchorLeft() + this.currentShift(center)
         // the sidebar slides as far as the text does, fading, so its edge and the text move as
-        // one, at the same speed
-        const hidden = { transform: `translateX(${-Math.abs(shift)}px)`, opacity: 0 }
+        // one, at the same speed; where the text stays, a third of its width (as in Ordner)
+        const distance = Math.abs(shift) > 0.5 ? Math.abs(shift) : this.width / 3
+        const hidden = { transform: `translateX(${-distance}px)`, opacity: 0 }
         const shown = { transform: 'translateX(0)', opacity: 1 }
         const options = { duration, easing }
         this.animations = [
@@ -134,6 +191,7 @@ sidebar's width in a wide window), not by the sidebar's width.
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
+    position: relative;
     // the hidden sidebar and the sliding center stay out of sight
     overflow: hidden;
   }
@@ -141,6 +199,15 @@ sidebar's width in a wide window), not by the sidebar's width.
   .sidebar {
     flex: 0 0 auto;
     position: relative;
+
+    // drawn over the center's left margin
+    &.overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+    }
+
     // above the center, which slides under it; the handle reaches over the center's edge
     z-index: 1;
 

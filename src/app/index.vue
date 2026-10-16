@@ -9,9 +9,11 @@
         isLiteral,
         isStatsShown,
         isSidebarShown,
+        isTextSliding,
         progress
       }'
       @toggleSidebar='toggleSidebar'
+      @toggleTextSliding='toggleTextSliding'
       @open='open'
       @openFile='openFile'
       @toggleMarkdown='toggleMarkdown'
@@ -24,6 +26,7 @@
       v-bind='{
         isShown: isSidebarShown,
         width: sidebarWidth,
+        isTextSliding,
         anchor: `.cm-content`
       }'
       @resize='resizeSidebar'
@@ -125,6 +128,9 @@
         // the outline sidebar (Ctrl+Cmd+S, as "Show Sidebar" in macOS apps)
         isSidebarShown: stored('sidebar.isShown', false),
         sidebarWidth: stored('sidebar.width', 240),
+        // the text moves aside when the sidebar opens; otherwise the sidebar is drawn over the
+        // margin and the text stays (moving only as far as needed in a narrow window)
+        isTextSliding: stored('sidebar.isTextSliding', false),
         // the document's headings, and the index of the one with the cursor
         sections: [],
         activeSection: -1,
@@ -148,6 +154,10 @@
       toggleSidebar () {
         this.isSidebarShown = !this.isSidebarShown
         store('sidebar.isShown', this.isSidebarShown)
+      },
+      toggleTextSliding () {
+        this.isTextSliding = !this.isTextSliding
+        store('sidebar.isTextSliding', this.isTextSliding)
       },
       resizeSidebar (width) {
         this.sidebarWidth = width
