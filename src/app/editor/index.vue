@@ -307,14 +307,14 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       background-clip: content-box;
     }
 
-    // dragging blocks (dnd/index.js): a handle of six dots fades in left of the block under the
+    // dragging blocks (dnd/index.js): a handle of nine dots (3 × 3) fades in left of the block under the
     // mouse; while dragging, the block's lines are an empty gap, the lines it passes slide aside,
     // and a faded copy follows the pointer
     :deep(.cm-dnd-handle) {
       position: absolute;
       top: 0;
       left: 0;
-      width: 12px;
+      width: 18px;
       height: 18px;
       background: radial-gradient(circle, var(--color--text--secondary) 0 1.3px, transparent 1.7px) 0 0 / 6px 6px;
       border-radius: 3px;
