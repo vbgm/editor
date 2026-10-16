@@ -20,14 +20,17 @@ const maxSpeed = 18
 // - scroller: the scrolling element
 // - item: { top, bottom } of the dragged item, content coordinates
 // - preview: an element (position: fixed) moved with the pointer; the owner adds and removes it
+// - place (preview, { clientX, clientY }): optional, places the preview itself (a label at the
+//   pointer, say); by default it moves up and down with the item
 // - mode: { slotAt (top, bottom, pointer) }, the slot for the dragged item at top..bottom with the
 //   pointer at pointer; optionally initial (the slot before the pointer moves, 0 by default) and
 //   isSame (a, b), for slots that are objects
 // - onSlot (slot), onDrop (slot), onCancel ()
 // Returns { cancel }.
-export function startDrag ({ event, scroller, item, preview, mode, onSlot, onDrop, onCancel }) {
+export function startDrag ({ event, scroller, item, preview, place, mode, onSlot, onDrop, onCancel }) {
   const height = item.bottom - item.top
   const startContentY = contentY(scroller, event.clientY)
+  let clientX = event.clientX
   let clientY = event.clientY
   const isSame = mode.isSame || ((a, b) => a == b)
   let slot = mode.initial ?? 0
@@ -40,7 +43,8 @@ export function startDrag ({ event, scroller, item, preview, mode, onSlot, onDro
     const pointer = contentY(scroller, clientY)
     const top = item.top + pointer - startContentY
     const rect = scroller.getBoundingClientRect()
-    preview.style.transform = `translateY(${top - scroller.scrollTop + rect.top}px)`
+    if (place) place(preview, { clientX, clientY })
+    else preview.style.transform = `translateY(${top - scroller.scrollTop + rect.top}px)`
     const next = mode.slotAt(top, top + height, pointer)
     if (!isSame(next, slot)) {
       slot = next
@@ -65,6 +69,7 @@ export function startDrag ({ event, scroller, item, preview, mode, onSlot, onDro
   }
 
   function move (moveEvent) {
+    clientX = moveEvent.clientX
     clientY = moveEvent.clientY
     update()
     if (!frame) frame = requestAnimationFrame(scroll)

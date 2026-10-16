@@ -71,6 +71,15 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
   // how far the pointer moves before a press becomes a drag (less is a click)
   const dragDistance = 4
 
+  // the drag label's place: below and right of the pointer (the hand), inside the window
+  const labelOffset = { x: 10, y: 18 }
+
+  function placeLabel (label, { clientX, clientY }) {
+    const x = Math.min(clientX + labelOffset.x, window.innerWidth - label.offsetWidth - 4)
+    const y = Math.min(clientY + labelOffset.y, window.innerHeight - label.offsetHeight - 4)
+    label.style.transform = `translate(${Math.max(x, 4)}px, ${y}px)`
+  }
+
   // where in its text node a click at x, y is (Safari has caretRangeFromPoint); null when the
   // browser cannot tell
   function caretAt (x, y) {
@@ -223,18 +232,13 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
         const items = [...scroller.querySelectorAll('.item')]
         const indices = items.map(element => Number(element.dataset.index))
 
-        // a faded copy of the row follows the pointer (the engine moves it up and down)
-        const rect = item.getBoundingClientRect()
-        const preview = item.cloneNode(true)
-        Object.assign(preview.style, {
-          position: 'fixed',
-          top: '0',
-          left: `${rect.left}px`,
-          width: `${rect.width}px`,
-          opacity: '0.6',
-          pointerEvents: 'none',
-          zIndex: '10'
-        })
+        // the heading's title as a label below the grabbing hand, like a tooltip, so it covers
+        // none of the rows it is dragged over (a copy of the row moving over them did)
+        const preview = document.createElement('div')
+        preview.className = 'drag-label'
+        // the component's scoped style applies to it
+        preview.setAttribute(this.$.type.__scopeId, '')
+        preview.textContent = this.items[index].title || 'Untitled'
         this.$el.appendChild(preview)
         this.draggedIndex = index
 
@@ -248,6 +252,7 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
           scroller,
           item: place(item),
           preview,
+          place: placeLabel,
           mode: target({
             rows: items.map(place),
             isAllowed: (row, position) => this.canDrop(index, { index: indices[row], position })
@@ -288,6 +293,26 @@ headings come in as props, clicks and drops go out as events; it knows nothing o
     padding: 0;
     display: flex;
     flex-direction: column;
+  }
+
+  // the dragged heading's title below the hand: the look of a dragged block (an opaque copy on a
+  // background of its own, with a shadow), one line
+  .drag-label {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    max-width: 16rem;
+    padding: 0.35rem 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    color: var(--color--text--primary);
+    background: var(--color--drag-preview);
+    border-radius: var(--radius--control);
+    box-shadow: var(--shadow--drag-preview);
+    pointer-events: none;
   }
 
   .empty {
