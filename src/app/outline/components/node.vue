@@ -24,6 +24,11 @@ with the height transition's own duration and easing.
       :data-index='node.index'
       :style='{height: `${rowHeight}px`}'
     >
+      <!-- where a dragged heading would go: a line on the row's top or bottom edge -->
+      <span
+        v-if='dropClass == `drop-before` || dropClass == `drop-after`'
+        class='drop-line'
+      />
       <div
         v-if='node.children.length'
         class='arrow'
@@ -227,6 +232,9 @@ with the height transition's own duration and easing.
   @indent: 20px;
   @arrow: 23px;
   @drop: var(--color--text-selection);
+  // the drop line's thickness, and the ring it starts with
+  @drop-line: 2px;
+  @drop-ring: 9px;
   // Opening and closing a heading: the rows below and the children (a drawer) share these
   // exactly, so they move together
   @fold-duration: 0.2s;
@@ -308,30 +316,39 @@ with the height transition's own duration and easing.
       opacity: 0.4;
     }
 
-    // drop markers (as in Ordner): a line on the edge for before / after, a frame for onto
-    &.drop-before::before,
-    &.drop-after::after {
-      content: '';
+    // Drop markers: a line on the edge for before / after, starting with a ring where the
+    // dropped heading's level starts (the row's left edge); a frame for onto.
+    > .drop-line {
       position: absolute;
-      left: 0;
+      // from the ring's right side to the row's right edge (the row's right margin)
+      left: (@drop-ring / 2);
       right: 0.5rem;
-      height: 6px;
+      height: @drop-line;
       z-index: 2;
-      box-sizing: border-box;
-      background-color: @drop;
-      border: 2px solid @drop;
-      border-top-color: transparent;
-      border-bottom-color: transparent;
-      background-clip: padding-box;
+      background: @drop;
       pointer-events: none;
+
+      // the ring, its center on the row's left edge
+      &::before {
+        content: '';
+        position: absolute;
+        left: -@drop-ring;
+        top: 50%;
+        width: @drop-ring;
+        height: @drop-ring;
+        box-sizing: border-box;
+        border: @drop-line solid @drop;
+        border-radius: 50%;
+        transform: translateY(-50%);
+      }
     }
 
-    &.drop-before::before {
+    &.drop-before > .drop-line {
       top: 0;
       transform: translateY(-50%);
     }
 
-    &.drop-after::after {
+    &.drop-after > .drop-line {
       bottom: 0;
       transform: translateY(50%);
     }
