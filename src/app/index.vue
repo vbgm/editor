@@ -2,7 +2,7 @@
 
   <div
     class='app'
-    :style='{"--top-inset": `${topInset}px`, "--top-bar-height": `${topBarHeight}px`}'
+    :style='{"--top-inset": `${topInset}px`}'
   >
     <div class='main'>
       <Toolbar
@@ -26,8 +26,7 @@
           isRightShown,
           rightWidth: settingsWidth,
           isTextSliding,
-          anchor: `.cm-content`,
-          isBarShown: isToolbarShown
+          anchor: `.cm-content`
         }'
         @resize='resizeSidebar'
       >
@@ -193,10 +192,6 @@
       }
     },
     computed: {
-      // the toolbar's background over the text: as high as the toolbar, also while it slides out
-      topBarHeight () {
-        return toolbarHeight
-      },
       // px at the top covered by the toolbar
       topInset () {
         return this.isToolbarShown ? toolbarHeight : 0

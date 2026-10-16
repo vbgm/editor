@@ -1,7 +1,7 @@
 <!--
-The toolbar, over the top of the window. It has no background of its own: over the text, the
-sidebar layout draws one (translucent and blurred, the text scrolling on under it, as Ordner's
-folder header); over a sidebar, the sidebar's colour runs up to the top of the window.
+The toolbar, over the top of the window, the sidebars and the text: they run on under it, seen
+through its translucent, blurred background (as Ordner's folder header); a line below it only
+while a sidebar is shown.
 - left: hide or show the toolbar (Cmd+Alt+T), the outline sidebar (Ctrl+Cmd+S)
 - center: formatting for the text with the cursor, lit where the cursor's text has it (formats,
   from the editor), in two groups: what a line is (headings H1–H6, a menu where the toolbar is
@@ -18,7 +18,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
 
   <div
     class='toolbar'
-    :class='{hidden: !isShown}'
+    :class='{hidden: !isShown, lined: isSidebarShown || isSettingsShown}'
   >
     <div class='start'>
       <button
@@ -335,17 +335,49 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
       display: flex;
     }
 
+    // the background, translucent and blurred, as Ordner's folder header, over the whole width:
+    // the text, the sidebars' backgrounds and their edges are seen blurred through it; more
+    // opaque at the right edge, where the scrollbar is
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      --translucent: color-mix(in srgb, var(--color--background) 75%, transparent);
+      background: linear-gradient(
+        to right,
+        var(--translucent),
+        var(--translucent) calc(100% - 2rem),
+        color-mix(in srgb, var(--color--background) 97%, transparent) 100%
+      );
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      // the line below, fading in and out with the sidebars
+      box-shadow: inset 0 -1px 0 transparent;
+    }
+
+    // a sidebar shown: a 1 px line at the bottom, as the sidebars' edges
+    &.lined::before {
+      box-shadow: inset 0 -1px 0 var(--color--border--panel);
+    }
+
     // everything but the arrow slides and fades
+    &::before,
     > .center,
     > .end,
     .sidebar {
       transition: transform @fade, opacity @fade;
     }
 
+    &::before {
+      transition: transform @fade, opacity @fade, box-shadow @fade;
+    }
+
     // hidden: the bar is slid up out of sight; the arrow stays, drawn only under the mouse
     &.hidden {
       pointer-events: none;
 
+      &::before,
       > .center,
       > .end,
       .sidebar {

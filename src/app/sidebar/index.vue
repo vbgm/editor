@@ -10,12 +10,8 @@ A layout with a sidebar on either side (left and right slots) and the main part 
   and the center moves aside for them
 - a sidebar's inner edge is a 1 px line; a 7 px wide handle over it changes the width by
   dragging, live, between minWidth and maxWidth
-- the sidebars run up to the top of the window, under the toolbar (App's): their colour and
-  edge go on behind its buttons. Only over the center is the toolbar's background drawn
-  (isBarShown): translucent and blurred, the text scrolling on under it; at the center's top, it
-  slides with the center (sideways with the sidebars, up and down with the toolbar, App's
-  toggleToolbar) and the sidebars are drawn over it. A sidebar's own content scrolls on under a
-  band of its colour
+- the sidebars run up to the top of the window, under the toolbar (App's), which blurs them;
+  their background and edge fade out towards the top, from halfway down the toolbar
 
 Only transforms and opacity are animated (Web Animations, run by the compositor): the column
 takes its new width at once, the center is laid out once for it, and both are drawn moving from
@@ -53,7 +49,6 @@ sidebar's width in a wide window), not by the sidebar's width.
     <div
       ref='center'
       class='center'
-      :class='{bar: isBarShown}'
       :style='{
         paddingLeft: insets.left ? `${insets.left}px` : null,
         paddingRight: insets.right ? `${insets.right}px` : null
@@ -81,9 +76,7 @@ sidebar's width in a wide window), not by the sidebar's width.
       isTextSliding: Boolean,
       // a selector inside the center whose movement the center follows, and which the sidebars
       // must not cover; none: the center itself
-      anchor: String,
-      // the toolbar's background over the center's top, --top-bar-height high
-      isBarShown: Boolean
+      anchor: String
     },
     // resize: { side, width }, while dragging a handle
     emits: ['resize'],
@@ -274,21 +267,20 @@ sidebar's width in a wide window), not by the sidebar's width.
       top: 0;
       bottom: 0;
       box-sizing: border-box;
-      background: var(--color--background--secondary);
+      // the background behind the content
+      isolation: isolate;
 
-      // the band under the toolbar (--top-inset high), the content scrolling on under it; the
-      // 1 px edge stays uncovered
+      // The background and the 1 px edge, on a layer of their own: under the toolbar
+      // (--top-inset) they fade out towards the top of the window, from halfway down the
+      // toolbar, while the content stays as it is
       &::before {
         content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: var(--top-inset, 0px);
-        z-index: 1;
-        background: color-mix(in srgb, var(--color--background--secondary) 75%, transparent);
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
+        inset: 0;
+        z-index: -1;
+        background: var(--color--background--secondary);
+        -webkit-mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--top-inset, 0px) / 2));
+        mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--top-inset, 0px) / 2));
         pointer-events: none;
       }
     }
@@ -311,11 +303,10 @@ sidebar's width in a wide window), not by the sidebar's width.
 
       .content {
         left: 0;
-        // the 1 px edge
-        box-shadow: inset -1px 0 0 var(--color--border--solid);
 
+        // the 1 px edge
         &::before {
-          right: 1px;
+          box-shadow: inset -1px 0 0 var(--color--border--panel);
         }
 
         &.hidden {
@@ -338,10 +329,9 @@ sidebar's width in a wide window), not by the sidebar's width.
 
       .content {
         right: 0;
-        box-shadow: inset 1px 0 0 var(--color--border--solid);
 
         &::before {
-          left: 1px;
+          box-shadow: inset 1px 0 0 var(--color--border--panel);
         }
 
         &.hidden {
@@ -365,37 +355,6 @@ sidebar's width in a wide window), not by the sidebar's width.
     flex: 1 1 auto;
     min-width: 0;
     display: flex;
-    position: relative;
-    // the bar over the text, under the sidebars
-    isolation: isolate;
-
-    // the toolbar's background, as Ordner's folder header: translucent and blurred, more opaque
-    // at the right edge, where the scrollbar is. Hiding, it fades as it slides up with the center
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: var(--top-bar-height, 0px);
-      z-index: 1;
-      --translucent: color-mix(in srgb, var(--color--background) 75%, transparent);
-      background: linear-gradient(
-        to right,
-        var(--translucent),
-        var(--translucent) calc(100% - 2rem),
-        color-mix(in srgb, var(--color--background) 97%, transparent) 100%
-      );
-      -webkit-backdrop-filter: blur(4px);
-      backdrop-filter: blur(4px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-
-    &.bar::before {
-      opacity: 1;
-    }
   }
 
 </style>
