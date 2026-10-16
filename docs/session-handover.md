@@ -1,6 +1,6 @@
 # Session handover
 
-State of the project at the end of the second working session (2026-10-16), for whoever continues.
+State of the project at the end of the third working session (2026-10-16), for whoever continues.
 Read in this order:
 
 1. this file: where things stand and how to work here
@@ -10,6 +10,7 @@ Read in this order:
 ## How to work here
 
 - **Workflow** (from the user's instructions): investigate → propose a plan and wait → the user confirms → implement → ask before committing → the user pushes. **Never push**, never touch the `stage` / `prod` branches, and **no attribution** (no "Co-Authored-By", no "Generated with …") in commits or anywhere else.
+- Small tweaks of something already built (a distance, a size, a timing, "a bit more", "revert") are done right away: change it, measure the result in the pane, say the new value, ask to commit. New behaviour gets a plan first.
 - "Commit" means: commit everything listed in the last summary on `main`. Write the message as helps later: a summary line, and a body explaining what changed and why when that is useful.
 - After committing, name only the commits that are **not pushed yet** (`git log --oneline @{u}..HEAD`); the user pushes often.
 - The user tests in **Safari** (the engine the macOS app will run on) all the time; don't add "not checked in Safari" caveats. Say what you verified in the browser pane (Chromium) and how.
@@ -24,7 +25,7 @@ Read in this order:
 
 - **Vue 3 Options API, plain JavaScript, LESS.** No TypeScript. Follow Ordner's style (details in decisions.md): blank lines inside `<template>`, `</template><script>` and `</script><style scoped lang='less'>` joined, single quotes in attributes, backticks in template expressions, `v-bind='{ … }'` for many props, events last on elements, one folder per component with `index.vue` and `functions/`, imports grouped under comments, absolute paths from the project root (`/src/...`).
 - Comments explain **why**, at the top of each module; keep them true when behaviour changes.
-- `/foundation` is a local stand-in for the shared `foundation` repo (only a README so far).
+- `/foundation` is a local stand-in for the shared `foundation` repo; it holds the drag engine (`foundation/dnd/`) and must not import from `/src`.
 
 ## Running it
 
@@ -37,6 +38,16 @@ npm test             # vitest, 188 tests (node + jsdom)
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
 
 Rust is **not installed** on this Mac, so there is no Tauri shell yet; everything runs in the browser.
+
+## This session
+
+Dragging blocks, and motion for moves:
+
+- **Drag-and-drop of blocks** (displace mode): a handle of 3 × 3 dots fades in 12 px left of a block's text (a sub-item's handle left of its own bullet) while the mouse is near it; there the mouse is the grab hand and pressing starts the drag. A drag goes exactly where Alt+↑/↓ would take the block, and the drop gives the same file as pressing the keys as often (tested from every line of the sample). The faded copy fades in over the block (ease-in), the lines it passes slide aside, and on the drop the block slides from the copy into place (ease-out); Escape glides it back.
+- **Alt+↑/↓ slides** the two swapped stretches into place (0.15 s); a block that cannot move **bumps** in the pressed direction, by kind: list items 2 px, paragraphs 3 px, headings 4–7 px (`####` … `#`), longer for further bumps (0.26 s for `###`).
+- **Numbering fixes**: a bullet item and a numbered one next to each other get a blank line after a move; a numbered sub-item that ends up first in its sub-list gets `1.` (under a bullet item `2. b` was read as text); lists written `1.` `1.` are told apart from a move's duplicates.
+
+The values to tune are constants at the top of `dnd/index.js` (`handleWidth`, `handleGap`, `handleReach`, `previewOpacity`), `move/animate.js` (`duration`, `bumpDistance`, `bumpDuration`), `foundation/dnd/index.js` (`edge`, `maxSpeed`), and in the editor CSS (`.cm-dnd-*`, `.cm-slide-*`, `.cm-bump*`); a duration lives both in CSS and in the JS that cleans up after it, so change them together.
 
 ## What exists
 
@@ -58,7 +69,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
   - **Cmd+7 / Cmd+8**: numbers / bullets, kept nested. Turning an item off and on gives back the same file. A quoted line loses its quote.
   - **Cmd+Enter**: ticks a task, or makes the line a task.
   - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items; the swapped lines slide into place; a block that cannot move bumps in the pressed direction. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
-  - **Dragging** (both modes): a handle fades in when the mouse is near it, left of a block; the block goes where Alt+↑/↓ would take it (decisions.md, "Dragging blocks").
+  - **Dragging** (both modes): a handle fades in when the mouse is near it, left of a block; the block goes where Alt+↑/↓ would take it and slides into place (decisions.md, "Dragging blocks").
   - **Literal** (toolbar): typed Markdown is escaped and stays as typed.
 - Files round-trip byte for byte (BOM kept outside the editor text, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
 
@@ -106,16 +117,22 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 - **Anything wider than the window** makes CodeMirror's scroll-into-view scroll the whole app sideways; the app's children have `min-width: 0` and the toolbar/stats scroll on their own.
 - **jsdom tests** need `Range.getClientRects` stubs, have no canvas, and cannot test layout (clicks, vertical moves, caret, widths); verify those in the pane. In the pane, Vite sometimes reloads the page: get the view again (`document.querySelector('.editor').__vueParentComponent.proxy.view`) or keys go to a stale one.
 - CodeMirror's `drawSelection` is off: the browser's own caret feels faster than a drawn one.
+- **Animating CodeMirror lines**: move them with CSS transforms on line decorations, never by touching its DOM. Changing a line decoration's attributes keeps the same element, so a CSS transition runs; `style` attributes from several decorations are merged (`--hang` survives). To restart a CSS animation on each key press, alternate two identical keyframes (`-a` / `-b`).
+- **Measure the drawn lines, not CodeMirror's height map**, around a change: right after typing the map can be 30–160 px off the page. `dispatchMove` reads line rects just before the move and right after the dispatch (CodeMirror updates the DOM synchronously; the browser has not painted yet), then draws the lines back by the difference.
+- **CodeMirror's editor class is `position: relative !important`**: a copy of the editor's elements (the drag preview) needs a plain wrapper to be placed. The copy's first line is the first line of its content, which drops its top border: align copies by where the text area starts (below border and padding), not by line boxes.
+- **A direct move is not the same as several presses**: renumbering after each press differs from renumbering once. The drop replays the presses on a copy of just the region they change (blocks between the place and the slot, one more on each side, whole lists at the edges, in a state with only the parser): about 0.5 ms per step on 10k lines, where replaying on the whole document took 8 ms.
+- **Markdown: a numbered line right under text is only an item if it is `1.`** (CommonMark); `2. b` under a bullet item's text is more of that text. lezer accepts it under a numbered item, so it is easy to miss.
+- **A hidden browser pane** (see above) also keeps CSS transitions "running" at time 0, so computed values look stuck; check the sequence of classes and starting positions there, and leave the motion to the user's Safari.
 
 ## Tried and dropped
 
-Card boxes around blocks (as line styling, then as a layer); a Look switch with styled/plain/contenteditable/textarea baselines; a plain-textarea Markdown view; bigger block sizes (whole lists, whole sections) with a live switch and an active-block background; blank lines as skipped spacing lines, and as part of the card above. This session: taking a list mark off as a paragraph of its own (the user wants a further line right under the text, so the text doesn't move); a list right under text sitting 3 px close to it (12 px like paragraphs instead). Details on the earlier ones are in decisions.md.
+Card boxes around blocks (as line styling, then as a layer); a Look switch with styled/plain/contenteditable/textarea baselines; a plain-textarea Markdown view; bigger block sizes (whole lists, whole sections) with a live switch and an active-block background; blank lines as skipped spacing lines, and as part of the card above. Second session: taking a list mark off as a paragraph of its own (the user wants a further line right under the text, so the text doesn't move); a list right under text sitting 3 px close to it (12 px like paragraphs instead). This session: a cross-fade for Alt+↑/↓ (a slide reads better), a fade of the moved block while it slides, all drag handles in one column (each is next to its own bullet again). Details on the earlier ones are in decisions.md.
 
 ## Next steps (not started)
 
 - **Tauri shell** (Milestone 2 in handover.md): install Rust, Tauri 2, platform adapter, no-flash window, native menu with the shortcuts and Document/Markdown in the View menu; measure in WKWebView, WebView2, WebKitGTK.
 - **Files** (Milestone 4): open/save, autosave, atomic writes, external-change reload (keep undo: apply as a minimal diff), recent files, session.
-- **Outline** (Milestone 5): dragging blocks is done (displace mode); still to do:
+- **Outline** (Milestone 5): dragging blocks is done (displace mode, with the slide and bump motion); still to do:
   - Target mode of the drag engine (`foundation/dnd/`) for the outline tree, deciding before / after / onto (nest) by the vertical position only, as in Ordner's sidebar (decisions.md).
   - Outline moves use `moveSpec` with `levelDelta`.
 - Smaller open items:
