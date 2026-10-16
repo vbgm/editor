@@ -9,9 +9,9 @@ import { dragSource, dropSlots, dropSpec, droppedAt } from './slots.js'
 import { slideLines } from '../move/animate.js'
 
 // Dragging blocks with the mouse, in both modes. A handle fades in while the mouse is near it, in
-// the narrow strip left of the text (never over the text, never further out in the margin). All
-// handles stand in one column, sub-items' too: which block one is for goes by the line it is
-// beside. Dragging it moves the block exactly where Alt+↑/↓ would (slots.js), and the drop is one
+// the narrow strip left of the block (never over its text, never further out in the margin):
+// beside a paragraph's text, a list item's bullet, a quote's bars; a sub-item's handle is next to
+// its own bullet, as far in as the sub-item. Dragging it moves the block exactly where Alt+↑/↓ would (slots.js), and the drop is one
 // undo step.
 // While dragging, a faded copy of the block follows the pointer, the block's own lines stay as an
 // empty gap, and the lines it passes move aside (displace mode of the foundation's drag engine),
@@ -26,7 +26,7 @@ const previewOpacity = 0.6
 
 const handleWidth = 18
 // room between the handle and the text (or a sub-item's bullet)
-const handleGap = 14
+const handleGap = 12
 // how far left of the handle the mouse may be for it to show
 const handleReach = 36
 
@@ -67,7 +67,8 @@ class DragPlugin {
   }
 
   // the handle shows for the block next to the mouse while the mouse is around the handle: from a
-  // little left of it up to where the text starts; not while selecting with the mouse
+  // little left of it up to where the block starts (a sub-item's bullet); not while selecting with
+  // the mouse
   hover (event) {
     if (this.drag || event.target == this.handle) return
     if (event.buttons) return this.hideHandle()
@@ -84,8 +85,8 @@ class DragPlugin {
     const textStart = first.from + /^[ \t]*/.exec(first.text)[0].length
     const coords = view.coordsAtPos(textStart, 1)
     if (!coords) return this.hideHandle()
-    // sub-items too: every handle stands in one column, left of the top-level text
-    const right = this.textColumn()
+    // left of the text, or of a sub-item's bullet: a sub-item's handle is as far in as it is
+    const right = source.blocks ? this.textColumn() : coords.left
     const scroller = view.scrollDOM.getBoundingClientRect()
     // in a narrow window, no further out than the editor's edge
     const left = Math.max(right - handleGap - handleWidth, scroller.left + 2)
@@ -107,8 +108,7 @@ class DragPlugin {
     this.view.scrollDOM.classList.remove('cm-dnd-hover')
   }
 
-  // where the text of a top-level line starts (the content's padding plus the line's); the
-  // handles' column ends there
+  // where the text of a top-level line starts: the content's padding plus the line's
   textColumn () {
     const content = this.view.contentDOM
     const rect = content.getBoundingClientRect()
