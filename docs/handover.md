@@ -2,7 +2,7 @@
 
 Original handover, kept as written. Decisions made since then are in [decisions.md](decisions.md) and take precedence.
 
-Working name: Editor - for now ("TextBlocks" is taken by another app in the App Store; shortlist to check: Tsumiki, Quire, Stackdown).
+Name: Textflow (earlier working name: Editor; "TextBlocks" is taken by another app in the App Store).
 
 ## Product in one paragraph
 

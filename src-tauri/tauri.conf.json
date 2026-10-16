@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Editor",
+  "productName": "Textflow",
   "version": "0.1.0",
-  "identifier": "app.editor",
+  "identifier": "app.textflow",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Editor",
+        "title": "Textflow",
         "width": 1000,
         "height": 760,
         "minWidth": 480,

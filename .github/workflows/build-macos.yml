@@ -41,6 +41,6 @@ jobs:
       # only the .dmg: an artifact zip loses the .app's executable bit
       - uses: actions/upload-artifact@v5
         with:
-          name: editor-macos-universal
+          name: textflow-macos-universal
           path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error

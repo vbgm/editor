@@ -121,7 +121,7 @@ mod tests {
   use std::os::unix::fs::{PermissionsExt, symlink};
 
   fn folder(name: &str) -> PathBuf {
-    let folder = std::env::temp_dir().join(format!("editor-files-test-{}-{}", name, std::process::id()));
+    let folder = std::env::temp_dir().join(format!("textflow-files-test-{}-{}", name, std::process::id()));
     let _ = fs::remove_dir_all(&folder);
     fs::create_dir_all(&folder).unwrap();
     folder

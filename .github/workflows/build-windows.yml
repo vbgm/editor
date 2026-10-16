@@ -40,7 +40,7 @@ jobs:
 
       - uses: actions/upload-artifact@v5
         with:
-          name: editor-windows
+          name: textflow-windows
           path: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
