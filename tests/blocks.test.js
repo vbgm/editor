@@ -14,7 +14,7 @@ describe('blocks', () => {
     expect(blocks.map(block => block.type)).toEqual([
       'paragraph', 'heading', 'paragraph', 'heading',
       'listItem', 'listItem', 'listItem', 'paragraph',
-      'heading', 'listItem', 'listItem', 'heading', 'paragraph', 'heading', 'paragraph'
+      'heading', 'listItem', 'listItem', 'listItem', 'heading', 'paragraph', 'heading', 'paragraph'
     ])
     expect(blocks[4].text).toBe('- first task')
   })

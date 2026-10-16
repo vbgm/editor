@@ -5,6 +5,7 @@ import { isolateHistory } from '@codemirror/commands'
 import { getBlocks, blockIndexAt } from '../blocks/index.js'
 import shiftHeading from './shift-heading.js'
 import renumber from './renumber.js'
+import nestedMoveSpec from './nested.js'
 
 // Every move is a swap of two adjacent spans of blocks, done as one transaction
 // (one undo step). The text of each span moves as it is, including the blank lines inside it;
@@ -17,6 +18,7 @@ import renumber from './renumber.js'
 // - a heading moves together with everything it owns, and only swaps with a sibling heading
 //   of the same level (changing its parent is done by dragging in the outline)
 // Numbered lists the move touched are renumbered in the same transaction (renumber.js).
+// A sub-item of a list moves among its siblings and into the neighbouring items (nested.js).
 
 // last index of the unit starting at index: a heading owns everything up to the next
 // heading of the same or a higher level
@@ -37,6 +39,11 @@ export function moveBlockDown (view) {
 }
 
 function run ({ state, dispatch }, direction) {
+  const nested = nestedMoveSpec(state, direction == 'up' ? -1 : 1)
+  if (nested !== undefined) {
+    if (nested) dispatch(withRenumbering(state, nested))
+    return true
+  }
   const blocks = getBlocks(state, { complete: true })
   const spec = direction == 'up' ? specUp(state, blocks) : specDown(state, blocks)
   if (spec) dispatch(withRenumbering(state, spec))

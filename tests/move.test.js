@@ -35,6 +35,44 @@ describe('numbered lists after a move', () => {
   })
 })
 
+describe('moving nested list items', () => {
+  const list = '- A\n  - a1\n  - a2\n- B\n  - b1\n'
+
+  it('swap with their siblings, keeping their depth', () => {
+    expect(down('- A\n  - a1|\n  - a2\n- B\n')).toBe('- A\n  - a2\n  - a1\n- B\n')
+    expect(up('- A\n  - a1\n  - a2|\n')).toBe('- A\n  - a2\n  - a1\n')
+  })
+
+  it('go into the neighbouring item at the edge of their sub-list', () => {
+    expect(down(list.replace('a2', 'a2|'))).toBe('- A\n  - a1\n- B\n  - a2\n  - b1\n')
+    expect(up(list.replace('b1', 'b1|'))).toBe('- A\n  - a1\n  - a2\n  - b1\n- B\n')
+    // an item without sub-items gets them
+    expect(down('- A\n  - a1|\n- B\n')).toBe('- A\n- B\n  - a1\n')
+  })
+
+  it('take their own sub-items along', () => {
+    expect(down('- A\n  - a1|\n    - deep\n- B\n')).toBe('- A\n- B\n  - a1\n    - deep\n')
+  })
+
+  it('stay at the edge of the whole list', () => {
+    expect(up('- A\n  - a1|\n')).toBe('- A\n  - a1\n')
+    expect(down('- A\n- B\n  - b1|\n')).toBe('- A\n- B\n  - b1\n')
+  })
+
+  it('are indented for the new parent and renumbered', () => {
+    expect(down('9. A\n   1. x\n   2. y|\n10. B\n')).toBe('9. A\n   1. x\n10. B\n    1. y\n')
+  })
+
+  it('keep the cursor in the moved item', () => {
+    const state = runCommand(moveBlockDown, stateWithCursor(list.replace('a2', 'a|2')))
+    expect(state.sliceDoc(state.selection.main.head - 5, state.selection.main.head)).toBe('  - a')
+  })
+
+  it('leave top-level items moving as a whole', () => {
+    expect(down('- A|\n  - a1\n- B\n')).toBe('- B\n- A\n  - a1\n')
+  })
+})
+
 describe('keyboard moves', () => {
   it('swaps paragraphs', () => {
     expect(down('one|\n\ntwo\n\nthree\n')).toBe('two\n\none\n\nthree\n')

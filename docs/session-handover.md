@@ -57,7 +57,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/blocks/index.js` | blocks from the syntax tree: every top-level element, every top-level list item |
 | `editor/functions/blocks/decorations.js` | line classes for spacing (`cm-block-first/last`, type); mapped while typing, re-checked when idle |
 | `editor/functions/blocks/select.js` | block-aware Shift+↑/↓ |
-| `editor/functions/move/` | block moves as swaps of adjacent spans, heading level shift (for the outline later), renumbering numbered lists after a move |
+| `editor/functions/move/` | block moves as swaps of adjacent spans, heading level shift (for the outline later), moving sub-items (`nested.js`), renumbering numbered lists after a move |
 | `editor/functions/gaps/` | hiding blank lines between blocks (state field, updated only around edits), Enter/Backspace/Delete on blocks, click/cursor fixes |
 | `editor/functions/syntax/` | hiding Markdown syntax, widgets, cursor placement behind hidden line marks, `textStart` |
 | `editor/functions/redraw-caret.js` | makes Safari draw the caret anew after a mode switch or Tab |
