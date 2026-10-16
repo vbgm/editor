@@ -20,37 +20,38 @@
       @benchmark='benchmark'
     />
 
-    <div class='main'>
-      <Sidebar
+    <Sidebar
+      v-bind='{
+        isShown: isSidebarShown,
+        width: sidebarWidth,
+        anchor: `.cm-content`
+      }'
+      @resize='resizeSidebar'
+    >
+      <Outline
         v-bind='{
-          isShown: isSidebarShown,
-          width: sidebarWidth
+          sections,
+          activeIndex: activeSection,
+          canDrop: (from, slot) => $refs.editor.canDropSection(from, slot)
         }'
-        @resize='resizeSidebar'
-      >
-        <Outline
-          v-bind='{
-            sections,
-            activeIndex: activeSection,
-            canDrop: (from, slot) => $refs.editor.canDropSection(from, slot)
-          }'
-          @select='$refs.editor.selectSection($event)'
-          @move='$refs.editor.moveSection($event.from, $event.slot)'
-        />
-      </Sidebar>
-
-      <Editor
-        ref='editor'
-        v-bind='{
-          text,
-          isMarkdownShown,
-          isLiteral
-        }'
-        @toggleMarkdown='toggleMarkdown'
-        @outline='sections = $event'
-        @activeSection='activeSection = $event'
+        @select='$refs.editor.selectSection($event)'
+        @move='$refs.editor.moveSection($event.from, $event.slot)'
       />
-    </div>
+
+      <template #center>
+        <Editor
+          ref='editor'
+          v-bind='{
+            text,
+            isMarkdownShown,
+            isLiteral
+          }'
+          @toggleMarkdown='toggleMarkdown'
+          @outline='sections = $event'
+          @activeSection='activeSection = $event'
+        />
+      </template>
+    </Sidebar>
 
     <!-- v-show: keeps counting key presses while hidden -->
     <Metrics
@@ -190,16 +191,6 @@
     // otherwise scroll the whole app sideways
     > * {
       min-width: 0;
-    }
-
-    > .main {
-      flex: 1 1 auto;
-      min-height: 0;
-      display: flex;
-
-      > .editor {
-        min-width: 0;
-      }
     }
   }
 

@@ -203,20 +203,27 @@ children fade in sliding down from above (0.25 s) or fade out (0.1 s).
     bottom: 0;
     left: -@arrow;
     width: @arrow;
-    padding-left: 0.15rem;
+    display: flex;
+    align-items: center;
+    padding-left: 2px;
     box-sizing: border-box;
     cursor: pointer;
     color: var(--color--text--primary);
 
+    // whole pixels, so it turns around a pixel-exact center; on a layer of its own in both states
+    // (Safari otherwise makes one for the hover's fade only, and the arrow jumps by a fraction of
+    // a pixel)
     > svg {
-      width: 100%;
-      height: 100%;
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
       opacity: 0.5;
       transition: transform 0.2s, opacity 0.2s;
       transform: translateZ(0);
+      will-change: transform, opacity;
 
       &.expanded {
-        transform: rotate(90deg);
+        transform: rotate(90deg) translateZ(0);
       }
     }
 
