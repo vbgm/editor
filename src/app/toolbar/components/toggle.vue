@@ -54,7 +54,7 @@ as its other buttons. It does not take the keyboard focus (mousedown.prevent).
     display: block;
     width: 1.3rem;
     height: 1.3rem;
-    // as the toolbar slides (App's toolbarSlide)
+    // as the toolbar slides (functions/slides.js)
     transition: transform var(--toolbar-slide-duration, 0.3s) var(--toolbar-slide-easing, ease);
 
     &.closed {

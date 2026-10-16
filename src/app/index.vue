@@ -5,8 +5,8 @@
     :style='{
       "--top-inset": `${topInset}px`,
       "--title-bar-height": `${titleBarHeight}px`,
-      "--toolbar-slide-duration": `${toolbarSlide.duration}ms`,
-      "--toolbar-slide-easing": toolbarSlide.easing
+      "--toolbar-slide-duration": `${slideTiming.duration}ms`,
+      "--toolbar-slide-easing": slideTiming.easing
     }'
   >
     <div class='main'>
@@ -128,7 +128,7 @@
   import generateDocument from './functions/generate-document.js'
   import runBenchmark from './benchmark/functions/run.js'
   import Saving, { untitledName } from './functions/saving.js'
-  import { slideIn, slideOut } from './functions/slides.js'
+  import { slideTiming } from './functions/slides.js'
 
   // the test fixtures double as sample documents: opened without a path, so saving asks where
   const fixtures = import.meta.glob('/tests/fixtures/*.md', { query: '?raw', import: 'default', eager: true })
@@ -210,6 +210,8 @@
         // the app draws the window's title bar (macOS: title-bar/), showing windowTitle
         hasOverlayTitleBar: platform.hasOverlayTitleBar,
         titleBarHeight,
+        // the toolbar sliding in and out, the text with it, its arrow turning (--toolbar-slide-*)
+        slideTiming,
         windowTitle: '',
         // of the text with the cursor, for the toolbar (editor/functions/format/active.js)
         formats: {},
@@ -221,11 +223,6 @@
       }
     },
     computed: {
-      // how the toolbar slides to where it is now: in while it shows, out while hidden; the text
-      // with it, its arrow turning (--toolbar-slide-*)
-      toolbarSlide () {
-        return this.isToolbarShown ? slideIn : slideOut
-      },
       // px at the top covered by the title bar (where the app draws it) and the toolbar
       topInset () {
         return titleBarHeight + (this.isToolbarShown ? toolbarHeight : 0)
@@ -306,7 +303,7 @@
         store('toolbar.isShown', this.isToolbarShown)
         const from = drawn + inset - this.topInset
         this.$nextTick(() => {
-          this.bodySlide = body.animate([{ transform: `translateY(${from}px)` }, { transform: 'translateY(0)' }], this.toolbarSlide)
+          this.bodySlide = body.animate([{ transform: `translateY(${from}px)` }, { transform: 'translateY(0)' }], slideTiming)
         })
       },
       toggleTextSliding () {
