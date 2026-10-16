@@ -224,6 +224,8 @@ only when it changed; so is the heading of the section with the cursor.
   // move/animate.js and dnd/index.js, which time, fade and place the same things
   @move-duration: var(--move-duration, 0.15s);
   @handle-fade: 0.15s;
+  // how long a dropped block's copy takes to lose its background and shadow, against the slide
+  @drop-fade-share: 1;
 
   .editor {
     flex: 1 1 auto;
@@ -439,7 +441,7 @@ only when it changed; so is the heading of the section with the cursor.
 
     // dragging blocks (dnd/index.js): a handle of six dots (2 × 3) fades in left of the block under the
     // mouse; while dragging, the block's lines are an empty gap, the lines it passes slide aside,
-    // and a faded copy follows the pointer
+    // and a copy of the block, opaque on a background of its own, follows the pointer
     :deep(.cm-dnd-handle) {
       position: absolute;
       top: 0;
@@ -516,7 +518,7 @@ only when it changed; so is the heading of the section with the cursor.
       height: auto;
       opacity: var(--dnd-preview-opacity);
       // fading from the block it copies when the drag starts (as long as a drop takes), gently
-      // at first
+      // at first (with an opaque copy, its opacity does not change; its background does)
       transition: opacity @move-duration ease-in;
       pointer-events: none;
       z-index: 10;
@@ -526,11 +528,47 @@ only when it changed; so is the heading of the section with the cursor.
         overflow: visible;
       }
 
+      // An opaque copy with a background of its own (a little brighter than the page) and a
+      // shadow, as much room above the text as below: the space between blocks. It is on the
+      // content, which is moved to put the text where the original's is (dnd/index.js), so the
+      // space above a block on the page (larger above a heading) does not change it.
       .cm-content {
         max-width: none;
         margin: 0;
-        padding-top: 0;
-        padding-bottom: 0;
+        padding-top: @block-space;
+        padding-bottom: @block-space;
+        background: var(--color--drag-preview);
+        border-radius: var(--radius--control);
+        box-shadow: var(--shadow--drag-preview);
+        transition:
+          background-color @move-duration ease-in,
+          box-shadow @move-duration ease-in;
+      }
+
+      .cm-content > .cm-line:first-child {
+        border-top-width: 0;
+      }
+
+      .cm-content > .cm-line:last-child {
+        border-bottom-width: 0;
+      }
+
+      // after the drop: only its background and shadow, sliding with the block's own lines
+      // (as they do: ease-out) while they fade out, faster than they faded in (gone while the
+      // block still settles)
+      &.is-settling {
+        transition: transform @move-duration ease-out;
+        // behind the text: the block's own lines land right on it (above it, its opaque
+        // background hid them, and the text blinked)
+        z-index: -1;
+
+        .cm-content {
+          transition-duration: calc(@move-duration * @drop-fade-share);
+        }
+
+        .cm-line {
+          visibility: hidden;
+        }
       }
     }
 

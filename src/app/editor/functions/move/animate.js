@@ -23,7 +23,7 @@ const settle = StateEffect.define()
 const clear = StateEffect.define()
 
 // also the CSS transitions of moves and drags (--move-duration on the editor)
-const duration = 150
+export const duration = 150
 
 // Dispatches a move transaction and slides it, when the view is drawn (tests pass a bare
 // { state, dispatch } to the commands).
@@ -43,7 +43,7 @@ export function dispatchMove (view, transaction) {
 }
 
 // Slides lines from where they were drawn to their place: lines as in the slide effect (a drop
-// after dragging, from where its faded copy was, dnd/index.js); a drop eases out, settling
+// after dragging, from where its copy was, dnd/index.js); a drop eases out, settling
 export function slideLines (view, lines) {
   view.dispatch({ effects: slide.of({ lines, isDrop: true }) })
 }

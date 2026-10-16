@@ -6,14 +6,14 @@ import { startDrag } from '/foundation/dnd/index.js'
 import { displace } from '/foundation/dnd/displace.js'
 // local functions
 import { dragSource, dropSlots, dropSpec, droppedAt } from './slots.js'
-import { slideLines } from '../move/animate.js'
+import { slideLines, duration } from '../move/animate.js'
 
 // Dragging blocks with the mouse, in both modes. A handle fades in while the mouse is near it, in
 // the narrow strip left of the block (never over its text, never further out in the margin):
 // beside a paragraph's text, a list item's bullet, a quote's bars; a sub-item's handle is next to
 // its own bullet, as far in as the sub-item. Dragging it moves the block exactly where Alt+↑/↓ would (slots.js), and the drop is one
 // undo step.
-// While dragging, a faded copy of the block follows the pointer, the block's own lines stay as an
+// While dragging, a copy of the block follows the pointer, the block's own lines stay as an
 // empty gap, and the lines it passes move aside (displace mode of the foundation's drag engine),
 // so the gap follows the pointer. The lines are moved with CSS transforms on line decorations:
 // nothing changes in the document or the layout until the drop.
@@ -21,8 +21,9 @@ import { slideLines } from '../move/animate.js'
 // asks the plugin to draw the drag again (a new slot, the start or end of a drag)
 const redraw = StateEffect.define()
 
-// the faded copy's opacity, where a dropped block fades in from (--dnd-preview-opacity in the CSS)
-const previewOpacity = 0.6
+// the copy's opacity, where a dropped block fades in from (--dnd-preview-opacity in the CSS): 1, an
+// opaque copy on a background of its own (0.6, a faded copy, was tried)
+const previewOpacity = 1
 
 // the handle's size: 2 × 3 dots on a 6 px grid (--dnd-handle-width, --dnd-handle-height in
 // the CSS)
@@ -149,11 +150,10 @@ class DragPlugin {
     view.scrollDOM.classList.remove('cm-dnd-hover')
     view.dispatch({ effects: redraw.of(null) })
 
-    // the block lands from where its faded copy was: it slides into its place (or back to where
+    // the block lands from where its copy was: it slides into its place (or back to where
     // it was, cancelled) and fades in fully
     const finish = spec => {
       const from = textTop(preview.querySelector('.cm-line'))
-      preview.remove()
       this.drag = null
       const transaction = view.state.update({ ...spec, effects: redraw.of(null) })
       view.dispatch(transaction)
@@ -161,6 +161,9 @@ class DragPlugin {
       const to = this.drawnTextTop(line)
       if (from != null && to != null) {
         slideLines(view, [{ from: line, to: line + dragged.to - dragged.from, offset: from - to, opacity: previewOpacity }])
+        settlePreview(preview, to - from)
+      } else {
+        preview.remove()
       }
       view.focus()
     }
@@ -188,7 +191,7 @@ class DragPlugin {
     return textTop((node.nodeType == 1 ? node : node.parentElement)?.closest('.cm-line'))
   }
 
-  // a faded copy of the dragged lines that are drawn, in the editor's own classes so it looks the
+  // a copy of the dragged lines that are drawn, in the editor's own classes so it looks the
   // same; the engine moves it with the pointer
   createPreview (dragged) {
     const { view } = this
@@ -216,6 +219,8 @@ class DragPlugin {
     scroller.className = view.scrollDOM.className
     const content = document.createElement('div')
     content.className = view.contentDOM.className
+    content.style.backgroundColor = 'transparent'
+    content.style.boxShadow = 'none'
     for (const line of lines) content.appendChild(line.cloneNode(true))
     scroller.appendChild(content)
     editor.appendChild(scroller)
@@ -226,17 +231,20 @@ class DragPlugin {
     preview.style.width = `${rect.width}px`
     view.dom.parentElement.appendChild(preview)
 
-    // the copy's first line is the first line of its content, which has no space above it (no
-    // border): put its text where the original's is, so grabbing only fades it
+    // the copy is placed where the original's first line is (the drag engine moves it from
+    // there); its content, with the same room above and below its text, is moved so its text
+    // is where the original's is
     if (lines.length) {
       preview.style.transform = `translateY(${lines[0].getBoundingClientRect().top}px)`
-      const shift = textTop(lines[0]) - textTop(content.firstChild)
-      if (shift > 0) content.style.paddingTop = `${shift}px`
+      content.style.marginTop = `${textTop(lines[0]) - textTop(content.firstChild)}px`
     }
-    // it starts fully drawn, right over the block, and fades to its own opacity (the measuring
-    // above has drawn it once at 1, so the change is a transition)
+    // it starts fully drawn, right over the block, with no background or shadow of its own, and
+    // fades to its own (the measuring above has drawn it once that way, so the change is a
+    // transition)
     preview.getBoundingClientRect()
     preview.style.opacity = ''
+    content.style.backgroundColor = ''
+    content.style.boxShadow = ''
     return preview
   }
 
@@ -265,6 +273,21 @@ class DragPlugin {
     }
     return builder.finish()
   }
+}
+
+// The copy's background and shadow stay for the drop's slide: without its text (the block's own
+// lines slide in its place), it moves with them by as much (shift) and in the same time, while
+// they fade out as they faded in; then it goes.
+function settlePreview (preview, shift) {
+  const top = new DOMMatrix(getComputedStyle(preview).transform).m42
+  preview.classList.add('is-settling')
+  // the change of place is a transition (the class above has to be drawn first)
+  preview.getBoundingClientRect()
+  preview.style.transform = `translateY(${top + shift}px)`
+  const content = preview.querySelector('.cm-content')
+  content.style.backgroundColor = 'transparent'
+  content.style.boxShadow = 'none'
+  setTimeout(() => preview.remove(), duration + 50)
 }
 
 // where a line's text area starts on screen (below its border and padding)

@@ -14,6 +14,10 @@
   // as in Ordner: #ecedee → #e5e5e5 hovered → #dadada selected)
   --color--outline--active: rgba(0, 0, 0, 0.06);
   --color--outline--hover: rgba(0, 0, 0, 0.03);
+  // the copy of a block being dragged: opaque, a little brighter than the page (white cannot be
+  // brighter: a hair darker)
+  --color--drag-preview: #fafafb;
+  --shadow--drag-preview: 0 2px 8px rgba(0, 0, 0, 0.12);
 
   // Markdown mode, inline code
   --font--monospace: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -31,6 +35,8 @@
     --color--link: #7ea6ff;
     --color--outline--active: rgba(255, 255, 255, 0.08);
     --color--outline--hover: rgba(255, 255, 255, 0.05);
+    --color--drag-preview: #2a2a2c;
+    --shadow--drag-preview: 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 }
 
