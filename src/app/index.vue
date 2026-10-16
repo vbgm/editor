@@ -10,6 +10,7 @@
           isShown: isToolbarShown,
           isSidebarShown: isLeftShown,
           isSettingsShown: isRightShown,
+          isTextUnder: isTextUnderToolbar,
           formats
         }'
         @toggle='toggleToolbar'
@@ -80,6 +81,7 @@
             @outline='sections = $event'
             @activeSection='activeSection = $event'
             @formats='formats = $event'
+            @underToolbar='isTextUnderToolbar = $event'
           />
         </template>
       </Sidebar>
@@ -182,6 +184,8 @@
         // the settings sidebar, on the right
         isSettingsShown: stored('settings.isShown', false),
         settingsWidth: stored('settings.width', 240),
+        // the text scrolled up under the toolbar: a line below it
+        isTextUnderToolbar: false,
         // of the text with the cursor, for the toolbar (editor/functions/format/active.js)
         formats: {},
         // the document's headings, and the index of the one with the cursor

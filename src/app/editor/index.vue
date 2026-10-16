@@ -6,7 +6,7 @@ The outline (headings, for the TOC sidebar) is sent when the browser is idle aft
 only when it changed; so is the heading of the section with the cursor, and the formats of the
 text with the cursor (for the toolbar's buttons).
 The top of the editor is under the toolbar (topInset): the text starts below it, and the cursor
-is scrolled into view below it.
+is scrolled into view below it. `underToolbar` says whether the text is scrolled on under it.
 -->
 <template>
 
@@ -66,7 +66,8 @@ is scrolled into view below it.
     // outline: [{ id, title, level }]; activeSection: index in it of the section with the cursor
     // formats: of the text with the cursor (format/active.js)
     // change: the document's text changed
-    emits: ['toggleMarkdown', 'outline', 'activeSection', 'formats', 'change'],
+    // underToolbar: whether the text has been scrolled up under the toolbar
+    emits: ['toggleMarkdown', 'outline', 'activeSection', 'formats', 'change', 'underToolbar'],
     data () {
       return {
         view: null,
@@ -77,6 +78,9 @@ is scrolled into view below it.
     watch: {
       'isLiteral' (value) {
         switchLiteral(this.view, value)
+      },
+      'topInset' () {
+        this.$nextTick(() => this.checkUnderToolbar())
       },
       'isMarkdownShown' (value) {
         // Safari keeps drawing its caret where it was in the old layout (redraw-caret.js): hide
@@ -96,6 +100,8 @@ is scrolled into view below it.
       if (this.isMarkdownShown) this.alignMarkdownTop()
       this.view.focus()
       this.scheduleOutline()
+      this.view.scrollDOM.addEventListener('scroll', this.checkUnderToolbar, { passive: true })
+      this.checkUnderToolbar()
     },
     created () {
       // not reactive: only what is sent out is
@@ -103,9 +109,11 @@ is scrolled into view below it.
       this.outlineKey = null
       this.activeSection = null
       this.formatsKey = null
+      this.isUnderToolbar = false
       this.scheduleOutline = idleScheduler(() => this.sendOutline())
     },
     beforeUnmount () {
+      this.view.scrollDOM.removeEventListener('scroll', this.checkUnderToolbar)
       this.view.destroy()
     },
     methods: {
@@ -126,11 +134,24 @@ is scrolled into view below it.
               const isChanged = update.docChanged || syntaxTree(update.state) != syntaxTree(update.startState)
               if (isChanged || update.selectionSet) this.scheduleOutline()
               if (update.docChanged) this.$emit('change')
+              if (update.geometryChanged) this.checkUnderToolbar()
             }),
             // the cursor is scrolled into view below the toolbar
             EditorView.scrollMargins.of(() => ({ top: this.topInset }))
           ]
         })
+      },
+      // whether the first line's top (the content's, below its padding) is above the toolbar's
+      // bottom, sent when it changed; read from the page, as CodeMirror may not have measured yet
+      checkUnderToolbar () {
+        if (!this.view) return
+        const { contentDOM, scrollDOM } = this.view
+        const textTop = contentDOM.getBoundingClientRect().top + parseFloat(getComputedStyle(contentDOM).paddingTop)
+        const isUnder = textTop < scrollDOM.getBoundingClientRect().top + this.topInset - 0.5
+        if (isUnder != this.isUnderToolbar) {
+          this.isUnderToolbar = isUnder
+          this.$emit('underToolbar', isUnder)
+        }
       },
       // the outline as far as the parser has got, sent when it changed
       sendOutline () {

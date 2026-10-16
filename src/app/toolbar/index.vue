@@ -1,7 +1,7 @@
 <!--
 The toolbar, over the top of the window, the sidebars and the text: they run on under it, seen
 through its translucent, blurred background (as Ordner's folder header); a line below it only
-while a sidebar is shown.
+while a sidebar is shown or the text is scrolled up under it.
 - left: hide or show the toolbar (Cmd+Alt+T), the outline sidebar (Ctrl+Cmd+S)
 - center: formatting for the text with the cursor, lit where the cursor's text has it (formats,
   from the editor), in two groups: what a line is (headings H1–H6, a menu where the toolbar is
@@ -18,7 +18,7 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
 
   <div
     class='toolbar'
-    :class='{hidden: !isShown, lined: isSidebarShown || isSettingsShown}'
+    :class='{hidden: !isShown, lined: isSidebarShown || isSettingsShown || isTextUnder}'
   >
     <div class='start'>
       <button
@@ -218,6 +218,8 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
       isShown: Boolean,
       isSidebarShown: Boolean,
       isSettingsShown: Boolean,
+      // the text scrolled up under the toolbar
+      isTextUnder: Boolean,
       // what the text with the cursor has (editor/functions/format/active.js): heading 0–6,
       // and true for each of the groups' names it has
       formats: Object
@@ -336,27 +338,34 @@ the keyboard focus (mousedown.prevent): the editor keeps the cursor and its sele
     }
 
     // the background, translucent and blurred, as Ordner's folder header, over the whole width:
-    // the text, the sidebars' backgrounds and their edges are seen blurred through it; more
-    // opaque at the right edge, where the scrollbar is
+    // the text, the sidebars' backgrounds and their edges are seen blurred through it. Opaque at
+    // the top of the window, 75 % from halfway down; more opaque at the right edge, where the
+    // scrollbar is (97 % together with the 75 % under it)
     &::before {
       content: '';
       position: absolute;
       inset: 0;
       z-index: -1;
       --translucent: color-mix(in srgb, var(--color--background) 75%, transparent);
-      background: linear-gradient(
-        to right,
-        var(--translucent),
-        var(--translucent) calc(100% - 2rem),
-        color-mix(in srgb, var(--color--background) 97%, transparent) 100%
-      );
+      background:
+        linear-gradient(
+          to right,
+          transparent calc(100% - 2rem),
+          color-mix(in srgb, var(--color--background) 88%, transparent) 100%
+        ),
+        linear-gradient(
+          to bottom,
+          var(--color--background),
+          var(--translucent) 50%
+        );
       -webkit-backdrop-filter: blur(4px);
       backdrop-filter: blur(4px);
       // the line below, fading in and out with the sidebars
       box-shadow: inset 0 -1px 0 transparent;
     }
 
-    // a sidebar shown: a 1 px line at the bottom, as the sidebars' edges
+    // a sidebar shown, or the text scrolled under it: a 1 px line at the bottom, as the sidebars'
+    // edges
     &.lined::before {
       box-shadow: inset 0 -1px 0 var(--color--border--panel);
     }

@@ -10,8 +10,8 @@ A layout with a sidebar on either side (left and right slots) and the main part 
   and the center moves aside for them
 - a sidebar's inner edge is a 1 px line; a 7 px wide handle over it changes the width by
   dragging, live, between minWidth and maxWidth
-- the sidebars run up to the top of the window, under the toolbar (App's), which blurs them;
-  their background and edge fade out towards the top, from halfway down the toolbar
+- the sidebars run up to the top of the window, under the toolbar (App's), which blurs them and
+  hides their top (it is opaque at the top of the window)
 
 Only transforms and opacity are animated (Web Animations, run by the compositor): the column
 takes its new width at once, the center is laid out once for it, and both are drawn moving from
@@ -267,22 +267,7 @@ sidebar's width in a wide window), not by the sidebar's width.
       top: 0;
       bottom: 0;
       box-sizing: border-box;
-      // the background behind the content
-      isolation: isolate;
-
-      // The background and the 1 px edge, on a layer of their own: under the toolbar
-      // (--top-inset) they fade out towards the top of the window, from halfway down the
-      // toolbar, while the content stays as it is
-      &::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        background: var(--color--background--secondary);
-        -webkit-mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--top-inset, 0px) / 2));
-        mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--top-inset, 0px) / 2));
-        pointer-events: none;
-      }
+      background: var(--color--background--secondary);
     }
 
     > .handle {
@@ -303,11 +288,8 @@ sidebar's width in a wide window), not by the sidebar's width.
 
       .content {
         left: 0;
-
         // the 1 px edge
-        &::before {
-          box-shadow: inset -1px 0 0 var(--color--border--panel);
-        }
+        box-shadow: inset -1px 0 0 var(--color--border--panel);
 
         &.hidden {
           // off screen; no visibility: hidden, which would end the slide out at once
@@ -329,10 +311,7 @@ sidebar's width in a wide window), not by the sidebar's width.
 
       .content {
         right: 0;
-
-        &::before {
-          box-shadow: inset 1px 0 0 var(--color--border--panel);
-        }
+        box-shadow: inset 1px 0 0 var(--color--border--panel);
 
         &.hidden {
           transform: translateX(100%);
