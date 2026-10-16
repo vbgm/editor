@@ -25,16 +25,22 @@ const dot = (x, y) => ({ d: `M${x},${y}l0,0`, cap: 'round', weight: 1.3 })
 
 // The headings' buttons, H1–H6: a small H (60 high, 44 to 104) close to the level's digit (80
 // high, 24 to 104), on the same bottom line, drawn as the other icons are rather than as text.
-// The digits are built as a sans serif's: about 0.55 as wide as high, round bowls, flat ends
-// on the bottom line; their centre lines run from 28.5 to 99.5, the stroke reaching 24 and 104.
+// The digits are built as a geometric sans serif's: about 0.55 as wide as high, their bowls
+// circles' arcs, flat ends on the bottom line; their centre lines run from 28.5 to 99.5, the
+// stroke reaching 24 and 104.
 const headingDigits = {
   // narrow: as close to the H as the others' bowls are
   1: ['M68,40L82,28.5L82,104'],
-  2: [round('M67,45C67,35 75,28.5 86,28.5C97,28.5 105,35.5 105,46C105,55 99,61 91,68L67,99.5'), 'M67,99.5L106,99.5'],
-  3: [round('M68,36C71,31.5 77,28.5 85.5,28.5C96,28.5 103,34.5 103,44C103,53.5 95.5,60 85,60C97,60 106,67 106,79C106,91.5 97,99.5 85.5,99.5C76.5,99.5 69.5,95.5 66,89')],
+  // a round top (a circle's arc, narrower than the foot) running on into the diagonal, a flat
+  // foot
+  2: [round('M69.13,43.43A17,17 0 1,1 99.93,55.25L66,99.5'), 'M66,99.5L106,99.5'],
+  // two circles' arcs, about as large, meeting where they touch
+  3: [round('M70.84,37.25A17.5,17.5 0 1,1 86,63.5A18,18 0 1,1 70.41,90.5')],
   4: ['M96,104L96,28.5L66,80L108,80'],
-  5: ['M104,28.5L72,28.5L70,61', round('M70,61C74,57 79.5,55 86,55C97.5,55 106,63.5 106,77C106,90.5 97,99.5 85,99.5C76.5,99.5 69.5,95.5 66,89')],
-  6: [round('M103,37C99.5,31.5 93.5,28.5 86.5,28.5C73,28.5 66,41 66,62C66,86 73.5,99.5 86,99.5C97.5,99.5 106,91.5 106,79.5C106,67.5 97.5,59.5 86.5,59.5C76,59.5 68,66 66,75')]
+  // a flat top and stem, the bowl a circle's arc from where the stem meets it
+  5: ['M104,28.5L70,28.5L70,66.18', round('M70,66.18A20.5,20.5 0 1,1 68.25,89.25')],
+  // a round top (an arc as wide as the bowl) down the left into a full circle
+  6: [round('M101.32,35.64A20,20 0 0,0 66,48.5L66,79.5A20,20 0 1,0 106,79.5A20,20 0 1,0 66,79.5')]
 }
 
 const headingIcon = level => [
