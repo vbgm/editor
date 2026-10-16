@@ -1,6 +1,7 @@
 <!--
 An icon from shapes.js, drawn in the text colour (currentColor), so CSS colours it and fades
-the colour. As large as its element: the parent sets the size.
+the colour. As large as its element: the parent sets the size. An icon that morphs is drawn for
+its value (0–1): animating the value morphs it.
 -->
 <template>
 
@@ -35,11 +36,17 @@ the colour. As large as its element: the parent sets the size.
       strokeWidth: {
         type: Number,
         default: 11
+      },
+      // for an icon that morphs
+      value: {
+        type: Number,
+        default: 0
       }
     },
     computed: {
       paths () {
-        return (shapes[this.name] ?? []).map(path => {
+        const shape = shapes[this.name] ?? []
+        return (typeof shape == 'function' ? shape(this.value) : shape).map(path => {
           const { d, cap = 'butt', weight = 1 } = typeof path == 'string' ? { d: path } : path
           return { d, cap, weight }
         })

@@ -1,7 +1,8 @@
 // The icons' shapes, drawn as Ordner draws its icons (foundation/client/vue/components/icon):
 // strokes only, on a 128 × 128 grid. Each icon is a list of paths: a path is its `d`, or
 // { d, cap, weight } for round ends (default: butt) or a stroke thinner or thicker than the icon's
-// (weight × its stroke width).
+// (weight × its stroke width). An icon that morphs is a function of its value (0–1) returning
+// the list.
 // angle-down, check, sliders and link are Ordner's own.
 
 const round = d => ({ d, cap: 'round' })
@@ -14,6 +15,10 @@ const dot = (x, y) => ({ d: `M${x},${y}l0,0`, cap: 'round', weight: 1.3 })
 
 export default {
   'angle-down': [round('M45.976,55l18,18l18,-18')],
+
+  // 0: down (Ordner's angle-down), 1: up; between, the tip and the ends move towards each other,
+  // flat halfway
+  angle: value => [round(`M45.976,${55 + 18 * value}L63.976,${73 - 18 * value}L81.976,${55 + 18 * value}`)],
 
   check: [round('M24.067,60.38l30.908,28.099l44.958,-44.958')],
 

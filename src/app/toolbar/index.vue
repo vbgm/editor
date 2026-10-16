@@ -22,13 +22,15 @@ the editor keeps the cursor and its selection.
     <div class='start'>
       <button
         class='button angle'
-        :class='{up: isShown}'
         :title='isShown ? `Hide the toolbar (Cmd+Alt+T)` : `Show the toolbar (Cmd+Alt+T)`'
         @mousedown.prevent=''
         @click='$emit(`toggle`)'
       >
         <span class='glyph'>
-          <Icon name='angle-down' />
+          <Icon
+            name='angle'
+            :value='angle'
+          />
         </span>
       </button>
 
@@ -198,10 +200,15 @@ the editor keeps the cursor and its selection.
     data () {
       return {
         groups,
-        isHeadingMenuOpen: false
+        isHeadingMenuOpen: false,
+        // the arrow: 0 down, 1 up (morphAngle)
+        angle: this.isShown ? 1 : 0
       }
     },
     watch: {
+      'isShown' (isShown) {
+        this.morphAngle(isShown ? 1 : 0)
+      },
       // closed by a press anywhere outside it, or Escape
       'isHeadingMenuOpen' (isOpen) {
         if (isOpen) {
@@ -214,8 +221,25 @@ the editor keeps the cursor and its selection.
     },
     beforeUnmount () {
       this.removeListeners()
+      cancelAnimationFrame(this.frame)
     },
     methods: {
+      // The arrow morphs up while the toolbar shows (it hides it), down while hidden, as long as
+      // the toolbar slides and with the same easing. Safari cannot animate a path's shape in
+      // CSS: the path is drawn anew each frame, its progress eased by a target-less animation.
+      morphAngle (to) {
+        cancelAnimationFrame(this.frame)
+        const from = this.angle
+        const timing = new Animation(new KeyframeEffect(null, null, { duration: 300, easing: 'ease' }))
+        timing.play()
+        const step = () => {
+          const { progress } = timing.effect.getComputedTiming()
+          // done: no progress any more
+          this.angle = progress == null ? to : from + (to - from) * progress
+          if (progress != null) this.frame = requestAnimationFrame(step)
+        }
+        step()
+      },
       // as Ordner's buttons: a little thicker when on
       strokeOf (isActive) {
         return isActive ? 12 : 11
@@ -408,15 +432,6 @@ the editor keeps the cursor and its selection.
       height: 0.8rem;
       margin-left: -0.1rem;
     }
-  }
-
-  // up while the toolbar shows (it hides it), down while hidden
-  .angle > .glyph {
-    transition: transform @fade;
-  }
-
-  .angle.up > .glyph {
-    transform: rotate(180deg);
   }
 
   .menu {
