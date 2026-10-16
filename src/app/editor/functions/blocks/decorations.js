@@ -7,7 +7,10 @@ import { getBlocksInRange, blockIndexAt } from './index.js'
 
 // Marks the lines of blocks, only for the visible part of the document.
 // Line classes: 'cm-block' on every line of a block, plus '-first' / '-last' on its edges,
-// '--<type>' and '--level-<n>' for headings. They set the space between blocks (index.vue).
+// '--<type>' and '--level-<n>' for headings. A block's first line also names the block above
+// ('cm-after--<type>'), its last line the block below ('cm-before--<type>'), so the space between
+// two blocks can depend on both (list items sit close together, a list's edges are spaced like
+// a paragraph). They set the space between blocks (index.vue).
 
 const decorationCache = new Map()
 
@@ -17,12 +20,20 @@ function lineDecoration (className) {
   return decoration
 }
 
+// the end of the first line with text below the line at pos (past blank lines)
+function nextTextLineEnd (doc, pos) {
+  let number = doc.lineAt(pos).number + 1
+  while (number <= doc.lines && /^[ \t]*$/.test(doc.line(number).text)) number++
+  return number <= doc.lines ? doc.line(number).to : doc.length
+}
+
 function build (view) {
   const { state } = view
   const builder = new RangeSetBuilder()
 
   for (const { from, to } of view.visibleRanges) {
-    const blocks = getBlocksInRange(state, from, to)
+    // one block further than the visible part, to know the block below the last visible one
+    const blocks = getBlocksInRange(state, from, nextTextLineEnd(state.doc, to))
     let index = Math.max(blockIndexAt(blocks, from), 0)
     for (; index < blocks.length && blocks[index].from <= to; index++) {
       const block = blocks[index]
@@ -30,6 +41,8 @@ function build (view) {
 
       let base = `cm-block cm-block--${block.type}`
       if (block.level) base += ` cm-block--level-${block.level}`
+      const after = index > 0 ? ` cm-after--${blocks[index - 1].type}` : ''
+      const before = index < blocks.length - 1 ? ` cm-before--${blocks[index + 1].type}` : ''
 
       const firstLine = state.doc.lineAt(Math.max(block.from, from)).number
       const lastLine = state.doc.lineAt(Math.min(block.to, to)).number
@@ -37,8 +50,8 @@ function build (view) {
       const blockLast = state.doc.lineAt(block.to).number
       for (let number = firstLine; number <= lastLine; number++) {
         let className = base
-        if (number == blockFirst) className += ' cm-block-first'
-        if (number == blockLast) className += ' cm-block-last'
+        if (number == blockFirst) className += ' cm-block-first' + after
+        if (number == blockLast) className += ' cm-block-last' + before
         builder.add(state.doc.line(number).from, state.doc.line(number).from, lineDecoration(className))
       }
     }

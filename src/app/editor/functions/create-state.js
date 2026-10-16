@@ -13,7 +13,7 @@ import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
 import gaps, { cursorForDocument } from './gaps/index.js'
 import markdownShown from './markdown-shown.js'
-import { insertNewBlock, joinBackward, joinForward } from './gaps/commands.js'
+import { insertNewBlock, joinBackward, joinForward, listItemToParagraph } from './gaps/commands.js'
 import literalTyping from './literal-typing.js'
 
 // Classes instead of inline styles, so the look lives in LESS
@@ -52,8 +52,11 @@ export function modeExtensions (isMarkdownShown) {
     syntaxHighlighting(highlightStyle),
     hiddenSyntax,
     gaps,
-    Prec.high(keymap.of([
+    // before the Markdown keymap (lang-markdown, also high), whose Backspace would turn a list
+    // item's mark into indentation; these commands do nothing where they do not apply
+    Prec.highest(keymap.of([
       { key: 'Enter', run: insertNewBlock },
+      { key: 'Backspace', run: listItemToParagraph },
       { key: 'Backspace', run: joinBackward },
       { key: 'Delete', run: joinForward }
     ]))

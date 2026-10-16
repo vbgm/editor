@@ -36,6 +36,22 @@ function type (view, text, at = view.state.selection.main.head) {
 }
 
 describe('block line marks', () => {
+  it('name the blocks above and below', () => {
+    const view = createView('# T\n\n- a\n- b\n\nText\n- c\n\nAfter\n')
+    const classes = lineClasses(view)
+    const of = text => classes[[...view.contentDOM.querySelectorAll('.cm-line')].findIndex(line => line.textContent.includes(text))]
+    expect(of('T')).toContain('cm-before--listItem')
+    expect(of('a')).toContain('cm-after--heading')
+    expect(of('a')).toContain('cm-before--listItem')
+    expect(of('b')).toContain('cm-after--listItem')
+    expect(of('b')).toContain('cm-before--paragraph')
+    expect(of('Text')).toContain('cm-before--listItem')
+    expect(of('c')).toContain('cm-after--paragraph')
+    expect(of('After')).toContain('cm-after--listItem')
+    expect(of('After')).not.toContain('cm-before--')
+    view.destroy()
+  })
+
   it('keep their classes when typing a letter', () => {
     const view = createView('first paragraph\n\nsecond paragraph\n')
     const before = lineClasses(view)

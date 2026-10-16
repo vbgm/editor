@@ -9,6 +9,9 @@ import { syntaxTree } from '@codemirror/language'
 //   end of a block joins the paragraph below to it; both remove the whole hidden gap at once
 // Headings, list items and quotes are not joined: Backspace at their start removes their hidden
 // mark first (syntax/index.js), which turns them into a paragraph.
+// - Backspace at the start of a list item's text turns it into a paragraph of its own, outside
+//   the list: blank lines around it split it off (Markdown would otherwise read it as a further
+//   line of the item above). Nested items keep the Markdown behaviour (outdenting).
 
 // blocks where Enter and joining keep their usual Markdown behaviour
 const containers = ['ListItem', 'Blockquote', 'FencedCode', 'CodeBlock', 'HTMLBlock', 'Table', 'Frontmatter', 'CommentBlock']
@@ -39,6 +42,47 @@ export function insertNewBlock ({ state, dispatch }) {
     // in document positions every line break counts as one character
     selection: EditorSelection.cursor(main.from + 2),
     scrollIntoView: true,
+    userEvent: 'input'
+  }))
+  return true
+}
+
+const listMark = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]*(?:\[[ xX]\][ \t]?)?/
+
+// the top-level list item starting on the line at lineFrom
+function topLevelListItem (state, lineFrom) {
+  for (let node = syntaxTree(state).resolveInner(lineFrom, 1); node; node = node.parent) {
+    if (node.from < lineFrom) return null
+    if (node.name == 'ListItem') return node.parent?.parent?.name == 'Document' ? node : null
+  }
+  return null
+}
+
+export function listItemToParagraph ({ state, dispatch }) {
+  const { main } = state.selection
+  if (state.selection.ranges.length > 1 || !main.empty) return false
+  const { doc } = state
+  const line = doc.lineAt(main.head)
+  const item = topLevelListItem(state, line.from)
+  if (!item) return false
+  // behind the bullet or number, and a task box
+  const contentStart = line.from + listMark.exec(line.text)[0].length
+  if (main.head != contentStart) return false
+
+  let last = doc.lineAt(item.to)
+  if (last.from == item.to && item.to > item.from) last = doc.lineAt(item.to - 1)
+  const isBlankAbove = line.number == 1 || isBlank(doc.line(line.number - 1).text)
+  const isBlankBelow = last.number == doc.lines || isBlank(doc.line(last.number + 1).text)
+  const breakAbove = isBlankAbove ? '' : state.lineBreak
+  const changes = [{ from: line.from, to: contentStart, insert: breakAbove }]
+  if (!isBlankBelow) changes.push({ from: last.to, insert: state.lineBreak })
+
+  dispatch(state.update({
+    changes,
+    // in document positions every line break counts as one character
+    selection: EditorSelection.cursor(line.from + (breakAbove ? 1 : 0)),
+    // not a deletion: the cursor stays on the new (maybe still empty) block, as after Enter,
+    // instead of leaving the blank line (gaps/index.js)
     userEvent: 'input'
   }))
   return true

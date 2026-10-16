@@ -10,7 +10,7 @@ Read in this order:
 ## How to work here
 
 - **Workflow** (from the user's instructions): investigate → propose a plan and wait → the user confirms → implement → ask before committing → the user pushes. **Never push**, never touch the `stage` / `prod` branches, and **no attribution** (no "Co-Authored-By", no "Generated with …") in commits or anywhere else.
-- "Commit" means: commit everything listed in the last summary on `main`, with a plain one-line message.
+- "Commit" means: commit everything listed in the last summary on `main`. Write the message as helps later: a summary line, and a body explaining what changed and why when that is useful.
 - Testing happens in **Safari** (the engine the macOS app will run on) and Chrome, usually on the production build at `localhost:1421`. **After every change, rebuild that preview** (stop and start the `production` launch config), or stale code gets tested.
 - Keep it **minimal**: the page must look like plain text; no visual chrome unless asked. Debugging tools go behind a toggle.
 - Before claiming a fix, **verify it in the browser pane** (measure positions with JS where screenshots cannot show it, such as the caret) and say what could not be checked. Fixes that do not work get noticed quickly.
@@ -27,7 +27,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421 (what gets tested)
-npm test             # vitest, 104 tests (node + jsdom)
+npm test             # vitest, 108 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.

@@ -10,7 +10,7 @@ import { cursorCharRight, cursorCharLeft } from '@codemirror/commands'
 import { createState, stateWithCursor, runCommand, getText } from './helpers.js'
 import { gaps, computeAll } from '/src/app/editor/functions/gaps/index.js'
 import { deleteCharBackward } from '@codemirror/commands'
-import { insertNewBlock, joinBackward, joinForward } from '/src/app/editor/functions/gaps/commands.js'
+import { insertNewBlock, joinBackward, joinForward, listItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
 import generateDocument from '/src/app/functions/generate-document.js'
 
 beforeAll(() => {
@@ -152,6 +152,29 @@ describe('Enter, Backspace and Delete between blocks', () => {
   it('Backspace does not join headings or list items', () => {
     expect(joinBackward({ state: stateWithCursor('one\n\n|# Title\n'), dispatch: () => {} })).toBe(false)
     expect(joinBackward({ state: stateWithCursor('one\n\n|- item\n'), dispatch: () => {} })).toBe(false)
+  })
+
+  it('Backspace at the start of a list item turns it into a paragraph outside the list', () => {
+    // the last item, also an empty one after Enter
+    expect(run(listItemToParagraph, '- one\n- |two\n\nAfter\n')).toBe('- one\n\ntwo\n\nAfter\n')
+    expect(run(listItemToParagraph, '- one\n- |\n')).toBe('- one\n\n\n')
+    // a middle item splits the list, the first one leaves it
+    expect(run(listItemToParagraph, '- a\n- |b\n- c\n')).toBe('- a\n\nb\n\n- c\n')
+    expect(run(listItemToParagraph, 'Intro\n\n- |a\n- b\n')).toBe('Intro\n\na\n\n- b\n')
+    // numbered and task items, an item over several lines
+    expect(run(listItemToParagraph, '1. a\n2. |b\n')).toBe('1. a\n\nb\n')
+    expect(run(listItemToParagraph, '- a\n- [ ] |b\n')).toBe('- a\n\nb\n')
+    expect(run(listItemToParagraph, '- a\n- |b\n  more\n- c\n')).toBe('- a\n\nb\n  more\n\n- c\n')
+  })
+
+  it('puts the cursor at the start of the new paragraph', () => {
+    const state = runCommand(listItemToParagraph, stateWithCursor('- one\n- |two\n'))
+    expect(state.selection.main.head).toBe(7)
+  })
+
+  it('leaves nested items and the middle of an item to Markdown', () => {
+    expect(listItemToParagraph({ state: stateWithCursor('- a\n  - |b\n'), dispatch: () => {} })).toBe(false)
+    expect(listItemToParagraph({ state: stateWithCursor('- a|b\n'), dispatch: () => {} })).toBe(false)
   })
 
   it('Delete at the end of a block joins the paragraph below', () => {

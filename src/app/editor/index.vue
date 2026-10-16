@@ -170,12 +170,13 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         border-bottom: 0.4rem solid transparent;
       }
 
+      // list items sit close together; a list as a whole is spaced like a paragraph
       .cm-block--listItem {
-        &.cm-block-first {
+        &.cm-after--listItem {
           border-top-width: 0.1rem;
         }
 
-        &.cm-block-last {
+        &.cm-before--listItem {
           border-bottom-width: 0.1rem;
         }
       }
