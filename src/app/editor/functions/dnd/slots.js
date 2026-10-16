@@ -1,5 +1,5 @@
 // npm packages
-import { EditorState, EditorSelection } from '@codemirror/state'
+import { EditorState, EditorSelection, Annotation } from '@codemirror/state'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { isolateHistory } from '@codemirror/commands'
 // local functions
@@ -21,6 +21,9 @@ import markdown from '../markdown/index.js'
 // line numbers) and where the block then sits (cut: the top or bottom edge of a line).
 
 const isBlank = text => /^[ \t]*$/.test(text)
+
+// on a drop: the first line number of the dropped lines after it
+export const droppedAt = Annotation.define()
 
 function treeOf (state) {
   return ensureSyntaxTree(state, state.doc.length, 1000) || syntaxTree(state)
@@ -260,7 +263,7 @@ export function dropSpec (state, dragged, steps) {
     changes,
     selection: EditorSelection.single(map(anchor), map(head)),
     userEvent: 'move.drop',
-    annotations: isolateHistory.of('full')
+    annotations: [isolateHistory.of('full'), droppedAt.of(start)]
   }
 }
 

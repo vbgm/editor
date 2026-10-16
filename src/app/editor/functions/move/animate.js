@@ -16,8 +16,8 @@ import { ViewPlugin, Decoration } from '@codemirror/view'
 // line numbers before the move, and where each stretch starts after it
 export const movedLines = Annotation.define()
 
-// { lines: [{ from, to, offset }] }: new line numbers and how far above (< 0) or below
-// their new place they were drawn
+// { lines: [{ from, to, offset, opacity }] }: new line numbers, how far above (< 0) or below
+// their new place they were drawn, and the opacity they start from (none: fully drawn)
 const slide = StateEffect.define()
 const settle = StateEffect.define()
 const clear = StateEffect.define()
@@ -39,6 +39,12 @@ export function dispatchMove (view, transaction) {
     lines.push({ from: span.newFrom, to: span.newFrom + span.to - span.from, offset: old[key] - now })
   }
   if (lines.length) view.dispatch({ effects: slide.of({ lines }) })
+}
+
+// Slides lines from where they were drawn to their place: lines as in the slide effect (a drop
+// after dragging, from where its faded copy was, dnd/index.js)
+export function slideLines (view, lines) {
+  view.dispatch({ effects: slide.of({ lines }) })
 }
 
 // where line number is drawn on screen (with any slide still going on), or null when it is not
@@ -90,9 +96,10 @@ class SlidePlugin {
     const { view } = this
     const { doc } = view.state
     const builder = new RangeSetBuilder()
-    for (const { from, to, offset } of lines.slice().sort((a, b) => a.from - b.from)) {
+    for (const { from, to, offset, opacity } of lines.slice().sort((a, b) => a.from - b.from)) {
+      const style = `transform: translateY(${offset}px)${opacity != null ? `; opacity: ${opacity}` : ''}`
       const decoration = isAtStart
-        ? Decoration.line({ class: 'cm-slide-from', attributes: { style: `transform: translateY(${offset}px)` } })
+        ? Decoration.line({ class: 'cm-slide-from', attributes: { style } })
         : Decoration.line({ class: 'cm-slide-to' })
       for (let number = from; number <= Math.min(to, doc.lines); number++) {
         const pos = doc.line(number).from

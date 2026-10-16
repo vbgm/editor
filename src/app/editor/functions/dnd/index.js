@@ -5,7 +5,8 @@ import { ViewPlugin, Decoration } from '@codemirror/view'
 import { startDrag } from '/foundation/dnd/index.js'
 import { displace } from '/foundation/dnd/displace.js'
 // local functions
-import { dragSource, dropSlots, dropSpec } from './slots.js'
+import { dragSource, dropSlots, dropSpec, droppedAt } from './slots.js'
+import { slideLines } from '../move/animate.js'
 
 // Dragging blocks with the mouse, in both modes. A handle fades in while the mouse is near it, in
 // the narrow strip left of the text (never over the text, never further out in the margin). All
@@ -19,6 +20,9 @@ import { dragSource, dropSlots, dropSpec } from './slots.js'
 
 // asks the plugin to draw the drag again (a new slot, the start or end of a drag)
 const redraw = StateEffect.define()
+
+// the faded copy's opacity (as in the CSS), where a dropped block fades in from
+const previewOpacity = 0.6
 
 const handleWidth = 18
 // room between the handle and the text (or a sub-item's bullet)
@@ -142,10 +146,19 @@ class DragPlugin {
     view.scrollDOM.classList.remove('cm-dnd-hover')
     view.dispatch({ effects: redraw.of(null) })
 
+    // the block lands from where its faded copy was: it slides into its place (or back to where
+    // it was, cancelled) and fades in fully
     const finish = spec => {
+      const from = textTop(preview.querySelector('.cm-line'))
       preview.remove()
       this.drag = null
-      view.dispatch({ ...spec, effects: redraw.of(null) })
+      const transaction = view.state.update({ ...spec, effects: redraw.of(null) })
+      view.dispatch(transaction)
+      const line = transaction.annotation(droppedAt) ?? dragged.from
+      const to = this.drawnTextTop(line)
+      if (from != null && to != null) {
+        slideLines(view, [{ from: line, to: line + dragged.to - dragged.from, offset: from - to, opacity: previewOpacity }])
+      }
       view.focus()
     }
     this.drag.engine = startDrag({
@@ -161,6 +174,15 @@ class DragPlugin {
       onDrop: slot => finish(slot ? dropSpec(view.state, dragged, slot) || {} : {}),
       onCancel: () => finish({})
     })
+  }
+
+  // where the text area of line number is drawn, or null when it is not
+  drawnTextTop (number) {
+    const { view } = this
+    const pos = view.state.doc.line(number).from
+    if (pos < view.viewport.from || pos > view.viewport.to) return null
+    const node = view.domAtPos(pos).node
+    return textTop((node.nodeType == 1 ? node : node.parentElement)?.closest('.cm-line'))
   }
 
   // a faded copy of the dragged lines that are drawn, in the editor's own classes so it looks the
@@ -201,10 +223,6 @@ class DragPlugin {
     // border): put its text where the original's is, so grabbing only fades it
     if (lines.length) {
       preview.style.transform = `translateY(${lines[0].getBoundingClientRect().top}px)`
-      const textTop = line => {
-        const style = getComputedStyle(line)
-        return line.getBoundingClientRect().top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop)
-      }
       const shift = textTop(lines[0]) - textTop(content.firstChild)
       if (shift > 0) content.style.paddingTop = `${shift}px`
     }
@@ -236,6 +254,13 @@ class DragPlugin {
     }
     return builder.finish()
   }
+}
+
+// where a line's text area starts on screen (below its border and padding)
+function textTop (line) {
+  if (!line) return null
+  const style = getComputedStyle(line)
+  return line.getBoundingClientRect().top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop)
 }
 
 const gap = Decoration.line({ class: 'cm-dnd-gap' })
