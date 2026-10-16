@@ -1,0 +1,46 @@
+# Builds a universal macOS .dmg (Intel and Apple Silicon in one), unsigned, as a workflow artifact
+# (no release). Started by hand only: Actions → Build macOS → Run workflow. The .dmg is under the
+# run's Artifacts, as a zip (docs/decisions.md, Desktop app). Windows: build-windows.yml.
+
+name: Build macOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: cargo test
+        working-directory: src-tauri
+
+      - uses: tauri-apps/tauri-action@v0
+        with:
+          tauriScript: npx tauri
+          args: --target universal-apple-darwin
+
+      # only the .dmg: an artifact zip loses the .app's executable bit
+      - uses: actions/upload-artifact@v5
+        with:
+          name: editor-macos-universal
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
