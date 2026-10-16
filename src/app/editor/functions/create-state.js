@@ -1,7 +1,7 @@
 // npm packages
 import { EditorState, EditorSelection, Prec, Compartment, Facet } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { history, defaultKeymap, historyKeymap, deleteCharBackward } from '@codemirror/commands'
+import { history, defaultKeymap, historyKeymap, deleteCharBackward, indentMore, indentLess } from '@codemirror/commands'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 // local functions
@@ -13,8 +13,10 @@ import formatKeymap from './format/keymap.js'
 import hiddenSyntax from './syntax/index.js'
 import gaps, { cursorForDocument } from './gaps/index.js'
 import markdownShown from './markdown-shown.js'
-import { insertNewBlock, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from './gaps/commands.js'
+import { insertNewBlock, newParagraphAfterQuote, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from './gaps/commands.js'
 import literalTyping from './literal-typing.js'
+import { indentBlock, outdentBlock, quoteBackspace } from './indent/index.js'
+import { caretRedrawAfterIndent } from './redraw-caret.js'
 
 // Classes instead of inline styles, so the look lives in LESS
 const highlightStyle = HighlightStyle.define([
@@ -47,7 +49,12 @@ export function modeExtensions (isMarkdownShown) {
       EditorView.editorAttributes.of({ class: 'cm-markdown' }),
       // a plain Backspace, before the Markdown keymap's, which would turn a list mark it stands
       // behind ('1. ') into spaces
-      Prec.highest(keymap.of([{ key: 'Backspace', run: deleteCharBackward }]))
+      Prec.highest(keymap.of([
+        { key: 'Backspace', run: deleteCharBackward },
+        // the selected lines, as in a code editor; Tab never leaves the editor
+        { key: 'Tab', run: view => indentMore(view) || true },
+        { key: 'Shift-Tab', run: view => indentLess(view) || true }
+      ]))
     ]
   }
   return [
@@ -59,12 +66,16 @@ export function modeExtensions (isMarkdownShown) {
     // item's mark into indentation; these commands do nothing where they do not apply
     Prec.highest(keymap.of([
       { key: 'Enter', run: emptyListItemToParagraph },
+      { key: 'Enter', run: newParagraphAfterQuote },
       { key: 'Enter', run: insertNewBlock },
       { key: 'Shift-Enter', run: insertLineBreak },
       { key: 'Backspace', run: listItemToParagraph },
       { key: 'Backspace', run: joinItemLine },
+      { key: 'Backspace', run: quoteBackspace },
       { key: 'Backspace', run: joinBackward },
-      { key: 'Delete', run: joinForward }
+      { key: 'Delete', run: joinForward },
+      { key: 'Tab', run: indentBlock },
+      { key: 'Shift-Tab', run: outdentBlock }
     ]))
   ]
 }
@@ -99,6 +110,7 @@ function documentExtensions (bare, isMarkdownShown, isLiteral) {
   if (bare) return []
   return [
     blockLines,
+    caretRedrawAfterIndent,
     modeCompartment.of(modeExtensions(isMarkdownShown)),
     literalCompartment.of(isLiteral ? literalTyping : []),
     Prec.high(keymap.of([

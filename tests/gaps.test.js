@@ -10,7 +10,7 @@ import { cursorCharRight, cursorCharLeft } from '@codemirror/commands'
 import { createState, stateWithCursor, runCommand, getText } from './helpers.js'
 import { gaps, computeAll } from '/src/app/editor/functions/gaps/index.js'
 import { deleteCharBackward } from '@codemirror/commands'
-import { insertNewBlock, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
+import { insertNewBlock, newParagraphAfterQuote, insertLineBreak, joinItemLine, joinBackward, joinForward, listItemToParagraph, emptyListItemToParagraph } from '/src/app/editor/functions/gaps/commands.js'
 import generateDocument from '/src/app/functions/generate-document.js'
 
 beforeAll(() => {
@@ -143,6 +143,16 @@ describe('Enter, Backspace and Delete between blocks', () => {
     expect(run(insertNewBlock, 'one|\n\ntwo\n')).toBe('one\n\n\n\ntwo\n')
     expect(run(insertNewBlock, '# Title|\n')).toBe('# Title\n\n\n')
     expect(run(insertNewBlock, 'split| here\n')).toBe('split\n\n here\n')
+  })
+
+  it('Enter in a quote starts a new, unquoted paragraph', () => {
+    expect(run(newParagraphAfterQuote, '> quote|\n\nAfter\n')).toBe('> quote\n\n\n\nAfter\n')
+    expect(run(newParagraphAfterQuote, '> > deep|\n')).toBe('> > deep\n\n\n')
+    // the text after the cursor goes with it, later quote lines stay quoted
+    expect(run(newParagraphAfterQuote, '> one| two\n> three\n')).toBe('> one\n\n two\n\n> three\n')
+    // an empty quote line loses its quote
+    expect(run(newParagraphAfterQuote, '> one\n> |\n')).toBe('> one\n\n\n')
+    expect(newParagraphAfterQuote({ state: stateWithCursor('> - item|\n'), dispatch: () => {} })).toBe(false)
   })
 
   it('Shift+Enter starts a new line within the block', () => {

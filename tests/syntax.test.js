@@ -65,6 +65,13 @@ describe('hidden Markdown', () => {
     view.destroy()
   })
 
+  it('spaces nested items like first-level ones', () => {
+    const view = createView('- a\n  - b\n    - c\n  more\n- d\n')
+    const nested = [...view.contentDOM.querySelectorAll('.cm-nested-item')].map(line => line.textContent.replace(/^[^a-z]+/, ''))
+    expect(nested).toEqual(['b', 'c'])
+    view.destroy()
+  })
+
   it('keeps the bullet of an empty item inside a list (after Enter)', () => {
     const view = createView('- one\n- \n')
     expect(shown(view)).toEqual(['• one', '• '])

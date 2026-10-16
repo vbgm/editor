@@ -18,6 +18,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   // local functions
   import { createState, getText, switchMode, switchLiteral } from './functions/create-state.js'
   import { markdownTopShift } from './functions/markdown-top.js'
+  import { redrawCaret } from './functions/redraw-caret.js'
 
   export default {
     name: 'Editor',
@@ -46,25 +47,12 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         switchLiteral(this.view, value)
       },
       'isMarkdownShown' (value) {
-        // Safari keeps drawing its caret where it was in the old layout, even though the cursor
-        // is at the same place in the text (so the editor does not touch the browser's selection):
-        // hide the caret, switch, and once the new lines are painted move the cursor away and
-        // back, so the browser's selection is written and the caret drawn anew
+        // Safari keeps drawing its caret where it was in the old layout (redraw-caret.js): hide
+        // the caret while switching, then have it drawn anew
         this.isSwitching = true
         if (value) this.alignMarkdownTop()
         switchMode(this.view, value)
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          const { view } = this
-          const selection = view.state.selection
-          const head = selection.main.head
-          // within the same line: a neighbouring line could be a hidden blank one
-          const line = view.state.doc.lineAt(head)
-          const away = head > line.from ? head - 1 : head < line.to ? head + 1 : null
-          view.focus()
-          if (away != null) view.dispatch({ selection: { anchor: away } })
-          view.dispatch({ selection })
-          this.isSwitching = false
-        }))
+        redrawCaret(this.view, () => { this.isSwitching = false })
       }
     },
     mounted () {
@@ -170,6 +158,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         border-bottom: 0.4rem solid transparent;
       }
 
+      // nested items sit inside their parent's block, so they get the same space between them
+      .cm-nested-item {
+        border-top: 0.2rem solid transparent;
+      }
+
       // list items sit close together; a list as a whole is spaced like a paragraph
       .cm-block--listItem {
         &.cm-after--listItem {
@@ -237,8 +230,12 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       cursor: pointer;
     }
 
+    // each quote level ('> > ', syntax/index.js) is indented a step further, with a bar of its own
     :deep(.cm-quote-line) {
-      box-shadow: inset 3px 0 0 var(--color--border--solid);
+      --quote-step: 0.75rem;
+      padding-left: calc(1rem + (var(--quote-level, 1) - 1) * var(--quote-step));
+      background: repeating-linear-gradient(to right, var(--color--border--solid) 0 3px, transparent 3px var(--quote-step)) no-repeat left / calc((var(--quote-level, 1) - 1) * var(--quote-step) + 3px) 100%;
+      background-clip: padding-box;
       color: var(--color--text--secondary);
     }
 

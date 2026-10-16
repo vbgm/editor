@@ -27,7 +27,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421 (what gets tested)
-npm test             # vitest, 121 tests (node + jsdom)
+npm test             # vitest, 138 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -60,6 +60,8 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/move/` | block moves as swaps of adjacent spans, heading level shift (for the outline later), renumbering numbered lists after a move |
 | `editor/functions/gaps/` | hiding blank lines between blocks (state field, updated only around edits), Enter/Backspace/Delete on blocks, click/cursor fixes |
 | `editor/functions/syntax/` | hiding Markdown syntax, widgets, cursor placement behind hidden line marks, `textStart` |
+| `editor/functions/redraw-caret.js` | makes Safari draw the caret anew after a mode switch or Tab |
+| `editor/functions/indent/` | Tab / Shift+Tab: nest list items, quote levels for paragraphs |
 | `editor/functions/format/` | formatting commands and their keymap |
 | `editor/functions/markdown-shown.js` | facet: is Markdown mode on |
 | `editor/functions/markdown-top.js` | Markdown mode's top padding, so the first line's text starts where it does in Document mode |
@@ -72,7 +74,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 - **Speed**: in Safari, CodeMirror itself is as fast as a native textarea. Anything per keystroke must stay off the typing path: shift existing decorations through the edit and re-check when idle (`idleScheduler`); rebuild at once only for edits across lines (or the spacing jumps). Chrome on macOS is a frame late even for a textarea; not optimized for.
 - **Decorations that hide line breaks must come from a state field**, not a view plugin (CodeMirror throws). The first whole-document version cost 7–10 ms per key on 10k lines; `gaps/index.js` now recomputes only the edited region plus blocks the parser changed (`changedBlocks`). A randomized test compares it with a full recompute; keep it.
 - **Atomic ranges** make the cursor skip hidden text; clicks need their own handling (`clicksBesideLines`), and a cursor placed at a line start goes behind a hidden mark via a transaction filter (`cursorAfterLineMarks`).
-- **Safari keeps drawing the caret at its old place** after a re-layout when the cursor's text position did not change; `index.vue` hides the caret during a mode switch and moves the cursor one character away and back within its line.
+- **Safari keeps drawing the caret at its old place** after a re-layout when the browser's selection stays at the same place in the DOM (mode switch; Tab, where the new indentation is a widget in front of the same text); `redraw-caret.js` moves the cursor one character away and back within its line once the new lines are painted (`index.vue` also hides the caret during a mode switch).
 - **Anything wider than the window** makes CodeMirror's scroll-into-view scroll the whole app sideways; the app's children have `min-width: 0` and the toolbar/stats scroll on their own.
 - **jsdom tests** need `Range.getClientRects` stubs and cannot test layout (clicks, vertical moves, caret, layers); verify those in the pane.
 - CodeMirror's `drawSelection` is off: the browser's own caret feels faster than a drawn one.

@@ -20,6 +20,8 @@ import { itemLineIndent } from '../syntax/index.js'
 //   the quote's '> '. A heading is one line in Markdown, so there it starts a new block as Enter.
 //   Backspace at the start of such a line in a list item joins it to the line above in one press
 //   (its indentation is hidden, syntax/index.js).
+// - Enter in a quote starts a new, unquoted paragraph after the quote's line (the text after the
+//   cursor goes with it); on an empty quote line it takes the quote off that line.
 
 // blocks where Enter and joining keep their usual Markdown behaviour
 const containers = ['ListItem', 'Blockquote', 'FencedCode', 'CodeBlock', 'HTMLBlock', 'Table', 'Frontmatter', 'CommentBlock']
@@ -41,6 +43,53 @@ function isInParagraph (state, pos) {
 }
 
 const isBlank = text => /^[ \t]*$/.test(text)
+
+const quoteMark = /^(?:[ \t]*>[ \t]?)+/
+
+// whether pos is in the text of a quote (not in a list or code inside it)
+function isInQuote (state, pos) {
+  for (let node = syntaxTree(state).resolveInner(pos, -1); node; node = node.parent) {
+    if (node.name == 'Blockquote') return true
+    if (containers.includes(node.name)) return false
+  }
+  return false
+}
+
+export function newParagraphAfterQuote ({ state, dispatch }) {
+  const { main } = state.selection
+  if (state.selection.ranges.length > 1 || !isInQuote(state, main.head)) return false
+  const { doc } = state
+  const line = doc.lineAt(main.head)
+  const mark = quoteMark.exec(line.text)
+  if (!mark) return false
+  const lineBreak = state.lineBreak
+  const textStart = line.from + mark[0].length
+  const isQuote = number => number >= 1 && number <= doc.lines && quoteMark.test(doc.line(number).text)
+
+  // an empty quote line: the quote comes off it, split from the quote above
+  if (isBlank(line.text.slice(mark[0].length))) {
+    const breakAbove = isQuote(line.number - 1) ? lineBreak : ''
+    dispatch(state.update({
+      changes: { from: line.from, to: line.to, insert: breakAbove },
+      selection: EditorSelection.cursor(line.from + (breakAbove ? 1 : 0)),
+      scrollIntoView: true,
+      userEvent: 'input'
+    }))
+    return true
+  }
+
+  const from = Math.max(main.from, textStart)
+  const rest = doc.sliceString(Math.max(main.to, from), line.to)
+  const breakBelow = isQuote(line.number + 1) ? lineBreak : ''
+  dispatch(state.update({
+    changes: { from, to: line.to, insert: lineBreak + lineBreak + rest + breakBelow },
+    // in document positions every line break counts as one character
+    selection: EditorSelection.cursor(from + 2),
+    scrollIntoView: true,
+    userEvent: 'input'
+  }))
+  return true
+}
 
 export function insertNewBlock ({ state, dispatch }) {
   const { main } = state.selection
