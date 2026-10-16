@@ -11,11 +11,8 @@
   >
     <div class='main'>
       <TitleBar
-        v-if='hasOverlayTitleBar'
-        v-bind='{
-          title: windowTitle,
-          isToolbarShown
-        }'
+        v-if='hasTitleBar'
+        :isToolbarShown='isToolbarShown'
         @toggleToolbar='toggleToolbar'
       />
 
@@ -25,7 +22,7 @@
           isSidebarShown: isLeftShown,
           isSettingsShown: isRightShown,
           isTextUnder: isTextUnderToolbar,
-          hasTitleBar: hasOverlayTitleBar,
+          hasTitleBar,
           formats
         }'
         @toggle='toggleToolbar'
@@ -138,7 +135,7 @@
   const toolbarHeight = 48
   // where the app draws the window's title bar (macOS: title-bar/), its height: the toolbar is
   // below it
-  const titleBarHeight = platform.hasOverlayTitleBar ? 28 : 0
+  const titleBarHeight = 28
 
   // the sidebars' widths and whether they and the toolbar show, kept in the browser until the app has its own
   // settings store; storage may be unavailable (private windows)
@@ -207,12 +204,11 @@
         settingsWidth: stored('settings.width', 240),
         // the text scrolled up under the toolbar: a line below it
         isTextUnderToolbar: false,
-        // the app draws the window's title bar (macOS: title-bar/), showing windowTitle
-        hasOverlayTitleBar: platform.hasOverlayTitleBar,
-        titleBarHeight,
+        // fullscreen: macOS shows the window's buttons and title in its own bar at the top of the
+        // screen, and the app draws no title bar
+        isFullscreen: false,
         // the toolbar sliding in and out, the text with it, its arrow turning (--toolbar-slide-*)
         slideTiming,
-        windowTitle: '',
         // of the text with the cursor, for the toolbar (editor/functions/format/active.js)
         formats: {},
         // the document's headings, and the index of the one with the cursor
@@ -223,9 +219,18 @@
       }
     },
     computed: {
+      // the app draws the window's title bar (macOS: title-bar/), its buttons and title macOS's,
+      // except in fullscreen, where macOS shows them in its own bar; then the arrow is in the
+      // toolbar again
+      hasTitleBar () {
+        return platform.hasOverlayTitleBar && !this.isFullscreen
+      },
+      titleBarHeight () {
+        return this.hasTitleBar ? titleBarHeight : 0
+      },
       // px at the top covered by the title bar (where the app draws it) and the toolbar
       topInset () {
-        return titleBarHeight + (this.isToolbarShown ? toolbarHeight : 0)
+        return this.titleBarHeight + (this.isToolbarShown ? toolbarHeight : 0)
       },
       // the sidebars hide with the toolbar, and come back with it as they were
       isLeftShown () {
@@ -242,15 +247,16 @@
         getText: () => this.$refs.editor.getText(),
         onChange: ({ name, isEdited }) => {
           this.documentName = name
-          this.setTitle(isEdited ? `${name} — Edited` : name)
+          platform.setTitle(isEdited ? `${name} — Edited` : name)
         }
       })
       this.saving.load({ path: null, ...first })
     },
     mounted () {
-      this.setTitle(first.name)
+      platform.setTitle(first.name)
       platform.onMenu(command => this.runMenu(command))
       platform.onFileDrop(paths => this.openPath(paths[0]))
+      platform.onFullscreen(isFullscreen => { this.isFullscreen = isFullscreen })
       platform.onCloseRequested(() => this.saving.release())
       // the document is in the page: the window can show without flashing
       platform.ready()
@@ -282,11 +288,6 @@
         this[key] = this.isToolbarShown ? !this[key] : true
         store(storeKey, this[key])
         if (!this.isToolbarShown) this.toggleToolbar()
-      },
-      // the window's title, also drawn in the app's title bar (macOS)
-      setTitle (title) {
-        this.windowTitle = title
-        platform.setTitle(title)
       },
       // The toolbar slides in from the top as the sidebars do from the side (toolbar/index.vue),
       // and the text moves down with it: the body takes its new top inset at once and is drawn
@@ -341,7 +342,7 @@
       show (document) {
         this.saving.load(document)
         this.documentName = document.name
-        this.setTitle(document.name)
+        platform.setTitle(document.name)
         this.$refs.editor.load(document.text)
         this.$refs.editor.focus()
       },

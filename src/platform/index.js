@@ -4,8 +4,8 @@
 //
 //   isApp                                 running in the desktop app
 //   hasOverlayTitleBar                    the window's title bar is laid over the page, its
-//                                         buttons at the top left, its title hidden (macOS): the
-//                                         app draws the title bar (title-bar/)
+//                                         buttons and title at the top left (macOS): the app
+//                                         draws the rest of the title bar (title-bar/)
 //   ready ()                              the first document is drawn: show the window
 //   setTitle (title)
 //   pickFile ()                           Open…: { path, name, text, modified } or null
@@ -19,6 +19,8 @@
 //   tell (title, text)                    a message, with OK
 //   onMenu (handler)                      menu commands by id (src-tauri/src/menu.rs)
 //   onFileDrop (handler)                  paths of files dropped on the window
+//   onFullscreen (handler)                true when the window goes fullscreen, false when it
+//                                         leaves it; called once at first with how it is
 //   onCloseRequested (handler)            handler resolves true to let the window close
 //   close ()                              asks to close the window (onCloseRequested decides)
 //

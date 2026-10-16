@@ -12,7 +12,7 @@ const markdownFilter = { name: 'Markdown', extensions: ['md', 'markdown', 'txt']
 
 export const isApp = true
 
-// macOS: tauri.macos.conf.json lays the title bar over the page
+// macOS: tauri.macos.conf.json lays the title bar over the page (its buttons and title stay)
 export const hasOverlayTitleBar = /Mac/.test(navigator.userAgent)
 
 function nameOf (path) {
@@ -94,6 +94,14 @@ export async function tell (title, text) {
 
 export function onMenu (handler) {
   return listen('menu', event => handler(event.payload))
+}
+
+// going fullscreen and back resizes the window
+export function onFullscreen (handler) {
+  const window = getCurrentWindow()
+  const check = () => window.isFullscreen().then(handler)
+  check()
+  return window.onResized(check)
 }
 
 export function onFileDrop (handler) {

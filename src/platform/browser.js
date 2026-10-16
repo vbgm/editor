@@ -68,6 +68,11 @@ export function onMenu () {}
 
 export function onFileDrop () {}
 
+// a page is shown as the window it is in: never fullscreen
+export function onFullscreen (handler) {
+  handler(false)
+}
+
 // no warning on leaving: Vite reloads the page while developing, and samples are edited freely
 export function onCloseRequested () {}
 

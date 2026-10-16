@@ -53,8 +53,9 @@ const headingIcon = level => [
 export default {
   'angle-down': [round('M45.976,55l18,18l18,-18')],
 
-  // pointing down, centred: the toolbar's arrow turns it (toolbar/components/toggle.vue)
-  angle: [round('M36,50L64,78L92,50')],
+  // 0: down, 1: up; between, the tip and the ends move towards each other, flat halfway (the
+  // toolbar's arrow morphs it, toolbar/components/toggle.vue)
+  angle: value => [round(`M36,${50 + 28 * value}L64,${78 - 28 * value}L92,${50 + 28 * value}`)],
 
   check: [round('M24.067,60.38l30.908,28.099l44.958,-44.958')],
 
