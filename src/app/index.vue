@@ -8,8 +8,10 @@
         isMarkdownShown,
         isLiteral,
         isStatsShown,
+        isSidebarShown,
         progress
       }'
+      @toggleSidebar='toggleSidebar'
       @open='open'
       @openFile='openFile'
       @toggleMarkdown='toggleMarkdown'
@@ -18,15 +20,37 @@
       @benchmark='benchmark'
     />
 
-    <Editor
-      ref='editor'
-      v-bind='{
-        text,
-        isMarkdownShown,
-        isLiteral
-      }'
-      @toggleMarkdown='toggleMarkdown'
-    />
+    <div class='main'>
+      <Sidebar
+        v-bind='{
+          isShown: isSidebarShown,
+          width: sidebarWidth
+        }'
+        @resize='resizeSidebar'
+      >
+        <Outline
+          v-bind='{
+            sections,
+            activeIndex: activeSection,
+            canDrop: (from, slot) => $refs.editor.canDropSection(from, slot)
+          }'
+          @select='$refs.editor.selectSection($event)'
+          @move='$refs.editor.moveSection($event.from, $event.slot)'
+        />
+      </Sidebar>
+
+      <Editor
+        ref='editor'
+        v-bind='{
+          text,
+          isMarkdownShown,
+          isLiteral
+        }'
+        @toggleMarkdown='toggleMarkdown'
+        @outline='sections = $event'
+        @activeSection='activeSection = $event'
+      />
+    </div>
 
     <!-- v-show: keeps counting key presses while hidden -->
     <Metrics
@@ -43,6 +67,8 @@
   // components
   import Toolbar from './toolbar/index.vue'
   import Editor from './editor/index.vue'
+  import Sidebar from './sidebar/index.vue'
+  import Outline from './outline/index.vue'
   import Metrics from './metrics/index.vue'
   // functions
   import generateDocument from './functions/generate-document.js'
@@ -51,6 +77,23 @@
   // the test fixtures double as sample documents
   const fixtures = import.meta.glob('/tests/fixtures/*.md', { query: '?raw', import: 'default', eager: true })
   const generatedName = 'generated (10k lines)'
+
+  // the sidebar's width and whether it shows, kept in the browser until the app has its own
+  // settings store; storage may be unavailable (private windows)
+  function stored (key, fallback) {
+    try {
+      const value = JSON.parse(localStorage.getItem(key))
+      return value ?? fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  function store (key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch {}
+  }
   const documents = {
     ...Object.fromEntries(Object.entries(fixtures).map(([path, text]) => [path.split('/').pop(), text])),
     [generatedName]: null
@@ -61,6 +104,8 @@
     components: {
       Toolbar,
       Editor,
+      Sidebar,
+      Outline,
       Metrics
     },
     data () {
@@ -76,11 +121,37 @@
         isLiteral: false,
         // the stats footer (typing latency, benchmark results)
         isStatsShown: false,
+        // the outline sidebar (Ctrl+Cmd+S, as "Show Sidebar" in macOS apps)
+        isSidebarShown: stored('sidebar.isShown', false),
+        sidebarWidth: stored('sidebar.width', 240),
+        // the document's headings, and the index of the one with the cursor
+        sections: [],
+        activeSection: -1,
         results: [],
         progress: null
       }
     },
+    mounted () {
+      this.onKeyDown = event => {
+        if (event.metaKey && event.ctrlKey && !event.altKey && !event.shiftKey && event.code == 'KeyS') {
+          event.preventDefault()
+          this.toggleSidebar()
+        }
+      }
+      window.addEventListener('keydown', this.onKeyDown)
+    },
+    beforeUnmount () {
+      window.removeEventListener('keydown', this.onKeyDown)
+    },
     methods: {
+      toggleSidebar () {
+        this.isSidebarShown = !this.isSidebarShown
+        store('sidebar.isShown', this.isSidebarShown)
+      },
+      resizeSidebar (width) {
+        this.sidebarWidth = width
+        store('sidebar.width', width)
+      },
       open (name) {
         this.documentName = name
         this.text = documents[name] ?? (documents[name] = generateDocument())
@@ -119,6 +190,16 @@
     // otherwise scroll the whole app sideways
     > * {
       min-width: 0;
+    }
+
+    > .main {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+
+      > .editor {
+        min-width: 0;
+      }
     }
   }
 

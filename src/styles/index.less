@@ -10,6 +10,8 @@
   --color--text-selection: #2f7bff;
   --color--text-selection--text: #fff;
   --color--link: #2a62d6;
+  // the outline's row of the section with the cursor
+  --color--outline--active: rgba(0, 0, 0, 0.06);
 
   @media (prefers-color-scheme: dark) {
     --color--background: #1e1e1e;
@@ -20,6 +22,7 @@
     --color--selected--border: #4a5a85;
     --color--selection: #34466e;
     --color--link: #7ea6ff;
+    --color--outline--active: rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -37,6 +40,15 @@ html.is-dragging {
     user-select: none;
     -webkit-user-select: none;
     caret-color: transparent !important;
+  }
+}
+
+// while resizing the sidebar: the resize cursor everywhere, no text selection
+html.is-resizing {
+  &, * {
+    cursor: ew-resize !important;
+    user-select: none;
+    -webkit-user-select: none;
   }
 }
 

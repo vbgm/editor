@@ -9,8 +9,8 @@
 //
 // Modes:
 // - displace (displace.js): items move aside to open a gap where the item would go
-// - target (to come, for trees): items stay put; before / after / onto a node, by the vertical
-//   position over it
+// - target (target.js, for trees): items stay put; before / after / onto a node, by the vertical
+//   position of the pointer over it
 
 const edge = 48
 const maxSpeed = 18
@@ -20,25 +20,29 @@ const maxSpeed = 18
 // - scroller: the scrolling element
 // - item: { top, bottom } of the dragged item, content coordinates
 // - preview: an element (position: fixed) moved with the pointer; the owner adds and removes it
-// - mode: { slotAt (top, bottom) }, the slot for the dragged item at top..bottom
+// - mode: { slotAt (top, bottom, pointer) }, the slot for the dragged item at top..bottom with the
+//   pointer at pointer; optionally initial (the slot before the pointer moves, 0 by default) and
+//   isSame (a, b), for slots that are objects
 // - onSlot (slot), onDrop (slot), onCancel ()
 // Returns { cancel }.
 export function startDrag ({ event, scroller, item, preview, mode, onSlot, onDrop, onCancel }) {
   const height = item.bottom - item.top
   const startContentY = contentY(scroller, event.clientY)
   let clientY = event.clientY
-  let slot = 0
+  const isSame = mode.isSame || ((a, b) => a == b)
+  let slot = mode.initial ?? 0
   let frame = null
 
   const root = document.documentElement
   root.classList.add('is-dragging')
 
   function update () {
-    const top = item.top + contentY(scroller, clientY) - startContentY
+    const pointer = contentY(scroller, clientY)
+    const top = item.top + pointer - startContentY
     const rect = scroller.getBoundingClientRect()
     preview.style.transform = `translateY(${top - scroller.scrollTop + rect.top}px)`
-    const next = mode.slotAt(top, top + height)
-    if (next != slot) {
+    const next = mode.slotAt(top, top + height, pointer)
+    if (!isSame(next, slot)) {
       slot = next
       onSlot(slot)
     }

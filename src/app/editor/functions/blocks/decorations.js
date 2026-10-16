@@ -74,7 +74,7 @@ function build (view) {
 // Runs check when the browser is idle, or right after the next paint where there is no
 // requestIdleCallback (Safari), so it never delays the frame that shows a key press.
 // Several requests before it runs become one.
-function idleScheduler (check) {
+export function idleScheduler (check) {
   let isScheduled = false
   return () => {
     if (isScheduled) return

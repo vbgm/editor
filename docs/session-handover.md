@@ -32,7 +32,7 @@ Read in this order:
 ```bash
 npm run dev          # localhost:1420, hot reload
 npm run production   # build + preview on localhost:1421
-npm test             # vitest, 188 tests (node + jsdom)
+npm test             # vitest, 204 tests (node + jsdom)
 ```
 
 `.claude/launch.json` has both servers (`dev`, `production`) for the browser pane. The dev toolbar picks a sample document (the test fixtures, plus a generated 10k-line file), opens local files, switches **Markdown** mode, turns **Literal** typing on or off, shows **Stats** (typing latency per mode, benchmark results) and runs the benchmark.
@@ -71,6 +71,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
   - **Alt+↑/↓** (both modes): moves blocks, or a sub-item among its siblings and into the neighbouring items; the swapped lines slide into place; a block that cannot move bumps in the pressed direction. Numbered lists are renumbered after a move. Shift+↑/↓ select within a block, then block by block.
   - **Dragging** (both modes): a handle fades in when the mouse is near it, left of a block; the block goes where Alt+↑/↓ would take it and slides into place (decisions.md, "Dragging blocks").
   - **Literal** (toolbar): typed Markdown is escaped and stays as typed.
+- **Outline** (toolbar button, Ctrl+Cmd+S): the headings as a tree in a left sidebar; clicking one goes to it, dragging one moves its section before, after or onto (into) another heading, levels shifted (decisions.md, "Outline sidebar").
 - Files round-trip byte for byte (BOM kept outside the editor text, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
 
 ## Map of the code
@@ -78,6 +79,9 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | Path | What it does |
 |---|---|
 | `src/app/index.vue` | app: toolbar, editor, stats footer; sample documents; benchmark |
+| `src/app/sidebar/` | the left sidebar: shown / hidden as in Ordner (0.3 s), resized by its 1 px right edge (160–400 px); width and shown kept in `localStorage` |
+| `src/app/outline/` | the outline (TOC) tree, a pure component: headings in, `select` / `move` out; folding by arrows as in Ordner's tree (`components/node.vue`), dragging in target mode |
+| `editor/functions/outline/` | headings as the outline (titles without Markdown, ids by title), which drops are allowed, and a drop as a move with the levels shifted |
 | `src/app/toolbar/` | dev toolbar (buttons use `mousedown.prevent` so the editor keeps focus) |
 | `src/app/metrics/` | stats footer: Event Timing + own key-press→paint timing, per mode and key kind |
 | `src/app/benchmark/` | scripted load/typing/move benchmark, editor vs bare CodeMirror |
@@ -88,8 +92,8 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 | `editor/functions/blocks/decorations.js` | line classes for spacing (`cm-block-first/last`, type, `cm-after--`/`cm-before--` neighbour types); mapped while typing, re-checked when idle |
 | `editor/functions/blocks/select.js` | block-aware Shift+↑/↓ (empty paragraphs are steps) |
 | `editor/functions/dnd/` | dragging blocks: handle, gap, lines sliding aside, preview (`index.js`); where a drag can go and the drop, replaying Alt+↑/↓ on the region it changes (`slots.js`) |
-| `foundation/dnd/` | drag engine: pointer, preview, auto-scroll, Escape (`index.js`); displace mode (`displace.js`) |
-| `editor/functions/move/` | block moves (`index.js`), sub-item moves (`nested.js`), the slide of a move and the bump when a block cannot move (`animate.js`), renumbering numbered lists (`renumber.js`), heading level shift for the outline later |
+| `foundation/dnd/` | drag engine: pointer, preview, auto-scroll, Escape (`index.js`); displace mode (`displace.js`); target mode (`target.js`) |
+| `editor/functions/move/` | block moves (`index.js`), sub-item moves (`nested.js`), the slide of a move and the bump when a block cannot move (`animate.js`), renumbering numbered lists (`renumber.js`), heading level shift for outline moves |
 | `editor/functions/gaps/index.js` | hiding blank lines (state field, updated only around edits), empty paragraphs, selected empty paragraphs, cursor rules around gaps and the end of the file |
 | `editor/functions/gaps/commands.js` | Enter / Shift+Enter / Backspace / Delete on blocks, list items and quotes |
 | `editor/functions/syntax/index.js` | hiding Markdown syntax, widgets (bullet, checkbox, list indentation), hanging indents, quote levels, cursor placement behind marks, ← at a text start |
@@ -132,9 +136,7 @@ Card boxes around blocks (as line styling, then as a layer); a Look switch with 
 
 - **Tauri shell** (Milestone 2 in handover.md): install Rust, Tauri 2, platform adapter, no-flash window, native menu with the shortcuts and Document/Markdown in the View menu; measure in WKWebView, WebView2, WebKitGTK.
 - **Files** (Milestone 4): open/save, autosave, atomic writes, external-change reload (keep undo: apply as a minimal diff), recent files, session.
-- **Outline** (Milestone 5): dragging blocks is done (displace mode, with the slide and bump motion); still to do:
-  - Target mode of the drag engine (`foundation/dnd/`) for the outline tree, deciding before / after / onto (nest) by the vertical position only, as in Ordner's sidebar (decisions.md).
-  - Outline moves use `moveSpec` with `levelDelta`.
+- **Outline** (Milestone 5): dragging blocks and the outline sidebar are done; still open: keyboard in the tree (↑/↓, ←/→ to close / open, as in Ordner), remembering closed headings per file (session store).
 - Smaller open items:
   - Cmd-click to open links.
   - Tables, HTML and front matter are still shown raw in Document mode.

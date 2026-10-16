@@ -1,5 +1,5 @@
 <!--
-Temporary development toolbar: pick a test document, open a local file, switch between Document
+Temporary development toolbar: pick a test document, open a local file, show the outline, switch between Document
 and Markdown mode, turn literal typing on or off, show the stats, run the benchmark.
 Buttons do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
 shortcuts work right after clicking one. Replaced by the native menu and title-bar buttons later.
@@ -29,6 +29,15 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       >
     </label>
 
+    <button
+      class='button'
+      :class='{selected: isSidebarShown}'
+      title='Outline: the headings in a sidebar (Ctrl+Cmd+S)'
+      @mousedown.prevent=''
+      @click='$emit(`toggleSidebar`)'
+    >
+      Outline
+    </button>
     <button
       class='button'
       :class='{selected: isMarkdownShown}'
@@ -85,9 +94,10 @@ shortcuts work right after clicking one. Replaced by the native menu and title-b
       isMarkdownShown: Boolean,
       isLiteral: Boolean,
       isStatsShown: Boolean,
+      isSidebarShown: Boolean,
       progress: String
     },
-    emits: ['open', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
+    emits: ['toggleSidebar', 'open', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleStats', 'benchmark'],
     methods: {
       async openFile (event) {
         const file = event.target.files[0]

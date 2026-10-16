@@ -1,6 +1,8 @@
 <!--
 CodeMirror owns everything inside the root element; Vue never touches it.
 The document is not mirrored into Vue on every keystroke: read it with getText().
+The outline (headings, for the TOC sidebar) is sent when the browser is idle after an edit, and
+only when it changed; so is the heading of the section with the cursor.
 -->
 <template>
 
@@ -15,10 +17,14 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
   // npm packages
   import { markRaw } from 'vue'
   import { EditorView } from '@codemirror/view'
+  import { syntaxTree } from '@codemirror/language'
   // local functions
   import { createState, getText, switchMode, switchLiteral } from './functions/create-state.js'
   import { markdownTopShift } from './functions/markdown-top.js'
   import { redrawCaret } from './functions/redraw-caret.js'
+  import { idleScheduler } from './functions/blocks/decorations.js'
+  import { getOutline, activeIndex, dropLevel, outlineMove, headingTextStart } from './functions/outline/index.js'
+  import { dispatchMove } from './functions/move/animate.js'
 
   export default {
     name: 'Editor',
@@ -30,7 +36,8 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       // typed text stays as typed in Document mode; otherwise typing Markdown formats
       isLiteral: Boolean
     },
-    emits: ['toggleMarkdown'],
+    // outline: [{ id, title, level }]; activeSection: index in it of the section with the cursor
+    emits: ['toggleMarkdown', 'outline', 'activeSection'],
     data () {
       return {
         view: null,
@@ -42,6 +49,7 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       'text' () {
         this.view.setState(this.createState())
         if (this.isMarkdownShown) this.alignMarkdownTop()
+        this.scheduleOutline()
       },
       'isLiteral' (value) {
         switchLiteral(this.view, value)
@@ -63,6 +71,14 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
       }))
       if (this.isMarkdownShown) this.alignMarkdownTop()
       this.view.focus()
+      this.scheduleOutline()
+    },
+    created () {
+      // not reactive: only what is sent out is
+      this.outline = []
+      this.outlineKey = null
+      this.activeSection = null
+      this.scheduleOutline = idleScheduler(() => this.sendOutline())
     },
     beforeUnmount () {
       this.view.destroy()
@@ -72,8 +88,54 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         return createState(this.text, {
           isMarkdownShown: this.isMarkdownShown,
           isLiteral: this.isLiteral,
-          onToggleMarkdown: () => this.$emit('toggleMarkdown')
+          onToggleMarkdown: () => this.$emit('toggleMarkdown'),
+          extensions: EditorView.updateListener.of(update => {
+            // the tree also changes while the parser goes on in the background
+            const isChanged = update.docChanged || syntaxTree(update.state) != syntaxTree(update.startState)
+            if (isChanged || update.selectionSet) this.scheduleOutline()
+          })
         })
+      },
+      // the outline as far as the parser has got, sent when it changed
+      sendOutline () {
+        if (!this.view) return
+        const { state } = this.view
+        this.outline = getOutline(state)
+        const key = this.outline.map(entry => `${entry.level} ${entry.id}`).join('\n')
+        if (key != this.outlineKey) {
+          this.outlineKey = key
+          this.$emit('outline', this.outline.map(({ id, title, level }) => ({ id, title, level })))
+        }
+        const active = activeIndex(this.outline, state.selection.main.head)
+        if (active != this.activeSection) {
+          this.activeSection = active
+          this.$emit('activeSection', active)
+        }
+      },
+      // the cursor to the start of a heading's text, the heading near the top of the editor
+      selectSection (index) {
+        const entry = getOutline(this.view.state)[index]
+        if (!entry) return
+        const pos = headingTextStart(this.view.state, entry)
+        this.view.dispatch({
+          selection: { anchor: pos },
+          effects: EditorView.scrollIntoView(pos, { y: 'start', yMargin: 32 })
+        })
+        this.view.focus()
+      },
+      // whether the heading at outline index from can be dropped at slot (outline/index.js)
+      canDropSection (from, slot) {
+        return dropLevel(this.outline, from, slot) != null
+      },
+      // drops the heading at outline index from at slot { index, position }: one undo step, the
+      // moved lines slide where they are drawn; the editor keeps its scroll position
+      moveSection (from, slot) {
+        const { state } = this.view
+        const outline = getOutline(state, { complete: true })
+        // the sidebar's outline may be from before the last key press
+        if (outline.length != this.outline.length) return
+        const transaction = outlineMove(state, outline, from, slot)
+        if (transaction) dispatchMove(this.view, transaction)
       },
       // the first line's text starts at the same height as in Document mode (markdown-top.js)
       alignMarkdownTop () {
