@@ -3,6 +3,7 @@ import { EditorSelection } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
 // local functions
 import { itemLineIndent } from '../syntax/index.js'
+import { itemsToLines } from '../format/lines.js'
 
 // Editing across blocks while the blank lines between them are hidden:
 // - Enter in a paragraph or heading starts a new block (a blank line, then the cursor on a new
@@ -11,10 +12,11 @@ import { itemLineIndent } from '../syntax/index.js'
 //   end of a block joins the paragraph below to it; both remove the whole hidden gap at once
 // Headings, list items and quotes are not joined: Backspace at their start removes their hidden
 // mark first (syntax/index.js), which turns them into a paragraph.
-// - Backspace at the start of a list item's text turns it into a paragraph of its own, outside
-//   the list: blank lines around it split it off (Markdown would otherwise read it as a further
-//   line of the item above). Enter in an empty item does the same: it ends the list and starts a
-//   paragraph. Nested items keep the Markdown behaviour (outdenting).
+// - Backspace at the start of a list item's text takes its mark off: the line is a further line of
+//   the text right above it, lined up under it (as a Shift+Enter line). On an empty item (the next
+//   item after Enter) it ends the list instead: the line becomes a paragraph of its own, split off
+//   by blank lines (Markdown would otherwise read it as a further line of the item above). Enter
+//   in an empty item does the same; in an empty sub-item it keeps the Markdown behaviour.
 // - Shift+Enter starts a new line within the block (a soft line break in the file): in a list
 //   item the line is indented under the item's text so it stays in the item, in a quote it gets
 //   the quote's '> '. A heading is one line in Markdown, so there it starts a new block as Enter.
@@ -106,11 +108,12 @@ export function insertNewBlock ({ state, dispatch }) {
 
 const listMark = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]*(?:\[[ xX]\][ \t]?)?/
 
-// the top-level list item starting on the line at lineFrom
-function topLevelListItem (state, lineFrom) {
-  for (let node = syntaxTree(state).resolveInner(lineFrom, 1); node; node = node.parent) {
+// the list item starting on the line at lineFrom
+function listItemAt (state, lineFrom) {
+  const line = state.doc.lineAt(lineFrom)
+  for (let node = syntaxTree(state).resolveInner(line.from + /^[ \t]*/.exec(line.text)[0].length, 1); node; node = node.parent) {
     if (node.from < lineFrom) return null
-    if (node.name == 'ListItem') return node.parent?.parent?.name == 'Document' ? node : null
+    if (node.name == 'ListItem') return node
   }
   return null
 }
@@ -129,12 +132,22 @@ function toParagraph (state, dispatch, isEmptyOnly) {
   if (state.selection.ranges.length > 1 || !main.empty) return false
   const { doc } = state
   const line = doc.lineAt(main.head)
-  const item = topLevelListItem(state, line.from)
+  const item = listItemAt(state, line.from)
   if (!item) return false
   // behind the bullet or number, and a task box
   const contentStart = line.from + listMark.exec(line.text)[0].length
   if (main.head != contentStart) return false
-  if (isEmptyOnly && (!isBlank(line.text.slice(contentStart - line.from)) || doc.lineAt(item.to).number > line.number)) return false
+  const isEmpty = isBlank(line.text.slice(contentStart - line.from)) && doc.lineAt(item.to).number == line.number
+  const isNested = item.parent?.parent?.name == 'ListItem'
+  if (isEmptyOnly && (!isEmpty || isNested)) return false
+
+  // an item with text, or an empty sub-item: its mark goes, and it is a further line of the text
+  // right above it, lined up under that text (format/lines.js)
+  if (!isEmpty || isNested) {
+    const changes = state.changes(itemsToLines(state, [line]))
+    dispatch(state.update({ changes, selection: state.selection.map(changes, 1), userEvent: 'input' }))
+    return true
+  }
 
   let last = doc.lineAt(item.to)
   if (last.from == item.to && item.to > item.from) last = doc.lineAt(item.to - 1)
@@ -194,7 +207,10 @@ export function joinItemLine ({ state, dispatch }) {
   const line = state.doc.lineAt(main.head)
   const indent = itemLineIndent(state, line)
   if (!indent || main.head != line.from + indent) return false
-  const from = state.doc.line(line.number - 1).to
+  // the line above with text, past hidden blank lines (a paragraph in an item)
+  let number = line.number - 1
+  while (number > 1 && isBlank(state.doc.line(number).text)) number--
+  const from = state.doc.line(number).to
   dispatch(state.update({
     changes: { from, to: main.head },
     selection: EditorSelection.cursor(from),

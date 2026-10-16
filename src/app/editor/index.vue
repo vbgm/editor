@@ -158,8 +158,11 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
         border-bottom: 0.4rem solid transparent;
       }
 
-      // nested items sit inside their parent's block, so they get the same space between them
-      .cm-nested-item {
+      // nested items and an item's further lines sit inside the item's block, so they get the
+      // same space between them as items
+      .cm-nested-item,
+      .cm-item-line,
+      .cm-item-paragraph {
         border-top: 0.2rem solid transparent;
       }
 
@@ -233,6 +236,14 @@ The document is not mirrored into Vue on every keystroke: read it with getText()
     // a list item's further line: indented as wide as the item's bullet or number (syntax/index.js)
     :deep(.cm-list-indent) {
       visibility: hidden;
+    }
+
+    // a list number starts where a bullet does and is at least as wide (0.9em): numbers line up
+    // with each other and with bullets, and single-digit items start their text where bullet
+    // items do, at every level
+    :deep(.cm-number) {
+      display: inline-block;
+      min-width: 0.9em;
     }
 
     :deep(.cm-task-checkbox) {

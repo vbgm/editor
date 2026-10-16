@@ -82,7 +82,10 @@ class ListIndentWidget extends WidgetType {
     dom.className = 'cm-list-indent'
     for (const mark of this.marks) {
       if (mark) {
-        dom.append(`${mark} `)
+        const number = dom.appendChild(document.createElement('span'))
+        number.className = 'cm-number'
+        number.textContent = mark
+        dom.append(' ')
       } else {
         const bullet = dom.appendChild(document.createElement('span'))
         bullet.className = 'cm-bullet'
@@ -109,6 +112,10 @@ function quoteLine (level) {
   return quoteLineCache.get(level)
 }
 
+// a list number: at least as wide as a drawn bullet, so the text of single-digit items starts
+// where the text of bullet items does (index.vue)
+const numberMark = Decoration.mark({ class: 'cm-number' })
+
 const hide = Decoration.replace({})
 const bullet = Decoration.replace({ widget: new BulletWidget() })
 const checked = Decoration.replace({ widget: new CheckboxWidget(true) })
@@ -122,11 +129,14 @@ const rawLine = Decoration.line({ class: 'cm-raw-line' })
 // the first level ('cm-nested-item').
 const hangingLineCache = new Map()
 
-function hangingLine (width, isNested) {
-  const key = `${width}${isNested ? ' nested' : ''}`
+// spacing: '' (an item's first line, spaced by the block classes), 'cm-nested-item' or
+// 'cm-item-line' (a further line of an item: spaced like items too, so taking a mark off or
+// putting it back never moves the text up or down)
+function hangingLine (width, spacing) {
+  const key = `${width} ${spacing}`
   if (!hangingLineCache.has(key)) {
     hangingLineCache.set(key, Decoration.line({
-      class: isNested ? 'cm-hanging cm-nested-item' : 'cm-hanging',
+      class: `cm-hanging ${spacing}`.trim(),
       attributes: { style: `--hang: ${width}px` }
     }))
   }
@@ -174,7 +184,9 @@ function build (view) {
   const tree = syntaxTree(state)
   let measure
   // the width of marks drawn in a row ('1. ' or a bullet and a space for each)
-  const marksWidth = marks => marks.reduce((width, mark) => width + (mark ? measure.text(`${mark} `) : measure.bullet + measure.text(' ')), 0)
+  // a number is at least as wide as a bullet (index.vue), so single-digit numbers line up
+  const numberWidth = number => Math.max(measure.bullet, measure.text(number))
+  const marksWidth = marks => marks.reduce((width, mark) => width + (mark ? numberWidth(mark) : measure.bullet) + measure.text(' '), 0)
   const alignListLines = (list, from, to) => {
     measure ??= textMeasurer(view)
     let last = doc.lineAt(list.to)
@@ -183,7 +195,9 @@ function build (view) {
     const firstNumber = Math.max(doc.lineAt(list.from).number, doc.lineAt(from).number)
     for (let number = firstNumber; number <= Math.min(lastNumber, doc.lineAt(to).number); number++) {
       const line = doc.line(number)
-      const isAfter = number > last.number
+      // a line of spaces right under the list's text is one being typed after Shift+Enter: it
+      // belongs to the item above
+      const isAfter = number > last.number || (/^[ \t]+$/.test(line.text) && !isBlankText(doc.line(number - 1).text))
       if (!isAfter && isBlankText(line.text)) continue
       const indent = /^[ \t]*/.exec(line.text)[0].length
       // the items this line lines up under: those it is in, without the one it starts
@@ -207,10 +221,10 @@ function build (view) {
       if (measure) {
         width = marksWidth(chain)
         const own = startsItem && /^[ \t]*((?:[-*+]|\d{1,9}[.)]))([ \t]*)/.exec(line.text)
-        if (own) width += /\d/.test(own[1]) ? measure.text(own[1] + own[2]) : measure.bullet + measure.text(own[2])
+        if (own) width += (/\d/.test(own[1]) ? numberWidth(own[1]) : measure.bullet) + measure.text(own[2])
       }
-      const isNested = startsItem && chain.length > 0
-      if (width || isNested) lines.push([line.from, hangingLine(Math.round(width * 100) / 100, isNested)])
+      const spacing = !chain.length ? '' : startsItem ? 'cm-nested-item' : 'cm-item-line'
+      if (width || spacing) lines.push([line.from, hangingLine(Math.round(width * 100) / 100, spacing)])
       if (!chain.length) continue
       const widget = listIndent(chain)
       if (indent) {
@@ -279,6 +293,8 @@ function build (view) {
             else if (node.node.parent?.parent?.name == 'BulletList') {
               marks.push([node.from, node.to, bullet])
               atomic.push([node.from, node.to + Math.min(spacesAfter(doc, node.to), 1)])
+            } else {
+              marks.push([node.from, node.to, numberMark])
             }
             break
           case 'TaskMarker': {

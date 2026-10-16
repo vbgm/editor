@@ -20,6 +20,12 @@ describe('Tab in a list', () => {
 
   it('does not nest the first item', () => {
     expect(tab('- a|\n- b\n')).toBe('- a\n- b\n')
+    expect(tab('para\n\n- a|\n')).toBe('para\n\n- a\n')
+  })
+
+  it('nests the first item under the last item of a list of another kind right above', () => {
+    expect(tab('1. one\n2. two\n- point|\n- more\n')).toBe('1. one\n2. two\n   - point\n- more\n')
+    expect(tab('- a\n1. step|\n')).toBe('- a\n  1. step\n')
   })
 
   it('counts numbered lists again: a sub-list from 1', () => {

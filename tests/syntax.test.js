@@ -220,11 +220,11 @@ describe('Backspace in Markdown mode', () => {
     view.destroy()
   })
 
-  it('still turns a list item into a paragraph in Document mode', () => {
+  it('still takes the whole mark off a list item in Document mode', () => {
     const view = createView('1. one\n2. two\n')
     view.dispatch({ selection: EditorSelection.cursor(10) })
     backspace(view)
-    expect(getText(view.state)).toBe('1. one\n\ntwo\n')
+    expect(getText(view.state)).toBe('1. one\n   two\n')
     view.destroy()
   })
 })

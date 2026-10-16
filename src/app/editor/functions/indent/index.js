@@ -6,8 +6,9 @@ import renumber from '../move/renumber.js'
 // Tab and Shift+Tab in Document mode indent by block, the Markdown way:
 // - a list item (with its sub-items, and every selected item) is nested under the item above,
 //   indented as wide as that item's mark ('- ' 2 spaces, '1. ' 3); Shift+Tab moves it out one
-//   level. The first item of a list cannot be nested. Numbered lists are counted again
-//   (move/renumber.js: a sub-list counts from 1).
+//   level. The first item of a list nests under the last item of a list of another kind right
+//   above it (bullet points under a numbered step); otherwise it cannot be nested. Numbered lists
+//   are counted again (move/renumber.js: a sub-list counts from 1).
 // - a paragraph becomes a quote ('> '), Tab again quotes it one level deeper ('> > '); Shift+Tab
 //   removes one level. Every line of the block gets the mark, so no line falls out of the quote.
 // - in code Tab inserts indentation; a heading stays as it is.
@@ -68,6 +69,11 @@ function indentItems (state, dispatch, item, lastSelected, direction) {
   if (direction > 0) {
     let previous = item.prevSibling
     while (previous && previous.name != 'ListItem') previous = previous.prevSibling
+    // the first item: under the last item of the list right above, a list of another kind
+    if (!previous && /List$/.test(item.parent?.prevSibling?.name)) {
+      previous = item.parent.prevSibling.lastChild
+      while (previous && previous.name != 'ListItem') previous = previous.prevSibling
+    }
     if (!previous) return true
     const mark = itemStart.exec(doc.lineAt(previous.from).text)
     if (!mark) return true

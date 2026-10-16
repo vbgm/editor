@@ -46,9 +46,10 @@ describe('hidden blank lines', () => {
     view.destroy()
   })
 
-  it('stay visible inside code and inside a list item', () => {
+  it('stay visible inside code, and are hidden between the paragraphs of a list item', () => {
     const view = createView('```\na\n\nb\n```\n\n- item\n\n  more\n- next\n')
-    expect(visibleLines(view)).toEqual(['', 'a', '', 'b', '', '• item', '', '>more', '• next'])
+    expect(visibleLines(view)).toEqual(['', 'a', '', 'b', '', '• item', '>more', '• next'])
+    expect(view.contentDOM.querySelector('.cm-item-paragraph').textContent).toContain('more')
     view.destroy()
   })
 
@@ -190,17 +191,19 @@ describe('Enter, Backspace and Delete between blocks', () => {
     expect(joinBackward({ state: stateWithCursor('one\n\n|- item\n'), dispatch: () => {} })).toBe(false)
   })
 
-  it('Backspace at the start of a list item turns it into a paragraph outside the list', () => {
-    // the last item, also an empty one after Enter
-    expect(run(listItemToParagraph, '- one\n- |two\n\nAfter\n')).toBe('- one\n\ntwo\n\nAfter\n')
+  it('Backspace at the start of a list item makes it a further line of the text above', () => {
+    // lined up under that text, no blank line: it stays right below it
+    expect(run(listItemToParagraph, '- one\n- |two\n\nAfter\n')).toBe('- one\n  two\n\nAfter\n')
+    expect(run(listItemToParagraph, '1. a\n2. |b\n3. c\n')).toBe('1. a\n   b\n3. c\n')
+    expect(run(listItemToParagraph, '- a\n- [ ] |b\n')).toBe('- a\n  b\n')
+    expect(run(listItemToParagraph, '- a\n- |b\n  more\n- c\n')).toBe('- a\n  b\n  more\n- c\n')
+    // the first item, with nothing above in the list, is a paragraph
+    expect(run(listItemToParagraph, 'Intro\n\n- |a\n- b\n')).toBe('Intro\n\na\n- b\n')
+  })
+
+  it('Backspace on an empty item (after Enter) ends the list with a paragraph', () => {
     expect(run(listItemToParagraph, '- one\n- |\n')).toBe('- one\n\n\n')
-    // a middle item splits the list, the first one leaves it
-    expect(run(listItemToParagraph, '- a\n- |b\n- c\n')).toBe('- a\n\nb\n\n- c\n')
-    expect(run(listItemToParagraph, 'Intro\n\n- |a\n- b\n')).toBe('Intro\n\na\n\n- b\n')
-    // numbered and task items, an item over several lines
-    expect(run(listItemToParagraph, '1. a\n2. |b\n')).toBe('1. a\n\nb\n')
-    expect(run(listItemToParagraph, '- a\n- [ ] |b\n')).toBe('- a\n\nb\n')
-    expect(run(listItemToParagraph, '- a\n- |b\n  more\n- c\n')).toBe('- a\n\nb\n  more\n\n- c\n')
+    expect(run(listItemToParagraph, '- one\n- |\n- two\n')).toBe('- one\n\n\n\n- two\n')
   })
 
   it('Enter in an empty list item ends the list and starts a paragraph', () => {
@@ -210,13 +213,17 @@ describe('Enter, Backspace and Delete between blocks', () => {
     expect(emptyListItemToParagraph({ state: stateWithCursor('- one\n- |\n  more\n'), dispatch: () => {} })).toBe(false)
   })
 
-  it('puts the cursor at the start of the new paragraph', () => {
+  it('puts the cursor at the start of the text', () => {
     const state = runCommand(listItemToParagraph, stateWithCursor('- one\n- |two\n'))
-    expect(state.selection.main.head).toBe(7)
+    expect(state.selection.main.head).toBe('- one\n  '.length)
   })
 
-  it('leaves nested items and the middle of an item to Markdown', () => {
-    expect(listItemToParagraph({ state: stateWithCursor('- a\n  - |b\n'), dispatch: () => {} })).toBe(false)
+  it('makes a sub-item a further line of the text above it', () => {
+    expect(run(listItemToParagraph, '- a\n  - |b\n')).toBe('- a\n  b\n')
+    expect(run(listItemToParagraph, '1. a\n   - x\n   - |b\n   - c\n')).toBe('1. a\n   - x\n     b\n   - c\n')
+  })
+
+  it('leaves the middle of an item alone', () => {
     expect(listItemToParagraph({ state: stateWithCursor('- a|b\n'), dispatch: () => {} })).toBe(false)
   })
 

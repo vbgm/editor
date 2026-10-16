@@ -19,8 +19,9 @@ import { getBlocksInRange } from '../blocks/index.js'
 // The blank line with the cursor (a new, still empty block after Enter) stays visible. A deletion
 // that leaves the cursor on a blank line between blocks (deleting a whole block) moves it to the
 // end of the block above instead, so no empty line appears.
-// Blank lines inside a block (in code, or between the paragraphs of one list item) are content
-// and stay visible.
+// Blank lines between the paragraphs of one list item (a sub-item turned into text, written so
+// in the file) are hidden as well, and the paragraph after them is spaced like a list item
+// ('cm-item-paragraph'). Blank lines in code are content and stay visible.
 //
 // Hiding line breaks changes the layout, so CodeMirror needs these ranges from the state, for
 // the whole document. They are computed once, and after that only for the lines an edit touched
@@ -31,6 +32,16 @@ const hidden = Decoration.replace({})
 const skip = Decoration.mark({})
 // the cursor's blank line: spaced like a paragraph, it is a new block still to be typed
 const newBlock = Decoration.line({ class: 'cm-new-block' })
+// a paragraph of a list item after hidden blank lines: spaced like the item's lines
+const itemParagraph = Decoration.line({ class: 'cm-item-paragraph' })
+const code = ['FencedCode', 'CodeBlock', 'HTMLBlock', 'CommentBlock']
+
+function isInCode (state, pos) {
+  for (let node = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent) {
+    if (code.includes(node.name)) return true
+  }
+  return false
+}
 // the cursor's blank line right under a block's text (Shift+Enter): a further line of that
 // block still to be typed, spaced as one
 const newLine = Decoration.line({ class: 'cm-new-line' })
@@ -69,6 +80,7 @@ function computeLines (state, first, last, headLine) {
 
   let blockIndex = 0
   let runStart = null
+  let isInItem = false
   for (let number = first; number <= last + 1; number++) {
     let isGap = false
     if (number <= last) {
@@ -76,13 +88,19 @@ function computeLines (state, first, last, headLine) {
       if (isBlank(line.text)) {
         while (blockIndex < blocks.length && blocks[blockIndex].to < line.from) blockIndex++
         const block = blocks[blockIndex]
-        isGap = !(block && block.from <= line.from && line.to <= block.to)
+        const isInBlock = block && block.from <= line.from && line.to <= block.to
+        // between the paragraphs of a list item, not in code
+        const isItemGap = isInBlock && block.type == 'listItem' && !isInCode(state, line.from)
+        isGap = !isInBlock || isItemGap
+        if (isItemGap && runStart == null) isInItem = true
       }
     }
     if (isGap) {
       if (runStart == null) runStart = number
       continue
     }
+    if (runStart != null && isInItem && number <= last) hide.push(itemParagraph.range(doc.line(number).from))
+    isInItem = false
     if (runStart != null) {
       const runEnd = number - 1
       if (headLine >= runStart && headLine <= runEnd) {
