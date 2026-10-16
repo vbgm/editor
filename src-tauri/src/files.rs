@@ -113,10 +113,11 @@ fn write_synced(path: &Path, text: &str, permissions: Option<fs::Permissions>) -
   Ok(())
 }
 
-// Unix only: symlinks and permission modes
-#[cfg(all(test, unix))]
+// symlinks and permission modes are tested on Unix only (on Windows a symlink needs admin rights)
+#[cfg(test)]
 mod tests {
   use super::*;
+  #[cfg(unix)]
   use std::os::unix::fs::{PermissionsExt, symlink};
 
   fn folder(name: &str) -> PathBuf {
@@ -176,6 +177,7 @@ mod tests {
     assert_eq!(fs::read_to_string(&path).unwrap(), "4");
   }
 
+  #[cfg(unix)]
   #[test]
   fn permissions_and_symlinks_are_kept() {
     let folder = folder("links");
@@ -190,6 +192,7 @@ mod tests {
     assert_eq!(fs::metadata(&target).unwrap().permissions().mode() & 0o777, 0o600);
   }
 
+  #[cfg(unix)]
   #[test]
   fn a_file_in_a_read_only_folder_is_written_in_place() {
     let folder = folder("read-only");

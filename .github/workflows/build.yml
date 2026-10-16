@@ -1,0 +1,64 @@
+# Builds the desktop app's installers, unsigned, as workflow artifacts (no release): the Windows
+# .msi and NSIS .exe, and a universal macOS .dmg (Intel and Apple Silicon in one).
+# Started by hand only: Actions → Build → Run workflow. The installers are under the run's
+# Artifacts, as zips (docs/decisions.md, Desktop app).
+
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            name: windows
+            args: ''
+            bundle: |
+              src-tauri/target/release/bundle/msi/*.msi
+              src-tauri/target/release/bundle/nsis/*.exe
+          - platform: macos-latest
+            name: macos-universal
+            args: --target universal-apple-darwin
+            # only the .dmg: an artifact zip loses the .app's executable bit
+            bundle: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+    runs-on: ${{ matrix.platform }}
+    steps:
+      # Git on Windows turns LF into CRLF on checkout by default; the tests need the files as committed
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.name == 'macos-universal' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: cargo test
+        working-directory: src-tauri
+
+      - uses: tauri-apps/tauri-action@v0
+        with:
+          tauriScript: npx tauri
+          args: ${{ matrix.args }}
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: editor-${{ matrix.name }}
+          path: ${{ matrix.bundle }}
+          if-no-files-found: error
