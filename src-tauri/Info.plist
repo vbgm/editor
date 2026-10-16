@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The icon in Resources/Assets.car (written by .claude/make-icon.py), which has the dark,
+	     clear and tinted versions; icon.icns stays for older macOS -->
+	<key>CFBundleIconName</key>
+	<string>Icon</string>
+</dict>
+</plist>

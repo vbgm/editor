@@ -7,7 +7,7 @@ it after changing anything below:
 
 It needs Xcode (for Icon Composer's ictool) and the project's node_modules (for `tauri icon`).
 
-The drawing: a page, tilted a little, on a dark plate, for contrast. On the page three
+The drawing: a page, tilted a little, on a light grey plate (in dark mode the system's dark one). On the page three
 blocks, stepping in like an outline: at the top a near-black one with a big white T and two short
 bars (in dark mode it turns light, with a dark T, so that it stands out from the dark page), in the
 middle the editor's dragged block (the strongest blue, lifted and turned, with the drag handle of
@@ -24,7 +24,7 @@ BLUES = ['#0066FF', '#4D94FF', '#99C2FF']
 INK, INK_DARK = '#1B1E24', '#F2F4F7'     # the T block, the handle; the T block in dark mode
 NAVY = '#0B2D6B'                          # the bars on the lightest block
 PAGE, PAGE_DARK = '#FFFFFF', '#2A2D33'
-PLATE = '#1E2026'                         # Icon Composer makes a gradient of it (in dark mode the system's own dark plate)
+PLATE = '#E6EAF0'                         # Icon Composer makes a gradient of it
 TILT = -5                                 # the page's turn in degrees, about the middle
 
 PAGE_BOX = (14, 8, 72, 84, 7)             # x, y, width, height, corner
@@ -117,4 +117,24 @@ subprocess.run(['sips', '-p', '1024', '1024', f'{S}/body.png', '--out', f'{S}/ic
 subprocess.run(['npx', 'tauri', 'icon', f'{S}/icon.png', '--output', f'{S}/out'], check=True, capture_output=True, cwd=ROOT)
 for listed in json.load(open(f'{ROOT}/src-tauri/tauri.conf.json'))['bundle']['icon']:
     shutil.copy(f'{S}/out/{os.path.basename(listed)}', f'{ROOT}/src-tauri/{listed}')
+
+# Assets.car: the icon compiled from the document, with the dark, clear and tinted versions that a
+# picture cannot have; tauri.conf.json puts it into the bundle and Info.plist names the icon in it.
+# It is compiled here and not by `tauri build`, whose actool runs without stdin: that leaves actool's
+# daemon (ibtoold) broken, and every compile after fails with "Bad file descriptor" until it is gone
+shutil.copytree(DOC, f'{S}/Icon.icon')
+def compile_car():
+    shutil.rmtree(f'{S}/car', ignore_errors=True)
+    os.makedirs(f'{S}/car')
+    subprocess.run(['xcrun', 'actool', f'{S}/Icon.icon', '--compile', f'{S}/car', '--output-partial-info-plist', f'{S}/car/partial.plist',
+                    '--app-icon', 'Icon', '--include-all-app-icons', '--enable-on-demand-resources', 'NO', '--development-region', 'en',
+                    '--target-device', 'mac', '--minimum-deployment-target', '26.0', '--platform', 'macosx'],
+                   stdin=subprocess.DEVNULL, capture_output=True)
+    return os.path.exists(f'{S}/car/Assets.car')
+if not compile_car():
+    # a daemon broken as above is still running: stop it, and the next compile starts a sound one
+    subprocess.run(['pkill', '-f', 'ibtoold --sending-client-environment'])
+    if not compile_car():
+        raise SystemExit('actool did not make Assets.car')
+shutil.copy(f'{S}/car/Assets.car', f'{ICONS}/Assets.car')
 shutil.rmtree(S)
