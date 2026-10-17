@@ -1,5 +1,6 @@
 // Reading and saving Markdown files. The text goes back to disk exactly as the editor hands it
-// over (BOM, line breaks): nothing here changes it.
+// over (BOM, line breaks): nothing here changes it. Documents in other formats (RTF, Word,
+// OpenDocument: src/app/functions/convert) are read and written as bytes.
 //
 // Saving is atomic: the text goes to a temporary file next to the original, is flushed to disk,
 // then renamed over the original, so a crash or a full disk can never leave half a file. The
@@ -76,11 +77,63 @@ pub fn write_file(path: String, text: String, expected: Option<u64>) -> Result<u
       return Err(FileError::Changed);
     }
   }
-  let permissions = fs::metadata(&path).ok().map(|metadata| metadata.permissions());
-  let temporary = temporary_path(&path);
-  match write_synced(&temporary, &text, permissions) {
+  write_atomic(&path, text.as_bytes())
+}
+
+// a document converted from another format: its bytes, as they are
+#[tauri::command(async)]
+pub fn read_bytes(path: String) -> Result<tauri::ipc::Response, FileError> {
+  Ok(tauri::ipc::Response::new(fs::read(&path)?))
+}
+
+// an exported document: the bytes are the request's body (not JSON), its path the `path` header,
+// percent-encoded (a header is ASCII). It replaces whatever is there: the save dialog asked.
+#[tauri::command(async)]
+pub fn write_bytes(request: tauri::ipc::Request<'_>) -> Result<u64, FileError> {
+  let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+    return Err(FileError::Io {
+      message: "No bytes to write.".into(),
+    });
+  };
+  let path = request
+    .headers()
+    .get("path")
+    .and_then(|value| value.to_str().ok())
+    .and_then(percent_decode)
+    .ok_or_else(|| FileError::Io {
+      message: "No path to write to.".into(),
+    })?;
+  let path = PathBuf::from(path);
+  let path = fs::canonicalize(&path).unwrap_or(path);
+  write_atomic(&path, bytes)
+}
+
+// encodeURIComponent's text back; None when it is not UTF-8
+fn percent_decode(value: &str) -> Option<String> {
+  let bytes = value.as_bytes();
+  let mut decoded = Vec::with_capacity(bytes.len());
+  let mut at = 0;
+  while at < bytes.len() {
+    if bytes[at] == b'%' {
+      let hex = std::str::from_utf8(bytes.get(at + 1..at + 3)?).ok()?;
+      decoded.push(u8::from_str_radix(hex, 16).ok()?);
+      at += 3;
+    } else {
+      decoded.push(bytes[at]);
+      at += 1;
+    }
+  }
+  String::from_utf8(decoded).ok()
+}
+
+// the bytes to a temporary file next to the target, renamed over it; written in place where the
+// folder cannot be written to
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<u64, FileError> {
+  let permissions = fs::metadata(path).ok().map(|metadata| metadata.permissions());
+  let temporary = temporary_path(path);
+  match write_synced(&temporary, bytes, permissions) {
     Ok(()) => {
-      if let Err(error) = fs::rename(&temporary, &path) {
+      if let Err(error) = fs::rename(&temporary, path) {
         let _ = fs::remove_file(&temporary);
         return Err(error.into());
       }
@@ -88,10 +141,10 @@ pub fn write_file(path: String, text: String, expected: Option<u64>) -> Result<u
     // the folder is not writable (or the disk is full: then this fails too, and says so)
     Err(_) => {
       let _ = fs::remove_file(&temporary);
-      write_synced(&path, &text, None)?;
+      write_synced(path, bytes, None)?;
     }
   }
-  Ok(modified_time(&path)?)
+  Ok(modified_time(path)?)
 }
 
 // hidden, next to the file (a rename only stays atomic within one volume)
@@ -103,9 +156,9 @@ fn temporary_path(path: &Path) -> PathBuf {
   path.with_file_name(format!(".{}.{}.saving", name, std::process::id()))
 }
 
-fn write_synced(path: &Path, text: &str, permissions: Option<fs::Permissions>) -> io::Result<()> {
+fn write_synced(path: &Path, bytes: &[u8], permissions: Option<fs::Permissions>) -> io::Result<()> {
   let mut file = fs::File::create(path)?;
-  file.write_all(text.as_bytes())?;
+  file.write_all(bytes)?;
   file.sync_all()?;
   if let Some(permissions) = permissions {
     fs::set_permissions(path, permissions)?;
@@ -203,6 +256,16 @@ mod tests {
     fs::set_permissions(&folder, fs::Permissions::from_mode(0o755)).unwrap();
     assert!(result.is_ok());
     assert_eq!(fs::read_to_string(&path).unwrap(), "b");
+  }
+
+  #[test]
+  fn paths_come_percent_encoded() {
+    assert_eq!(
+      percent_decode("%2FUsers%2Fa%20b%2FGr%C3%BC%C3%9Fe.docx").as_deref(),
+      Some("/Users/a b/Grüße.docx")
+    );
+    assert_eq!(percent_decode("%zz"), None);
+    assert_eq!(percent_decode("%C3"), None);
   }
 
   #[test]

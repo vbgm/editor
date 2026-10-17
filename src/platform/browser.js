@@ -23,15 +23,23 @@ export function writeFile () {
   throw { kind: 'io', message: 'A browser cannot write files.' }
 }
 
-export function pickFile () {
+export function readBytes () {
+  throw { kind: 'io', message: 'A browser cannot read files by path.' }
+}
+
+export function pickFile (documentExtensions = []) {
   return new Promise(resolve => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.md,.markdown,.txt,text/markdown,text/plain'
+    input.accept = ['.md,.markdown,.txt,text/markdown,text/plain', ...documentExtensions.map(extension => `.${extension}`)].join(',')
     input.addEventListener('cancel', () => resolve(null))
     input.addEventListener('change', async () => {
       const file = input.files[0]
       if (!file) return resolve(null)
+      const extension = /\.([^.]+)$/.exec(file.name)?.[1].toLowerCase()
+      if (documentExtensions.includes(extension)) {
+        return resolve({ path: null, name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) })
+      }
       // ignoreBOM keeps a byte order mark in the text, so saving writes it back
       const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(await file.arrayBuffer())
       resolve({ path: null, name: file.name, text, modified: null })
@@ -40,13 +48,23 @@ export function pickFile () {
   })
 }
 
-export function saveAs (text, name) {
+function download (data, type, name) {
   const link = document.createElement('a')
-  link.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }))
+  link.href = URL.createObjectURL(new Blob([data], { type }))
   link.download = name
   link.click()
   setTimeout(() => URL.revokeObjectURL(link.href))
+}
+
+export function saveAs (text, name) {
+  download(text, 'text/markdown', name)
   return { path: null, name, modified: null }
+}
+
+// downloaded, in the format given
+export async function exportFile (directory, name, formats, extension, convert) {
+  download(await convert(extension), 'application/octet-stream', `${name}.${extension}`)
+  return extension
 }
 
 export function askToSave (name) {

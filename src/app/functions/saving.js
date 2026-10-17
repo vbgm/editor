@@ -32,11 +32,13 @@ export default class Saving {
     this.load({ path: null, name: untitledName, text: '' })
   }
 
-  // a document just opened: { path (null: none yet), name, text, modified }
-  load ({ path, name, text, modified = null }) {
+  // a document just opened: { path (null: none yet), name, text, modified, directory (where Save
+  // As starts without a path: the folder of the file it was converted from) }
+  load ({ path, name, text, modified = null, directory = null }) {
     clearTimeout(this.timer)
     this.path = path
     this.name = name
+    this.directory = directory
     this.savedText = text
     this.modified = modified
     this.isConflict = false
@@ -74,7 +76,7 @@ export default class Saving {
       const text = this.getText()
       let saved
       try {
-        saved = await this.platform.saveAs(text, this.name)
+        saved = await this.platform.saveAs(text, this.name, this.directory)
       } catch (error) {
         await this.platform.tell(`“${this.name}” could not be saved.`, error.message ?? error.kind)
         return false

@@ -13,6 +13,7 @@
 //
 // Files opened from Finder or Explorer (Open With, a double click) come in through opened.rs.
 
+mod export;
 mod files;
 mod menu;
 mod opened;
@@ -41,8 +42,11 @@ pub fn run() {
         .build(),
     )
     .invoke_handler(tauri::generate_handler![
+      export::export_panel,
       files::read_file,
       files::write_file,
+      files::read_bytes,
+      files::write_bytes,
       opened::take_opened_file,
       title::set_title_hidden
     ])

@@ -5,6 +5,8 @@
 // which knows nothing of the editor's history. Close and Quit are our own too, so the app can
 // save, or ask, first.
 //
+// Export… asks where and in which format (export.rs on macOS: a File Format popup in the panel).
+//
 // Windows and Linux have no app menu: Exit goes to the File menu there. Show Sidebar has no
 // shortcut there yet (macOS's Ctrl+Cmd+S has no counterpart).
 
@@ -20,6 +22,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
   let close = item("close", "Close Window", Some("CmdOrCtrl+W"))?;
   let save = item("save", "Save", Some("CmdOrCtrl+S"))?;
   let save_as = item("saveAs", "Save As…", Some("CmdOrCtrl+Shift+S"))?;
+  let export = item("export", "Export…", Some("CmdOrCtrl+Shift+E"))?;
   let quit = item(
     "quit",
     if cfg!(target_os = "macos") {
@@ -29,10 +32,19 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     },
     Some("CmdOrCtrl+Q"),
   )?;
-  let (separator_1, separator_2) = (separator()?, separator()?);
-  let mut file_items: Vec<&dyn IsMenuItem<R>> = vec![&new, &open, &separator_1, &close, &save, &save_as];
+  let (separator_1, separator_2, separator_3) = (separator()?, separator()?, separator()?);
+  let mut file_items: Vec<&dyn IsMenuItem<R>> = vec![
+    &new,
+    &open,
+    &separator_1,
+    &close,
+    &save,
+    &save_as,
+    &separator_2,
+    &export,
+  ];
   if !cfg!(target_os = "macos") {
-    file_items.extend([&separator_2 as &dyn IsMenuItem<R>, &quit]);
+    file_items.extend([&separator_3 as &dyn IsMenuItem<R>, &quit]);
   }
   let file = Submenu::with_items(app, "File", true, &file_items)?;
 

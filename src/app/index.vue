@@ -72,6 +72,7 @@
             }'
             @openSample='openSample'
             @openFile='openFile'
+            @export='exportFile'
             @toggleMarkdown='toggleMarkdown'
             @toggleLiteral='isLiteral = !isLiteral'
             @toggleTextSliding='toggleTextSliding'
@@ -126,6 +127,7 @@
   import generateDocument from './functions/generate-document.js'
   import runBenchmark from './benchmark/functions/run.js'
   import Saving, { untitledName } from './functions/saving.js'
+  import { importFormats, exportFormats, isImportable, importDocument, exportDocument } from './functions/convert/index.js'
   import { slideTiming } from './functions/slides.js'
 
   // the test fixtures double as sample documents: opened without a path, so saving asks where
@@ -160,6 +162,18 @@
   }
   // the app starts with a new document, the browser (development) with the user's sample
   const first = platform.isApp ? { name: untitledName, text: '' } : { name: 'basic.md', text: samples['basic.md'] }
+
+  const importExtensions = importFormats.flatMap(format => format.extensions)
+
+  // 'Report.rtf' → 'Report'
+  function baseName (name) {
+    return name.replace(/\.[^.]*$/, '') || name
+  }
+
+  // '/Users/a/Report.rtf' → '/Users/a/' (null without a path)
+  function directoryOf (path) {
+    return path ? path.slice(0, path.length - path.split(/[\\/]/).pop().length) : null
+  }
 
   // the menu's undo and redo for a text field outside the editor (renaming in the outline)
   function isInField () {
@@ -336,6 +350,7 @@
           open: () => this.openFile(),
           save: () => this.saving.save({ isAsked: true }),
           saveAs: () => this.saving.saveAs(),
+          export: () => this.exportFile(),
           // the window asks to close (onCloseRequested); the app quits with its only window
           close: () => platform.close(),
           quit: () => platform.close(),
@@ -364,19 +379,43 @@
         this.show({ path: null, name, text: samples[name] ?? (samples[name] = generateDocument()) })
       },
       async openFile () {
-        const file = await this.readFile(() => platform.pickFile())
-        if (file && await this.saving.release()) this.show(file)
+        this.open(await this.readFile(() => platform.pickFile(importExtensions)))
       },
       async openPath (path) {
-        const file = await this.readFile(() => platform.readFile(path))
-        if (file && await this.saving.release()) this.show(file)
+        this.open(await this.readFile(() => isImportable(path) ? platform.readBytes(path) : platform.readFile(path)))
       },
+      // a file read; one in another format (RTF, Word…) opens as a new Markdown document next to
+      // it, the original left as it is, and says what had no Markdown form
+      async open (file) {
+        if (!file || !await this.saving.release()) return
+        this.show(file)
+        if (file.lost) await platform.tell(`“${file.source}” was opened as a new Markdown document.`, `Markdown has no form for its ${file.lost}, so they were left out.`)
+      },
+      // read() reads the file; a document in another format is converted here
       async readFile (read) {
         try {
-          return await read()
+          const file = await read()
+          if (!file?.bytes) return file
+          const { text, lost } = await importDocument(file.bytes, file.name)
+          return { path: null, name: `${baseName(file.name)}.md`, text, directory: directoryOf(file.path), source: file.name, lost }
         } catch (error) {
-          await platform.tell('The file could not be opened.', error.kind == 'notText' ? 'It is not a text file (UTF-8).' : error.message)
+          const message = { notText: 'It is not a text file (UTF-8).', notDocument: error.message }[error.kind] ?? error.message ?? String(error)
+          await platform.tell('The file could not be opened.', message)
           return null
+        }
+      },
+      // Export…: a copy in another format, next to the document's file (or the file it was
+      // converted from); the document stays the Markdown file. extension: the format chosen at
+      // first (the last one used)
+      async exportFile (extension = stored('export.extension', exportFormats[0].extensions[0])) {
+        const text = this.$refs.editor.getText()
+        const title = baseName(this.saving.name)
+        const directory = directoryOf(this.saving.path) ?? this.saving.directory
+        try {
+          const written = await platform.exportFile(directory, title, exportFormats, extension, format => exportDocument(text, format, title))
+          if (written) store('export.extension', written)
+        } catch (error) {
+          await platform.tell(`“${title}” could not be exported.`, error.message ?? error.kind ?? String(error))
         }
       },
       toggleMarkdown () {

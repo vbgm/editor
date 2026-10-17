@@ -1,6 +1,6 @@
 <!--
 The settings sidebar (right): for now the development controls that were in the toolbar: pick a
-sample document, open a file, switch between Document and Markdown mode, turn literal typing on
+sample document, open a file, export it, switch between Document and Markdown mode, turn literal typing on
 or off, how the sidebars move the text, show the stats, run the benchmark.
 Controls do not take the keyboard focus (mousedown.prevent): the editor keeps the cursor, so
 shortcuts work right after clicking one. Its top is under the toolbar (--top-inset).
@@ -43,6 +43,28 @@ shortcuts work right after clicking one. Its top is under the toolbar (--top-ins
       >
         Open file…
       </button>
+
+      <!-- a format to export to (Cmd+Shift+E asks in the app) -->
+      <select
+        class='select'
+        value=''
+        title='Export (Cmd+Shift+E)'
+        @change='exportAs'
+      >
+        <option
+          value=''
+          disabled
+        >
+          Export as…
+        </option>
+        <option
+          v-for='format in exportFormats'
+          :key='format.extensions[0]'
+          :value='format.extensions[0]'
+        >
+          {{ format.name }} (.{{ format.extensions[0] }})
+        </option>
+      </select>
     </section>
 
     <section class='section'>
@@ -90,6 +112,9 @@ shortcuts work right after clicking one. Its top is under the toolbar (--top-ins
 
 </template><script>
 
+  // functions
+  import { exportFormats } from '/src/app/functions/convert/index.js'
+
   export default {
     name: 'Settings',
     props: {
@@ -101,7 +126,12 @@ shortcuts work right after clicking one. Its top is under the toolbar (--top-ins
       isTextSliding: Boolean,
       progress: String
     },
-    emits: ['openSample', 'openFile', 'toggleMarkdown', 'toggleLiteral', 'toggleTextSliding', 'toggleStats', 'benchmark'],
+    emits: ['openSample', 'openFile', 'export', 'toggleMarkdown', 'toggleLiteral', 'toggleTextSliding', 'toggleStats', 'benchmark'],
+    data () {
+      return {
+        exportFormats
+      }
+    },
     computed: {
       options () {
         return [
@@ -138,6 +168,11 @@ shortcuts work right after clicking one. Its top is under the toolbar (--top-ins
       openSample (event) {
         this.$emit('openSample', event.target.value)
         event.target.value = this.documentName
+      },
+      // the list goes back to its title: it is a menu
+      exportAs (event) {
+        this.$emit('export', event.target.value)
+        event.target.value = ''
       }
     }
   }

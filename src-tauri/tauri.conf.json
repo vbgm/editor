@@ -38,6 +38,33 @@
         "contentTypes": ["net.daringfireball.markdown"],
         "role": "Editor",
         "rank": "Alternate"
+      },
+      {
+        "ext": ["rtf"],
+        "name": "Rich Text",
+        "description": "Rich Text document",
+        "mimeType": "application/rtf",
+        "contentTypes": ["public.rtf"],
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["docx"],
+        "name": "Word",
+        "description": "Word document",
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "contentTypes": ["org.openxmlformats.wordprocessingml.document"],
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["odt"],
+        "name": "OpenDocument Text",
+        "description": "OpenDocument text",
+        "mimeType": "application/vnd.oasis.opendocument.text",
+        "contentTypes": ["org.oasis-open.opendocument.text"],
+        "role": "Viewer",
+        "rank": "Alternate"
       }
     ],
     "icon": [

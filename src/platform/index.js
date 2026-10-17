@@ -10,11 +10,21 @@
 //   setTitle (title)
 //   setNativeTitleHidden (isHidden)       whether the window's own title is hidden (macOS; hidden
 //                                         at first, shown while the app draws no title row)
-//   pickFile ()                           Open…: { path, name, text, modified } or null
+//   pickFile (documentExtensions)         Open…: { path, name, text, modified }, or for a file
+//                                         with one of documentExtensions (RTF, Word…: converted,
+//                                         not edited) { path, name, bytes }; or null
 //   readFile (path)                       { path, name, text, modified }
+//   readBytes (path)                      { path, name, bytes }
 //   writeFile (path, text, expected)      the new modification time; throws { kind: `changed` }
 //                                         when the file's is no longer expected (null: no check)
-//   saveAs (text, name)                   Save As…: { path, name, modified } or null
+//   saveAs (text, name, directory)        Save As…: { path, name, modified } or null; the dialog
+//                                         opens in directory (ending in its separator) if given
+//   exportFile (directory, name, formats, extension, convert)
+//                                         Export…: asks where and in which of formats ([{ name,
+//                                         extensions }]; extension: the one chosen at first; name:
+//                                         without an extension; directory: null for the last one
+//                                         used), then writes await convert(extension); the
+//                                         extension written, or null
 //   askToSave (name)                      `save`, `discard` or `cancel`
 //   askToOverwrite (name)                 true to replace a file changed by someone else
 //   askToClose (name, error)              true to close although saving failed
