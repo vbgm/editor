@@ -116,6 +116,14 @@ export function onFileDrop (handler) {
   })
 }
 
+// a file opened from Finder or Explorer (src-tauri/src/opened.rs): the one that started the app,
+// then any opened later; listening first, so none comes in between
+export async function onFileOpen (handler) {
+  await listen('open-file', event => handler(event.payload))
+  const path = await invoke('take_opened_file')
+  if (path) handler(path)
+}
+
 // the window closes only once the handler says so; the app quits with it (src-tauri/src/lib.rs)
 export function onCloseRequested (handler) {
   const window = getCurrentWindow()

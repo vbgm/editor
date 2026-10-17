@@ -21,6 +21,9 @@
 //   tell (title, text)                    a message, with OK
 //   onMenu (handler)                      menu commands by id (src-tauri/src/menu.rs)
 //   onFileDrop (handler)                  paths of files dropped on the window
+//   onFileOpen (handler)                  the path of a file opened from Finder or Explorer
+//                                         (Open With, a double click), also the one the app
+//                                         was started with
 //   onFullscreen (handler)                true when the window goes fullscreen, false when it
 //                                         leaves it; called once at first with how it is
 //   onCloseRequested (handler)            handler resolves true to let the window close

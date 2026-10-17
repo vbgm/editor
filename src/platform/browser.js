@@ -65,10 +65,12 @@ export function tell (title, text) {
   alert(`${title}\n\n${text}`)
 }
 
-// no native menu or file drops in the browser
+// no native menu, file drops or files opened from the system in the browser
 export function onMenu () {}
 
 export function onFileDrop () {}
+
+export function onFileOpen () {}
 
 // a page is shown as the window it is in: never fullscreen
 export function onFullscreen (handler) {

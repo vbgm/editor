@@ -264,6 +264,7 @@
       platform.setTitle(first.name)
       platform.onMenu(command => this.runMenu(command))
       platform.onFileDrop(paths => this.openPath(paths[0]))
+      platform.onFileOpen(path => this.openPath(path))
       platform.onFullscreen(isFullscreen => { this.isFullscreen = isFullscreen })
       platform.onCloseRequested(() => this.saving.release())
       // the document is in the page: the window can show without flashing
