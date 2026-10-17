@@ -19,10 +19,15 @@ export default function writeHtml ({ blocks }, title) {
 </style>
 </head>
 <body>
-${blocks.map(block).join('\n')}
+${bodyHtml({ blocks })}
 </body>
 </html>
 `
+}
+
+// the document's blocks as HTML, also what Print lays out (../print.js)
+export function bodyHtml ({ blocks }) {
+  return blocks.map(block).join('\n')
 }
 
 function block (node) {

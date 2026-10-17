@@ -17,6 +17,7 @@ mod export;
 mod files;
 mod menu;
 mod opened;
+mod print;
 mod title;
 
 use std::time::Duration;
@@ -48,6 +49,8 @@ pub fn run() {
       files::read_bytes,
       files::write_bytes,
       opened::take_opened_file,
+      print::print_page,
+      print::print_pdf,
       title::set_title_hidden
     ])
     .setup(|app| {

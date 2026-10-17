@@ -25,6 +25,10 @@
 //                                         without an extension; directory: null for the last one
 //                                         used), then writes await convert(extension); the
 //                                         extension written, or null
+//   printsPdf                             Print… prints the document's PDF (macOS), not the page
+//   printPdf (bytes, title)               the print dialog for a PDF (a sheet on the window)
+//   printPage ()                          the print dialog for the page as print CSS lays it
+//                                         out (src/app/functions/print.js)
 //   askToSave (name)                      `save`, `discard` or `cancel`
 //   askToOverwrite (name)                 true to replace a file changed by someone else
 //   askToClose (name, error)              true to close although saving failed

@@ -109,7 +109,7 @@ pub fn write_bytes(request: tauri::ipc::Request<'_>) -> Result<u64, FileError> {
 }
 
 // encodeURIComponent's text back; None when it is not UTF-8
-fn percent_decode(value: &str) -> Option<String> {
+pub fn percent_decode(value: &str) -> Option<String> {
   let bytes = value.as_bytes();
   let mut decoded = Vec::with_capacity(bytes.len());
   let mut at = 0;

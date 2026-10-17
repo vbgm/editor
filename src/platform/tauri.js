@@ -121,6 +121,18 @@ export async function exportFile (directory, name, formats, extension, convert) 
   return extension
 }
 
+// Print… (src-tauri/src/print.rs): macOS prints the document's PDF (PDFKit, as Preview does),
+// Windows and Linux the page as print CSS lays it out
+export const printsPdf = isMac
+
+export function printPdf (bytes, title) {
+  return invoke('print_pdf', bytes, { headers: { title: encodeURIComponent(title) } })
+}
+
+export function printPage () {
+  return invoke('print_page')
+}
+
 export async function askToSave (name) {
   const answer = await message('Your changes will be lost if you don’t save them.', {
     title: `Do you want to save the changes made to “${name}”?`,

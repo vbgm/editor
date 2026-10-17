@@ -6,6 +6,7 @@
 // save, or ask, first.
 //
 // Export… asks where and in which format (export.rs on macOS: a File Format popup in the panel).
+// Print… prints the document's PDF on macOS, the page laid out for paper elsewhere (print.rs).
 //
 // Windows and Linux have no app menu: Exit goes to the File menu there. Show Sidebar has no
 // shortcut there yet (macOS's Ctrl+Cmd+S has no counterpart).
@@ -23,6 +24,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
   let save = item("save", "Save", Some("CmdOrCtrl+S"))?;
   let save_as = item("saveAs", "Save As…", Some("CmdOrCtrl+Shift+S"))?;
   let export = item("export", "Export…", Some("CmdOrCtrl+Shift+E"))?;
+  let print = item("print", "Print…", Some("CmdOrCtrl+P"))?;
   let quit = item(
     "quit",
     if cfg!(target_os = "macos") {
@@ -42,6 +44,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     &save_as,
     &separator_2,
     &export,
+    &print,
   ];
   if !cfg!(target_os = "macos") {
     file_items.extend([&separator_3 as &dyn IsMenuItem<R>, &quit]);

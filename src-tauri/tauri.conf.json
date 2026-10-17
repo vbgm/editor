@@ -65,6 +65,15 @@
         "contentTypes": ["org.oasis-open.opendocument.text"],
         "role": "Viewer",
         "rank": "Alternate"
+      },
+      {
+        "ext": ["pdf"],
+        "name": "PDF",
+        "description": "PDF document",
+        "mimeType": "application/pdf",
+        "contentTypes": ["com.adobe.pdf"],
+        "role": "Viewer",
+        "rank": "Alternate"
       }
     ],
     "icon": [

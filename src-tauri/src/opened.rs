@@ -1,6 +1,6 @@
 // Files the system asks the app to open: a double click in Finder or Explorer, Open With, a file
 // dropped on the Dock icon. The app declares Markdown (.md, .markdown) as its editor, and RTF,
-// Word and OpenDocument text as their viewer (they open as a new Markdown document), in
+// Word, OpenDocument text and PDF as their viewer (they open as a new Markdown document), in
 // tauri.conf.json (`fileAssociations`), which is what lists it under Open With.
 //
 // macOS hands them over as an event (`RunEvent::Opened`, in lib.rs), at launch as well as later.

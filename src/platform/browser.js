@@ -67,6 +67,14 @@ export async function exportFile (directory, name, formats, extension, convert) 
   return extension
 }
 
+export const printsPdf = false
+
+export function printPdf () {}
+
+export function printPage () {
+  window.print()
+}
+
 export function askToSave (name) {
   return confirm(`“${name}” has changes that are not saved. Discard them?`) ? 'discard' : 'cancel'
 }

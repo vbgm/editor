@@ -293,6 +293,10 @@
           event.preventDefault()
           this.toggleToolbar()
         }
+        if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.code == 'KeyP') {
+          event.preventDefault()
+          this.printDocument()
+        }
       }
       window.addEventListener('keydown', this.onKeyDown)
     },
@@ -351,6 +355,7 @@
           save: () => this.saving.save({ isAsked: true }),
           saveAs: () => this.saving.saveAs(),
           export: () => this.exportFile(),
+          print: () => this.printDocument(),
           // the window asks to close (onCloseRequested); the app quits with its only window
           close: () => platform.close(),
           quit: () => platform.close(),
@@ -416,6 +421,22 @@
           if (written) store('export.extension', written)
         } catch (error) {
           await platform.tell(`“${title}” could not be exported.`, error.message ?? error.kind ?? String(error))
+        }
+      },
+      // Print…: the document's PDF, as Export… writes it (macOS), or the page laid out the same
+      // way by print CSS (functions/print.js)
+      async printDocument () {
+        const text = this.$refs.editor.getText()
+        const title = baseName(this.saving.name)
+        try {
+          if (platform.printsPdf) await platform.printPdf(await exportDocument(text, 'pdf', title), title)
+          else {
+            const { default: preparePrint } = await import('./functions/print.js')
+            await preparePrint(text, title)
+            await platform.printPage()
+          }
+        } catch (error) {
+          await platform.tell(`“${title}” could not be printed.`, error.message ?? String(error))
         }
       },
       toggleMarkdown () {
