@@ -12,7 +12,7 @@
     <div class='main'>
       <TitleBar
         v-if='hasTitleBar'
-        :title='title'
+        :title='documentName'
         :isToolbarShown='isToolbarShown'
         @toggleToolbar='toggleToolbar'
       />
@@ -182,8 +182,6 @@
       return {
         sampleNames: Object.keys(samples),
         documentName: first.name,
-        // the window's: the file name, and "— Edited" while the file does not hold the text
-        title: first.name,
         // the document the editor starts with; others are loaded into it (show)
         text: first.text,
         // Markdown mode (button or Cmd+Shift+M): the file as it is, symbols and blank lines
@@ -250,19 +248,20 @@
       }
     },
     created () {
-      // not reactive; the window's title says whether there are unsaved edits
+      // not reactive; the window's title is the file's name (Save As may change it), with no
+      // "— Edited" while there are unsaved edits (the user's choice)
       this.saving = new Saving({
         platform,
         getText: () => this.$refs.editor.getText(),
-        onChange: ({ name, isEdited }) => {
+        onChange: ({ name }) => {
           this.documentName = name
-          this.setTitle(isEdited ? `${name} — Edited` : name)
+          platform.setTitle(name)
         }
       })
       this.saving.load({ path: null, ...first })
     },
     mounted () {
-      this.setTitle(first.name)
+      platform.setTitle(first.name)
       platform.onMenu(command => this.runMenu(command))
       platform.onFileDrop(paths => this.openPath(paths[0]))
       platform.onFullscreen(isFullscreen => { this.isFullscreen = isFullscreen })
@@ -286,11 +285,6 @@
       window.removeEventListener('keydown', this.onKeyDown)
     },
     methods: {
-      // the window's (its menu, Mission Control) and the title row's
-      setTitle (title) {
-        this.title = title
-        platform.setTitle(title)
-      },
       toggleSidebar () {
         this.showSidebar('isSidebarShown', 'sidebar.isShown')
       },
@@ -356,7 +350,7 @@
       show (document) {
         this.saving.load(document)
         this.documentName = document.name
-        this.setTitle(document.name)
+        platform.setTitle(document.name)
         this.$refs.editor.load(document.text)
         this.$refs.editor.focus()
       },

@@ -3,8 +3,8 @@ The window's title bar where the app draws it (macOS: the native one is laid ove
 tauri.macos.conf.json): a row as high as a plain title bar (28 px), above the toolbar. The
 window's buttons are macOS's own, at the left; the button that hides and shows the toolbar is at
 the right, a grey circle a little larger than the window's buttons, on their middle line. The
-title (the file name, and "— Edited") is the app's, centred in the window (macOS would put its
-own right after the buttons; it is hidden, src-tauri/src/title.rs). The row and the title move
+title (the file name) is the app's, centred in the window (macOS would put its own right after
+the buttons; it is hidden, src-tauri/src/title.rs). The row and the title move
 the window, and a double click zooms it (data-tauri-drag-region). Not drawn in fullscreen, where
 macOS shows its buttons and its own title in its own bar (App).
 -->
