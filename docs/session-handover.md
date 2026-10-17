@@ -1,6 +1,6 @@
 # Session handover
 
-State of the project at the end of the seventh working session (2026-10-17), for whoever continues.
+State of the project at the end of the eighth working session (2026-10-17), for whoever continues.
 Read in this order:
 
 1. this file: where things stand and how to work here
@@ -50,17 +50,12 @@ Rust is installed with rustup (`~/.cargo/bin`; a shell started before that needs
 
 ## This session
 
-The toolbar, the sidebars and the window's title bar polished, with the user, mostly by eye; details in decisions.md, "Toolbar", "Toolbar icons", "Window":
+A short one, on the desktop app's window (decisions.md, "Window"):
 
-- **Toolbar icons** `foundation/icon/`: one stroke (9), the same visible height with optical over- and undershoot (`optical`), each fitted to its drawing (`isFitted`, measured in a hidden SVG) and 12 px from the next as drawn; H1–H6 drawn as icons (a small H and a digit made of circles' arcs, `headingDigits` in `shapes.js`); a numbered-list icon with one 1 over two of three lines.
-- **Toolbar** `src/app/toolbar/`: two groups (line formats: H1–H6, numbered, bulleted, task; inline formats); the task button toggles the checkbox (`toggleTaskList`); the heading menu's chevron and menu placed; its blurred background is over the whole width, opaque at the top, with a line below only while a sidebar is shown or the text is under it; its moving parts on their own layers (no jitter).
-- **Paragraph** (Cmd+0, the heading menu): a list item becomes a paragraph of its own, out of the list (blank lines around it, `paragraphBreaks` in `format/lines.js`); a numbered task's box goes too.
-- **macOS title row** `src/app/title-bar/` with `src-tauri/tauri.macos.conf.json` (overlay title bar): the traffic lights are macOS's, the title is the app's, centred in the window, the toolbar's circle at the right (macOS's own hidden, shown again in fullscreen: `src-tauri/src/title.rs`), the row drags the window; in fullscreen there is no row and the toolbar's arrow comes back (`platform.onFullscreen`). The arrow (`toolbar/components/toggle.vue`) morphs: down while the toolbar is hidden, up while it shows.
-- **Slides**: the toolbar and the sidebars share one timing, 275 ms, ease (`src/app/functions/slides.js`), as Ordner's sidebars (300 ms there); a sidebar slides a third of its width, or as far as the text it pushes aside.
-- **Sidebars** run up under the toolbar, which blurs and hides their top; their edges and the toolbar's line share `--color--border--panel`.
-- The text starts 1.5rem below the toolbar (`@content-top`).
+- **The window comes back where it was** on every OS: place, size, maximized or fullscreen (`tauri-plugin-window-state` in `src-tauri/src/lib.rs`; `.window-state.json` in `~/Library/Application Support/app.textflow/` on macOS, written on quit), still hidden until the web app shows it; on a screen that is gone it opens at the default place. Checked on macOS (restoring and saving on quit); not yet on Windows or Linux.
+- **The title is centred in the window** on macOS: the title row draws the file name itself again (`src/app/title-bar/`, App's `documentName`); no title shows "— Edited" any more (the user found it stupid), with as much room kept on both sides as the traffic lights take; macOS's own title is hidden (`hiddenTitle`) and shown again in fullscreen, where the app draws no row (`src-tauri/src/title.rs` sets NSWindow's `titleVisibility`; the web app calls `platform.setNativeTitleHidden` when `hasTitleBar` changes). Centring it between the traffic lights and the circle was tried first. The user checked it in the app.
 
-Sixth session: the toolbar and the settings sidebar (decisions.md, "Toolbar"). Fifth: the desktop app, saving, the GitHub Actions builds and the app icon (decisions.md, "Desktop app (Tauri)", "Files", "App icon").
+Seventh session: the toolbar's icons, groups and task toggle, Paragraph out of a list (Cmd+0), the macOS title row and fullscreen, one shared timing for the toolbar's and the sidebars' slides, the sidebars running up under the toolbar (decisions.md, "Toolbar", "Toolbar icons", "Window"). Sixth session: the toolbar and the settings sidebar (decisions.md, "Toolbar"). Fifth: the desktop app, saving, the GitHub Actions builds and the app icon (decisions.md, "Desktop app (Tauri)", "Files", "App icon").
 
 ## Values to tune
 
@@ -91,7 +86,7 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 - **Toolbar** (Cmd+Alt+T hides it, with the sidebars): heading levels, lists and tasks, then inline formats for the text with the cursor, lit where it has them; on macOS below the app's title row, with macOS's own traffic lights, the app's centred title and the toolbar's circle (decisions.md, "Toolbar", "Toolbar icons", "Window").
 - **Outline** (toolbar's sidebar button, Ctrl+Cmd+S; hidden at first): the headings as a tree in a resizable left sidebar; clicking one goes to it, clicking its title's text renames it, the chevron (or a click on the selected heading) folds it, and dragging one moves its section before, after or onto (into) another heading, levels shifted (decisions.md, "Outline sidebar").
 - Files round-trip byte for byte (BOM kept outside the editor text, CRLF, no final newline, front matter); a mixed-line-break file is normalized to LF.
-- **Desktop app** (macOS; Windows builds on CI, untested): opens, saves by itself and on Cmd+S, Save As, New, closes and quits without losing edits (decisions.md, "Files"). The Settings sidebar's document list holds the samples and the open file's name, and "Open file…" is File ▸ Open.
+- **Desktop app** (macOS; Windows builds on CI, untested): opens, saves by itself and on Cmd+S, Save As, New, closes and quits without losing edits (decisions.md, "Files"); the window opens where it was closed. The Settings sidebar's document list holds the samples and the open file's name, and "Open file…" is File ▸ Open.
 
 ## Map of the code
 
@@ -181,6 +176,9 @@ One CodeMirror 6 editor (in `src/app/editor/`) with two modes, switched by the M
 - **A see-through colour on a filled circle with an outline** draws the outline darker (the two layers add up): mix the colour into the background (`color-mix(…, var(--color--background))`) for one solid colour.
 - **Optical sizes**: icons of the same measured height do not look it; round and diagonal shapes look smaller, letters and lists larger. Measure the drawn edges (with the stroke) in the pane, then correct by eye with the user (`optical`, scales of 72–86).
 - **macOS's overlay title bar**: macOS still draws the window's title over the page, at its own place; with the toolbar as the title bar it fell on the formatting buttons. `hiddenTitle` is set only when the window is made (no Tauri call changes it later); `NSWindow`'s `titleVisibility` does, through `objc2-app-kit` (`src-tauri/src/title.rs`, on the main thread), and hidden it is hidden in fullscreen's bar too. In fullscreen the traffic lights and the title move into macOS's own bar, which the page cannot draw into; fullscreen is read from the window's resizes (`isFullscreen`). `data-tauri-drag-region` moves the window from the element itself, not its children, and needs `core:window:allow-start-dragging`.
+- **The window-state plugin** keeps each window's state from its moves, resizes and close request, and writes the file only on `RunEvent::Exit`; the app's quit goes through closing the window, so every quit saves. A restart by `tauri dev` (after a Rust change) kills the app: no save. Without `StateFlags::VISIBLE` it never shows the hidden window itself.
+- **Checking the desktop app's window without seeing it**: `CGWindowListCopyWindowInfo` gives a process's window bounds (in points) without screen-recording permission, and `NSRunningApplication(processIdentifier:).terminate()` quits one process the way the Dock does (both from a small Swift script run with `swift`); a state file written by hand before launching shows the restore. `screencapture -l` fails without the permission. Run a copy of `target/debug/textflow` so `tauri dev` rebuilds do not replace it.
+- **AppKit from a Tauri command**: commands run off the main thread; take `window.ns_window()` as a number and touch the `NSWindow` inside `window.run_on_main_thread` (`objc2-app-kit` 0.3, the version Tauri uses, macOS-only dependency).
 - **Modification times as milliseconds** fit a JavaScript number exactly; the Rust side returns the time after each save, and the next save passes it back. Saves are chained promises, each reading the text when it starts, so nothing waits on a lock.
 
 ## Tried and dropped
@@ -189,7 +187,8 @@ Card boxes around blocks (as line styling, then as a layer); a Look switch with 
 
 ## Next steps (not started)
 
-- **Keyboard in the outline** (the user's next step): the outline is focusable and keeps the focus after renaming with Enter or Escape; still to do: ↑/↓ between headings, ←/→ to close / open (as in Ordner), Enter to rename, a way back to the editor.
+- **RTF files** (the user's next step, asked for at the end of this session; nothing investigated yet): open and save `.rtf` as well as Markdown. To work out in the plan: the editor holds Markdown, so RTF means converting both ways (headings, bold, italic, strikethrough, code, links, lists and tasks; RTF has no headings as such, only styles and sizes, so reading them back is a guess) and losing what the other side cannot hold; whether to convert in Rust (a crate) or JavaScript; whether an RTF document autosaves in place like a `.md` (rewriting a user's RTF loses its formatting beyond ours) or only on Save As / Export; the file filters (`markdownFilter` in `src/platform/tauri.js`, the browser's `accept`), `files.rs` (reads UTF-8 text only; RTF is 7-bit ASCII, so it reads as is), and `.rtfd` (a folder with images) later or never.
+- **Keyboard in the outline**: the outline is focusable and keeps the focus after renaming with Enter or Escape; still to do: ↑/↓ between headings, ←/→ to close / open (as in Ordner), Enter to rename, a way back to the editor.
 - **Files** (rest of Milestone 4): watching the file and taking in outside changes (keep undo: apply as a minimal diff; this also ends the "changed by another app" stop), recent files, reopening the last session (with the outline's closed headings and the sidebar's settings, now in `localStorage`), opening `.md` files from Finder (file associations, "Open With"), single instance, a settings store.
 - **Windows**: the user runs Build Windows (and Build macOS) once pushed; then try the installer in a Windows VM (an x64 VM runs at full speed on this Intel Mac): typing latency (WebView2), fonts, the in-window menu, Ctrl shortcuts, a Show Sidebar shortcut for Windows, saving and CRLF files. Signing later (Azure Trusted Signing works from CI).
 - **Toolbar**: the settings are still the development controls; no keyboard focus for its buttons; below about 30rem its center no longer fits (the app's minimum is 480 px); a toggle in the middle of a slide reverses the bar's CSS transition in less time than the body's slide. Not yet seen on Windows or Linux (the arrow in the toolbar, the native title bar). Maybe a Settings… item (Cmd+,) and a Format menu with the toolbar's commands.
